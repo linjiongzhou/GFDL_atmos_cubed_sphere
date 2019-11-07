@@ -58,6 +58,8 @@
 ! +-----------------------------------------------------------------------------+
 module module_mp_SBM_BreakUp
 
+use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
+
 private
 public Spont_Rain_BreakUp,Spontanous_Init,BreakUp_Snow,KR_SNOW_MIN,KR_SNOW_MAX
 
@@ -109,7 +111,7 @@ DO KR=1,NKR
 END DO
 
 WRITE( wrf_err_message , * ) 'IKR_Spon_Break=',ikr_spon_break
-CALL wrf_message ( TRIM ( wrf_err_message ) )
+CALL mpp_error (NOTE, TRIM ( wrf_err_message ) )
 
 if (i_break_method==1) then
  	DO KR=1,NKR
@@ -409,6 +411,8 @@ end module module_mp_SBM_BreakUp
 ! +-----------------------------------------------------------------------------+
  module module_mp_SBM_Collision
 
+ use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
+
  private
  public coll_xyy_lwf, coll_xyx_lwf, coll_xxx_lwf, &
         coll_xyz_lwf, coll_xxy_lwf, &
@@ -593,7 +597,7 @@ enddo
 				        if(fly(kp).gt.1.0001d0) print*, &
 					           'stop 2022: in sub. coll_xyy_lwf, fly(kp) > 1.0001'
 
-                     call wrf_error_fatal("in coal_bott coll_xyy_lwf, model stop")
+                     call mpp_error (FATAL, "in coal_bott coll_xyy_lwf, model stop")
 ! in case fly(k).gt.1.0001d0.or.fly(kp).gt.1.0001d0
 !        .or.fly(k).lt.0.0d0.or.fly(kp).lt.0.0d0
           endif
@@ -772,7 +776,7 @@ enddo
 
               if(fl(kp).gt.1.0001d0) print*, &
                  'stop 2022: in sub. coll_xxx_lwf, fl(kp) > 1.0001'
-                    call wrf_error_fatal("in coal_bott sub. coll_xxx_lwf, model stop")
+                    call mpp_error (FATAL, "in coal_bott sub. coll_xxx_lwf, model stop")
               endif
 2021     continue
        enddo
@@ -974,7 +978,7 @@ enddo
 
         				if(flx(kp).gt.1.0001d0) print*, &
         					   'stop 2022: in sub. coll_xyx_lwf, flx(kp) > 1.0001'
-                  call wrf_error_fatal("fatal error in module_mp_fast_sbm in coll_xyx_lwf (stop 2022), model stop")
+                  call mpp_error (FATAL, "fatal error in module_mp_fast_sbm in coll_xyx_lwf (stop 2022), model stop")
                   stop 2022
                endif
  2021         continue
@@ -1181,7 +1185,7 @@ enddo
 
             if(flz(kp).gt.1.0001d0) print*, &
                'stop 2022: in sub. coll_xyz_lwf, flz(kp) > 1.0001'
-              call wrf_error_fatal("fatal error: in sub. coll_xyz_lwf,model stop")
+              call mpp_error (FATAL, "fatal error: in sub. coll_xyz_lwf,model stop")
             endif
 2021         continue
          enddo
@@ -1496,7 +1500,7 @@ enddo
       print*,xt
       print*,"-"
       print*,gt
-      call wrf_error_fatal(" inside coll_breakup, NaN, model stop")
+      call mpp_error (FATAL, " inside coll_breakup, NaN, model stop")
     endif
   enddo
 
@@ -1599,6 +1603,8 @@ end module module_mp_SBM_Collision
 ! +-----------------------------------------------------------------------------+
 ! +-----------------------------------------------------------------------------+
  module module_mp_SBM_Auxiliary
+
+ use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
 
  private
  public :: POLYSVP, JERRATE_KS, JERTIMESC_KS, JERSUPSAT_KS, &
@@ -2103,7 +2109,7 @@ enddo
             PRINT*,   'DEL1,DEL2'
             PRINT 202, DEL1,DEL2
 	          PRINT*,   'STOP 1905:A < 0'
-	          call wrf_error_fatal("fatal error: STOP 1905:A < 0, model stop")
+	          call mpp_error (FATAL, "fatal error: STOP 1905:A < 0, model stop")
        ENDIF
 ! water and ice                                               (start)
        ALFA=DSQRT((RW-PI)*(RW-PI)+4.0D0*PW*RI)
@@ -2366,7 +2372,7 @@ enddo
 					ENDIF
 		  		IF(PSI2R(KR)<0.0D0) THEN
 					  PRINT*,    'STOP 1506 : PSI2R(KR)<0.0D0, in JERDFUN_KS'
-						call wrf_error_fatal("fatal error in PSI2R(KR)<0.0D0, in JERDFUN_KS, model stop")
+						call mpp_error (FATAL, "fatal error in PSI2R(KR)<0.0D0, in JERDFUN_KS, model stop")
 			  	ENDIF
     	  	PSI2(KR) = PSI2R(KR)
    	 ENDDO
@@ -2688,7 +2694,7 @@ enddo
 					PRINT*,    'K,RR(K),RN(K),FI(K),PSI(K),K=1,NRX'
 					PRINT 304, (K,RR(K),RN(K),FI(K),PSI(K),K=1,NRX)
 					PRINT*,		IDROP,Ihydro,Iin,Jin,Kin,Itimestep
-          call wrf_error_fatal("fatal error in SUBROUTINE JERNEWF PSI(KR)<0, < min, model stop")
+          call mpp_error (FATAL, "fatal error in SUBROUTINE JERNEWF PSI(KR)<0, < min, model stop")
 			ENDIF
 		ENDDO
 
@@ -2951,6 +2957,8 @@ end module module_mp_SBM_Auxiliary
 ! +-----------------------------------------------------------------------------+
 ! +-----------------------------------------------------------------------------+
  module module_mp_SBM_Nucleation
+
+ use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
 
  USE module_mp_SBM_Auxiliary,ONLY:POLYSVP
 
@@ -3487,7 +3495,7 @@ end module module_mp_SBM_Auxiliary
    if (nn == -1) then
     print*,"PR, Wbase [cm/s], C3",PR,wbase,C3
     print*,"PL",PL
-    CALL wrf_error_fatal ( 'NN is not defined in cloud base routine, model stop' )
+    CALL mpp_error (FATAL, 'NN is not defined in cloud base routine, model stop' )
    endif
 
 	! linear interpolation- finding radius criti of aerosol between
@@ -3937,6 +3945,8 @@ end module module_mp_SBM_Auxiliary
  ! +----------------------------------------------------------------------------+
   MODULE module_mp_fast_sbm
 
+  use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
+
   USE module_mp_SBM_polar_radar,ONLY:polar_hucm
   USE module_mp_SBM_BreakUp,ONLY:Spont_Rain_BreakUp,BreakUp_Snow,KR_SNOW_MIN,KR_SNOW_MAX
   USE module_mp_SBM_Nucleation,ONLY:JERNUCL01_KS, LogNormal_modes_Aerosol_ACPC,LogNormal_modes_Aerosol
@@ -3954,8 +3964,6 @@ end module module_mp_SBM_Auxiliary
                         usetables,                            &
                         twolayer_hail,twolayer_graupel,twolayer_fd,twolayer_snow,rpquada,usequad
 
-  USE module_state_description,ONLY:  p_ff1i01,p_ff1i33,p_ff5i01,p_ff5i33, &
-                                      p_ff6i01,p_ff6i33,p_ff8i01,p_ff8i33
 
  PRIVATE
 
@@ -3971,6 +3979,8 @@ end module module_mp_SBM_Auxiliary
  INTEGER, PRIVATE,PARAMETER :: r_p_ff1i01=2, r_p_ff1i06=07,r_p_ff2i01=08,r_p_ff2i06=13,r_p_ff3i01=14,&
                 r_p_ff3i06=19,r_p_ff4i01=20,r_p_ff4i06=25,r_p_ff5i01=26,r_p_ff5i06=31,r_p_ff6i01=32,r_p_ff6i06=37,&
                 r_p_ff7i01=38,r_p_ff7i06=43,r_p_ff8i01=44,r_p_ff8i06=49,r_p_ff9i01=50,r_p_ff9i06=55
+ INTEGER, PRIVATE,PARAMETER :: p_ff1i01=1,p_ff1i33=33,p_ff5i01=34,p_ff5i33=66, &
+                               p_ff6i01=67,p_ff6i33=99,p_ff8i01=100,p_ff8i33=132
 
  INTEGER,PARAMETER :: IBREAKUP = 1
  INTEGER,PARAMETER :: Snow_BreakUp_On = 1
@@ -4300,8 +4310,8 @@ end module module_mp_SBM_Auxiliary
   XS_d = XS
 
   if (itimestep.eq.1)then
-    if (iceprocs.eq.1) call wrf_message(" FAST SBM: ICE PROCESES ACTIVE ")
-    if (iceprocs.eq.0) call wrf_message(" FAST SBM: LIQUID PROCESES ONLY")
+    if (iceprocs.eq.1) call mpp_error (NOTE, " FAST SBM: ICE PROCESES ACTIVE ")
+    if (iceprocs.eq.0) call mpp_error (NOTE, " FAST SBM: LIQUID PROCESES ONLY")
   end if
 
   NCOND = 3
@@ -4744,7 +4754,7 @@ end module module_mp_SBM_Auxiliary
              TTA=T_NEW(I,K,J)
              QQA=QV(I,K,J)
 
-             IF (QQA.LE.0) call wrf_message("WARNING: FAST SBM, QQA < 0")
+             IF (QQA.LE.0) call mpp_error (NOTE, "WARNING: FAST SBM, QQA < 0")
              IF (QQA.LE.0) print*,'I,J,K,Told,Tnew,QQA = ',I,J,K,TT,TTA,QQA
              IF (QQA.LE.0) QQA = 1.0D-10
 
@@ -4808,7 +4818,7 @@ end module module_mp_SBM_Auxiliary
                      IF (DEL2NR.EQ.0)print*,'ikl = ',ikl
                      IF (DEL2NR.EQ.0)print*,'div1,div2 = ',div1,div2
                      IF (DEL2NR.EQ.0)print*,'i,j,k = ',i,j,k
-                     IF (DEL2NR.EQ.0)call wrf_error_fatal("fatal error in module_mp_fast_sbm (DEL2NR.EQ.0) , model stop ")
+                     IF (DEL2NR.EQ.0)call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (DEL2NR.EQ.0) , model stop ")
                      DEL12R=DEL1NR/DEL2NR
                      DEL12RD=DEL12R**DEL_BBR
                      EW1PN=AA1_MY*100.*DIV1*DEL12RD/100.
@@ -5624,14 +5634,11 @@ end module module_mp_SBM_Auxiliary
 
     USE module_mp_SBM_BreakUp,ONLY:Spontanous_Init
  	  USE module_mp_SBM_Collision,ONLY:courant_bott_KS
- 	  USE module_domain
- 	  USE module_dm
 
  	  IMPLICIT NONE
 
     real(kind=r4size),intent(in) :: DT
 
-    LOGICAL , EXTERNAL      :: wrf_dm_on_monitor
     LOGICAL :: opened
     CHARACTER*80 errmess
     integer :: I,J,KR,IType,HUJISBM_UNIT1
@@ -5643,8 +5650,8 @@ end module module_mp_SBM_Auxiliary
  	 if(nkr == 33) input_dir = trim(dir_33)
  	 if(nkr == 43) input_dir = trim(dir_43)
 
-     call wrf_message(" FAST SBM: INITIALIZING WRF_HUJISBM ")
-     call wrf_message(" FAST SBM: ****** WRF_HUJISBM ******* ")
+     call mpp_error (NOTE, " FAST SBM: INITIALIZING WRF_HUJISBM ")
+     call mpp_error (NOTE, " FAST SBM: ****** WRF_HUJISBM ******* ")
 
  ! LookUpTable #1
  ! +-------------------------------------------------------+
@@ -5657,7 +5664,7 @@ end module module_mp_SBM_Auxiliary
  	dlnr=dlog(2.d0)/(3.d0)
 
  	hujisbm_unit1 = -1
- 	IF ( wrf_dm_on_monitor() ) THEN
+ 	IF ( mpp_root_pe() == mpp_pe() ) THEN
  		DO i = 20,99
  			INQUIRE ( i , OPENED = opened )
  			IF ( .NOT. opened ) THEN
@@ -5668,17 +5675,14 @@ end module module_mp_SBM_Auxiliary
  	2060  CONTINUE
  	ENDIF
 
- 	#if defined(DM_PARALLEL)
- 		CALL wrf_dm_bcast_bytes( hujisbm_unit1 , IWORDSIZE )
- 	#endif
  	IF ( hujisbm_unit1 < 0 ) THEN
-     	CALL wrf_error_fatal ( 'module_mp_FAST-SBM: Table-1 -- FAST_SBM_INIT: '// 			&
+     	CALL mpp_error (FATAL,  'module_mp_FAST-SBM: Table-1 -- FAST_SBM_INIT: '// 			&
  							              'Can not find unused fortran unit to read in lookup table, model stop' )
  	ENDIF
 
- 	IF ( wrf_dm_on_monitor() ) THEN
+ 	IF ( mpp_root_pe() == mpp_pe() ) THEN
  			WRITE(errmess, '(A,I2)') 'module_mp_FAST-SBM : Table-1 -- opening "BLKD_SDC.dat" on unit',hujisbm_unit1
- 			CALL wrf_debug(150, errmess)
+ 			CALL mpp_error (NOTE, errmess)
  			OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/BLKD_SDC.dat",FORM="FORMATTED",STATUS="OLD",ERR=2070)
  			DO kr=1,NKR
  				READ(hujisbm_unit1,*) bin_mass(kr),tab_colum(kr),tab_dendr(kr), &
@@ -5687,21 +5691,11 @@ end module module_mp_SBM_Auxiliary
  			ENDDO
  	ENDIF
 
-#define DM_BCAST_MACRO_R4(A) CALL wrf_dm_bcast_bytes(A, size(A)*R4SIZE)
-#define DM_BCAST_MACRO_R8(A) CALL wrf_dm_bcast_bytes(A, size(A)*R8SIZE)
-#define DM_BCAST_MACRO_R16(A) CALL wrf_dm_bcast_bytes(A, size(A)*R16SIZE)
 
-#if defined(DM_PARALLEL)
-    DM_BCAST_MACRO_R8(bin_mass)
- 	  DM_BCAST_MACRO_R8(tab_colum)
- 	  DM_BCAST_MACRO_R8(tab_dendr)
- 	  DM_BCAST_MACRO_R8(tab_snow)
- 	  DM_BCAST_MACRO_R8(bin_log)
-#endif
 
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-1'
      print*,errmess
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #2
@@ -5713,7 +5707,7 @@ end module module_mp_SBM_Auxiliary
      if (.NOT. ALLOCATED(RHEC)) ALLOCATE(RHEC(nkr))
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          DO i = 31,99
              INQUIRE ( i , OPENED = opened )
              IF ( .NOT. opened ) THEN
@@ -5724,34 +5718,24 @@ end module module_mp_SBM_Auxiliary
      2061  CONTINUE
      ENDIF
 
- #if defined(DM_PARALLEL)
- 	CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
- #endif
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL wrf_error_fatal ( 'module_mp_FAST-SBM: Table-2 -- FAST_SBM_INIT: '// 			&
+         CALL mpp_error (FATAL,  'module_mp_FAST-SBM: Table-2 -- FAST_SBM_INIT: '// 			&
                                'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
- IF ( wrf_dm_on_monitor() ) THEN
+ IF ( mpp_root_pe() == mpp_pe() ) THEN
  	WRITE(errmess, '(A,I2)') 'module_mp_FAST-SBM : Table-2 -- opening capacity.asc on unit',hujisbm_unit1
- 	CALL wrf_debug(150, errmess)
+ 	CALL mpp_error (NOTE, errmess)
  	OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/capacity33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
  	!OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/capacity43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
  	900	FORMAT(6E13.5)
  	READ(hujisbm_unit1,900) RLEC,RIEC,RSEC,RGEC,RHEC
  END IF
 
- #if defined(DM_PARALLEL)
-     DM_BCAST_MACRO_R4(RLEC)
-     DM_BCAST_MACRO_R4(RIEC)
-     DM_BCAST_MACRO_R4(RSEC)
-     DM_BCAST_MACRO_R4(RGEC)
-     DM_BCAST_MACRO_R4(RHEC)
- #endif
 
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-2'
      print*,errmess
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +----------------------------------------------------------------------+
 
  ! LookUpTable #3
@@ -5763,7 +5747,7 @@ end module module_mp_SBM_Auxiliary
      if (.NOT. ALLOCATED(XH)) ALLOCATE(XH(nkr))
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 31,99
          INQUIRE ( i , OPENED = opened )
          IF ( .NOT. opened ) THEN
@@ -5774,34 +5758,24 @@ end module module_mp_SBM_Auxiliary
      2062 CONTINUE
      ENDIF
 
- #if defined(DM_PARALLEL)
-     CALL wrf_dm_bcast_bytes ( hujisbm_unit1, IWORDSIZE )
- #endif
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL wrf_error_fatal ( 'module_mp_FAST_SBM: Table-3 -- FAST_SBM_INIT: '// 		&
+         CALL mpp_error (FATAL,  'module_mp_FAST_SBM: Table-3 -- FAST_SBM_INIT: '// 		&
                               'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-3 -- opening masses.asc on unit ',hujisbm_unit1
-         CALL wrf_debug(150, errmess)
+         CALL mpp_error (NOTE, errmess)
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/masses33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/masses43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) XL,XI,XS,XG,XH
          CLOSE(hujisbm_unit1)
      ENDIF
 
- #if defined(DM_PARALLEL)
-   	DM_BCAST_MACRO_R4(XL)
-     DM_BCAST_MACRO_R4(XI)
-     DM_BCAST_MACRO_R4(XS)
-     DM_BCAST_MACRO_R4(XG)
-     DM_BCAST_MACRO_R4(XH)
- #endif
 
       WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-3'
       print*,errmess
-      CALL wrf_debug(000, errmess)
+      CALL mpp_error (NOTE, errmess)
  ! +-------------------------------------------------------------------------+
 
  ! LookUpTable #4
@@ -5814,7 +5788,7 @@ end module module_mp_SBM_Auxiliary
      if (.NOT. ALLOCATED(VR5)) ALLOCATE(VR5(nkr))
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 31,99
          INQUIRE ( i , OPENED = opened )
          IF ( .NOT. opened ) THEN
@@ -5825,32 +5799,22 @@ end module module_mp_SBM_Auxiliary
      2063   CONTINUE
      ENDIF
 
- #if defined(DM_PARALLEL)
-     CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
- #endif
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL wrf_error_fatal ( 'module_mp_FAST_SBM: Table-4 -- FAST_SBM_INIT: '// 										&
+         CALL mpp_error (FATAL,  'module_mp_FAST_SBM: Table-4 -- FAST_SBM_INIT: '// 										&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-4 -- opening termvels.asc on unit ',hujisbm_unit1
-         CALL wrf_debug(150, errmess)
+         CALL mpp_error (NOTE, errmess)
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/termvels33_corrected.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/termvels43_corrected.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) VR1,VR2,VR3,VR4,VR5
         CLOSE(hujisbm_unit1)
      ENDIF
 
- #if defined(DM_PARALLEL)
- 	DM_BCAST_MACRO_R4(VR1)
-     DM_BCAST_MACRO_R4(VR2)
-     DM_BCAST_MACRO_R4(VR3)
-     DM_BCAST_MACRO_R4(VR4)
-     DM_BCAST_MACRO_R4(VR5)
- #endif
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-4'
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +----------------------------------------------------------------------+
 
 
@@ -5862,7 +5826,7 @@ end module module_mp_SBM_Auxiliary
      if (.NOT. ALLOCATED(COEFIN)) ALLOCATE(COEFIN(nkr))
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 31,99
          INQUIRE ( i , OPENED = opened )
          IF ( .NOT. opened ) THEN
@@ -5874,31 +5838,23 @@ end module module_mp_SBM_Auxiliary
      2065     CONTINUE
      ENDIF
 
- #if defined(DM_PARALLEL)
- 		CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
- #endif
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL wrf_error_fatal ( 'module_mp_FAST_SBM: Table-5 -- FAST_SBM_INIT: '// 										&
+         CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-5 -- FAST_SBM_INIT: '// 										&
                                 'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-5 -- opening constants.asc on unit  ',hujisbm_unit1
-         CALL wrf_debug(150, errmess)
+         CALL mpp_error (NOTE, errmess)
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/constants33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/constants43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) SLIC,TLIC,COEFIN
       CLOSE(hujisbm_unit1)
      END IF
 
- #if defined(DM_PARALLEL)
- 	  DM_BCAST_MACRO_R4(SLIC)
-    DM_BCAST_MACRO_R4(TLIC)
-    DM_BCAST_MACRO_R4(COEFIN)
- #endif
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-5'
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +----------------------------------------------------------------------+
 
  ! LookUpTable #6
@@ -5909,7 +5865,7 @@ end module module_mp_SBM_Auxiliary
      if (.NOT. ALLOCATED(YWLL_500MB)) ALLOCATE(YWLL_500MB(nkr,nkr))
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 31,99
          INQUIRE ( i , OPENED = opened )
          IF ( .NOT. opened ) THEN
@@ -5921,16 +5877,13 @@ end module module_mp_SBM_Auxiliary
      2066     CONTINUE
      ENDIF
 
- #if defined(DM_PARALLEL)
- 		CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
- #endif
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL wrf_error_fatal ( 'module_mp_FAST_SBM: Table-6 -- FAST_SBM_INIT: '// 			&
+         CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-6 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-6 -- opening kernels_z.asc on unit  ',hujisbm_unit1
-         CALL wrf_debug(150, errmess)
+         CALL mpp_error (NOTE, errmess)
          Fname = trim(input_dir)//'/kernLL_z33.asc'
          !Fname = trim(input_dir)//'/kernLL_z43.asc'
          OPEN(UNIT=hujisbm_unit1,FILE=Fname,FORM="FORMATTED",STATUS="OLD",ERR=2070)
@@ -5948,14 +5901,9 @@ end module module_mp_SBM_Auxiliary
    		ENDDO
    	ENDDO
 
- #if defined(DM_PARALLEL)
- 	DM_BCAST_MACRO_R4(YWLL_1000MB)
-     DM_BCAST_MACRO_R4(YWLL_750MB)
-     DM_BCAST_MACRO_R4(YWLL_500MB)
- #endif
 
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-6'
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #7
@@ -6003,7 +5951,7 @@ end module module_mp_SBM_Auxiliary
  if (.NOT. ALLOCATED(YWSS_750MB)) ALLOCATE(YWSS_750MB(nkr,nkr))
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
      DO i = 31,99
      INQUIRE ( i , OPENED = opened )
      IF ( .NOT. opened ) THEN
@@ -6014,17 +5962,14 @@ end module module_mp_SBM_Auxiliary
      2067     CONTINUE
      ENDIF
 
- #if defined(DM_PARALLEL)
-     CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
- #endif
  IF ( hujisbm_unit1 < 0 ) THEN
- 	CALL wrf_error_fatal ( 'module_mp_FAST_SBM: Table-7 -- FAST_SBM_INIT: '// 			&
+ 	CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-7 -- FAST_SBM_INIT: '// 			&
  											'Can not find unused fortran unit to read in lookup table,model stop' )
  ENDIF
  ! ... KERNELS DEPENDING ON PRESSURE :
- IF ( wrf_dm_on_monitor() ) THEN
+ IF ( mpp_root_pe() == mpp_pe() ) THEN
  	WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : Table-7 -- opening kernels33.asc on unit',hujisbm_unit1
- 	CALL wrf_debug(150, errmess)
+ 	CALL mpp_error (NOTE, errmess)
 
  	! ... Drop - IC
  	!Fname = trim(input_dir)//'/ckli_300mb_As'
@@ -6156,43 +6101,9 @@ end module module_mp_SBM_Auxiliary
   CLOSE(hujisbm_unit1)
  END IF
 
- #if defined(DM_PARALLEL)
-	   DM_BCAST_MACRO_R4(YWLI_300MB)
-     DM_BCAST_MACRO_R4(YWLI_500MB)
-     DM_BCAST_MACRO_R4(YWLI_750MB)
-
-     DM_BCAST_MACRO_R4(YWLG_300MB)
-     DM_BCAST_MACRO_R4(YWLG_500MB)
-     DM_BCAST_MACRO_R4(YWLG_750MB)
-     !DM_BCAST_MACRO(YWLG)
-
-     DM_BCAST_MACRO_R4(YWLH_300MB)
-     DM_BCAST_MACRO_R4(YWLH_500MB)
-     DM_BCAST_MACRO_R4(YWLH_750MB)
-
-     DM_BCAST_MACRO_R4(YWLS_300MB)
-     DM_BCAST_MACRO_R4(YWLS_500MB)
-     DM_BCAST_MACRO_R4(YWLS_750MB)
-
-     DM_BCAST_MACRO_R4(YWII_300MB)
-     DM_BCAST_MACRO_R4(YWII_500MB)
-     DM_BCAST_MACRO_R4(YWII_750MB)
-
-     DM_BCAST_MACRO_R4(YWIS_300MB)
-     DM_BCAST_MACRO_R4(YWIS_500MB)
-     DM_BCAST_MACRO_R4(YWIS_750MB)
-
-     DM_BCAST_MACRO_R4(YWSG_300MB)
-     DM_BCAST_MACRO_R4(YWSG_500MB)
-     DM_BCAST_MACRO_R4(YWSG_750MB)
-
-     DM_BCAST_MACRO_R4(YWSS_300MB)
-     DM_BCAST_MACRO_R4(YWSS_500MB)
-     DM_BCAST_MACRO_R4(YWSS_750MB)
- #endif
 
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-7'
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #8
@@ -6205,7 +6116,7 @@ end module module_mp_SBM_Auxiliary
      if (.NOT. ALLOCATED(RO5BL)) ALLOCATE(RO5BL(nkr))
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 31,99
          INQUIRE ( i , OPENED = opened )
          IF ( .NOT. opened ) THEN
@@ -6216,31 +6127,21 @@ end module module_mp_SBM_Auxiliary
      2068     CONTINUE
      ENDIF
 
- #if defined(DM_PARALLEL)
-     CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
- #endif
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL wrf_error_fatal ( 'module_mp_FAST_SBM: Table-8 -- FAST_SBM_INIT: '// 			&
+         CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-8 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : Table-8 -- opening bulkdens.asc on unit ',hujisbm_unit1
-         CALL wrf_debug(150, errmess)
+         CALL mpp_error (NOTE, errmess)
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkdens33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkdens43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) RO1BL,RO2BL,RO3BL,RO4BL,RO5BL
          CLOSE(hujisbm_unit1)
      END IF
 
- #if defined(DM_PARALLEL)
- 	    DM_BCAST_MACRO_R4(RO1BL)
-      DM_BCAST_MACRO_R4(RO2BL)
-      DM_BCAST_MACRO_R4(RO3BL)
-      DM_BCAST_MACRO_R4(RO4BL)
-      DM_BCAST_MACRO_R4(RO5BL)
- #endif
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-8'
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +----------------------------------------------------------------------+
 
  ! LookUpTable #9
@@ -6248,7 +6149,7 @@ end module module_mp_SBM_Auxiliary
  ! +-----------------------------------------------------------+
      if (.NOT. ALLOCATED(RADXXO)) ALLOCATE(RADXXO(nkr,nhydro))
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 31,99
          INQUIRE ( i , OPENED = opened )
          IF ( .NOT. opened ) THEN
@@ -6258,27 +6159,21 @@ end module module_mp_SBM_Auxiliary
        ENDDO
      2069     CONTINUE
      ENDIF
- #if defined(DM_PARALLEL)
- 		CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
- #endif
      IF ( hujisbm_unit1 < 0 ) THEN
-      CALL wrf_error_fatal ( 'module_mp_FAST_SBM: Table-9 -- FAST_SBM_INIT: '// 			&
+      CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-9 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-9 -- opening bulkradii.asc on unit',hujisbm_unit1
-         CALL wrf_debug(150, errmess)
+         CALL mpp_error (NOTE, errmess)
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkradii33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkradii43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,*) RADXXO
          CLOSE(hujisbm_unit1)
      END IF
 
- #if defined(DM_PARALLEL)
-       DM_BCAST_MACRO_R4(RADXXO)
- #endif
      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-9'
-     CALL wrf_debug(000, errmess)
+     CALL mpp_error (NOTE, errmess)
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #10
@@ -6287,44 +6182,8 @@ end module module_mp_SBM_Auxiliary
   CALL LOAD_TABLES(NKR)  ! (KS) - Loading the scattering look-up-table
 
  ! ... (KS) - Broadcating Liquid drops
- #if defined(DM_PARALLEL)
-   	DM_BCAST_MACRO_R16 ( FAF1 )
-   	DM_BCAST_MACRO_R16 ( FBF1 )
-   	DM_BCAST_MACRO_R16 ( FAB1 )
-   	DM_BCAST_MACRO_R16 ( FBB1 )
-   ! ... (KS) - Broadcating Snow
-   	DM_BCAST_MACRO_R16 ( FAF3 )
-   	DM_BCAST_MACRO_R16 ( FBF3 )
-   	DM_BCAST_MACRO_R16 ( FAB3 )
-   	DM_BCAST_MACRO_R16 ( FBB3 )
-   ! ... (KS) - Broadcating Graupel
-   	DM_BCAST_MACRO_R16 ( FAF4 )
-   	DM_BCAST_MACRO_R16 ( FBF4 )
-   	DM_BCAST_MACRO_R16 ( FAB4 )
-   	DM_BCAST_MACRO_R16 ( FBB4 )
-   ! ### (KS) - Broadcating Hail
-   	DM_BCAST_MACRO_R16 ( FAF5 )
-   	DM_BCAST_MACRO_R16 ( FBF5 )
-   	DM_BCAST_MACRO_R16 ( FAB5 )
-   	DM_BCAST_MACRO_R16 ( FBB5 )
- ! ### (KS) - Broadcating Temperature intervals
-   	CALL wrf_dm_bcast_integer ( temps_water , size ( temps_water ) )
-   	CALL wrf_dm_bcast_integer ( temps_fd , size ( temps_fd ) )
-   	CALL wrf_dm_bcast_integer ( temps_crystals , size ( temps_crystals ) )
-   	CALL wrf_dm_bcast_integer ( temps_snow , size ( temps_snow ) )
-   	CALL wrf_dm_bcast_integer ( temps_graupel , size ( temps_graupel ) )
-   	CALL wrf_dm_bcast_integer ( temps_hail , size ( temps_hail ) )
- ! ### (KS) - Broadcating Liquid fraction intervals
-   	DM_BCAST_MACRO_R4 ( fws_fd )
-   	DM_BCAST_MACRO_R4 ( fws_crystals )
-   	DM_BCAST_MACRO_R4 ( fws_snow )
-   	DM_BCAST_MACRO_R4 ( fws_graupel )
-   	DM_BCAST_MACRO_R4 ( fws_hail )
- ! ### (KS) - Broadcating Usetables array
- 	  CALL wrf_dm_bcast_integer ( usetables , size ( usetables ) * IWORDSIZE )
- #endif
   WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading Table-10'
-  call wrf_message(errmess)
+  call mpp_error (NOTE, errmess)
  ! +-----------------------------------------------------------------------+
 
  ! calculation of the mass(in mg) for categories boundaries :
@@ -6346,7 +6205,7 @@ end module module_mp_SBM_Auxiliary
    ima = 0
    CALL courant_bott_KS(xl, nkr, chucm, ima, scal) ! ### (KS) : New courant_bott_KS (without XL_MG(0:nkr))
    WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading "courant_bott_KS" '
-   CALL wrf_debug(000, errmess)
+   CALL mpp_error (NOTE, errmess)
 
   DEG01=1./3.
   CONCCCNIN=0.
@@ -6378,7 +6237,7 @@ end module module_mp_SBM_Auxiliary
         CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,1)
         CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,2)
         WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading "LogNormal_modes_Aerosol" '
-        CALL wrf_debug(000, errmess)
+        CALL mpp_error (NOTE, errmess)
     ENDIF
 
  	IF(ILogNormal_modes_Aerosol_ACPC == 1)THEN
@@ -6389,7 +6248,7 @@ end module module_mp_SBM_Auxiliary
  		RCCN = 0.0
  		CALL LogNormal_modes_Aerosol_ACPC(FCCNR_bl,FCCNR_ft,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,1)
  		WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading "LogNormal_modes_Aerosol_ACPC" '
- 		CALL wrf_debug(000, errmess)
+ 		CALL mpp_error (NOTE, errmess)
  	ENDIF
  ! +-------------------------------------------------------------+
 
@@ -6402,12 +6261,8 @@ end module module_mp_SBM_Auxiliary
     ECOALMASSM = 0.0d0
     BRKWEIGHT = 0.0d0
  	 CALL BREAKINIT_KS(PKIJ,QKJ,ECOALMASSM,BRKWEIGHT,XL,DROPRADII,BR_MAX,JBREAK,JMAX,NKR,VR1) ! Rain Spontanous Breakup
- #if defined(DM_PARALLEL)
- 	 	DM_BCAST_MACRO_R4 (PKIJ)
-    DM_BCAST_MACRO_R4 (QKJ)
- #endif
  	  WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading BREAKINIT_KS" '
-    CALL wrf_debug(000, errmess)
+    CALL mpp_error (NOTE, errmess)
   ! +--------------------------------------------------------------------------------------------------------------------+
 
    100	FORMAT(10I4)
@@ -6492,7 +6347,7 @@ end module module_mp_SBM_Auxiliary
   NND = 0.0
   call Spontanous_Init(dt, XL, DROPRADII, Prob, Gain_Var_New, NND, NKR, ikr_spon_break)
   WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading "Spontanous_Init" '
-  CALL wrf_debug(000, errmess)
+  CALL mpp_error (NOTE, errmess)
 
   return
   2070  continue
@@ -6500,7 +6355,7 @@ end module module_mp_SBM_Auxiliary
       WRITE( errmess , '(A,I4)' )                                          &
                  'module_mp_FAST_SBM_INIT: error opening hujisbm_DATA on unit,model stop ' &
                  &, hujisbm_unit1
-      CALL wrf_error_fatal(errmess)
+      CALL mpp_error (FATAL,errmess)
 
   END SUBROUTINE FAST_HUCMINIT
  ! -----------------------------------------------------------------+
@@ -7210,7 +7065,7 @@ end module module_mp_SBM_Auxiliary
 
  IF(RW.NE.RW .or. PW.NE.PW)THEN
     print*, 'NaN In ONECOND1'
-    call wrf_error_fatal("fatal error in ONECOND1 (RW or PW are NaN), model stop")
+    call mpp_error (FATAL, "fatal error in ONECOND1 (RW or PW are NaN), model stop")
  ENDIF
 
  KCOND=10
@@ -7223,7 +7078,7 @@ end module module_mp_SBM_Auxiliary
       TIMENEW = TIMENEW + DTNEWL
       DTT = DTNEWL
 
-   	  IF (DTT < 0.0) call wrf_error_fatal("fatal error in ONECOND1-DEL1N>0:(DTT<0), model stop")
+   	  IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND1-DEL1N>0:(DTT<0), model stop")
 
      	DEL1_d = DEL1
      	DEL2_d = DEL2
@@ -7253,7 +7108,7 @@ end module module_mp_SBM_Auxiliary
 
      	IF((DEL1.GT.0.AND.DEL1N.LT.0) &
        		&.AND.ABS(DEL1N).GT.EPSDEL) THEN
-             		call wrf_error_fatal("fatal error in ONECOND1-1 (DEL1.GT.0.AND.DEL1N.LT.0), model stop")
+             		call mpp_error (FATAL, "fatal error in ONECOND1-1 (DEL1.GT.0.AND.DEL1N.LT.0), model stop")
      	ENDIF
 
     ! IN CASE : KCOND.EQ.11
@@ -7267,7 +7122,7 @@ end module module_mp_SBM_Auxiliary
       TIMENEW = TIMENEW + DTNEWL
       DTT = DTNEWL
 
- 	    IF (DTT < 0.0) call wrf_error_fatal("fatal error in ONECOND1-DEL1N<0:(DTT<0), model stop")
+ 	    IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND1-DEL1N<0:(DTT<0), model stop")
 
  	    DEL1_d = DEL1
  	    DEL2_d = DEL2
@@ -7297,7 +7152,7 @@ end module module_mp_SBM_Auxiliary
 
       IF((DEL1.LT.0.AND.DEL1N.GT.0) &
         .AND.ABS(DEL1N).GT.EPSDEL) THEN
-         call wrf_error_fatal("fatal error in ONECOND1-2 (DEL1.LT.0.AND.DEL1N.GT.0), model stop")
+         call mpp_error (FATAL, "fatal error in ONECOND1-2 (DEL1.LT.0.AND.DEL1N.GT.0), model stop")
       ENDIF
 
     ENDIF
@@ -7339,7 +7194,7 @@ end module module_mp_SBM_Auxiliary
  	print*,"TPS",TPS,"QPS",QPS
 	print*,'FI1 before',FI1,'PSI1 after',PSI1
  	print*,"ONECOND1-in(end)"
- 	call wrf_error_fatal("fatal error in ONECOND1-in (ABS(DAL1*DELMASSL1) > 3.0), model stop")
+ 	call mpp_error (FATAL, "fatal error in ONECOND1-in (ABS(DAL1*DELMASSL1) > 3.0), model stop")
  ENDIF
 
  ! ... SUPERSATURATION (ONLY WATER)
@@ -7423,7 +7278,7 @@ end module module_mp_SBM_Auxiliary
  	print*,"PSI1",PSI1
  	print*,"ONECOND1-out (end)"
  	IF(ABS(DAL1*DELMASSL1) > 5.0 )THEN
- 		call wrf_error_fatal("fatal error in ONECOND1-out (ABS(DAL1*DELMASSL1) > 5.0), model stop")
+ 		call mpp_error (FATAL, "fatal error in ONECOND1-out (ABS(DAL1*DELMASSL1) > 5.0), model stop")
  	ENDIF
  ENDIF
 
@@ -7436,7 +7291,7 @@ end module module_mp_SBM_Auxiliary
  IF(ES1N == 0.0D0)THEN
   	DEL1N=0.5
   	DIV1=1.5
- 	call wrf_error_fatal("fatal error in ONECOND1 (ES1N.EQ.0), model stop")
+ 	call mpp_error (FATAL, "fatal error in ONECOND1 (ES1N.EQ.0), model stop")
  ELSE
     DIV1=EW1N/ES1N
     DEL1N=EW1N/ES1N-1.
@@ -7444,7 +7299,7 @@ end module module_mp_SBM_Auxiliary
  IF(ES2N.EQ.0)THEN
     DEL2N=0.5
     DIV2=1.5
-   call wrf_error_fatal("fatal error in ONECOND1 (ES2N.EQ.0), model stop")
+   call mpp_error (FATAL, "fatal error in ONECOND1 (ES2N.EQ.0), model stop")
  ELSE
     DEL2N=EW1N/ES2N-1.
     DIV2=EW1N/ES2N
@@ -7755,7 +7610,7 @@ end module module_mp_SBM_Auxiliary
 
    	IF(RW.NE.RW .or. PW.NE.PW)THEN
  	    print*, 'NaN In ONECOND2'
- 	    call wrf_error_fatal("fatal error in ONECOND2 (RW or PW are NaN), model stop")
+ 	    call mpp_error (FATAL, "fatal error in ONECOND2 (RW or PW are NaN), model stop")
    	ENDIF
 
  ! ... (ONLY ICE)
@@ -7766,7 +7621,7 @@ end module module_mp_SBM_Auxiliary
        TIMENEW = TIMENEW + DTNEWL
        DTT = DTNEWL
 
- 			IF (DTT < 0.0) call wrf_error_fatal("fatal error in ONECOND2-DEL2N>0:(DTT<0), model stop")
+ 			IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND2-DEL2N>0:(DTT<0), model stop")
 
  			DEL1_d = DEL1
  			DEL2_d = DEL2
@@ -7838,7 +7693,7 @@ end module module_mp_SBM_Auxiliary
 
  			IF((DEL2.GT.0.AND.DEL2N.LT.0) &
           		.AND.ABS(DEL2N).GT.EPSDEL) THEN
-                 call wrf_error_fatal("fatal error in module_mp_fast_sbm (DEL2.GT.0.AND.DEL2N.LT.0), model stop")
+                 call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (DEL2.GT.0.AND.DEL2N.LT.0), model stop")
  			ENDIF
 
  	  ELSE
@@ -7849,7 +7704,7 @@ end module module_mp_SBM_Auxiliary
         TIMENEW = TIMENEW + DTNEWL
         DTT = DTNEWL
 
- 			  IF (DTT < 0.0) call wrf_error_fatal("fatal error in ONECOND2-DEL2N<0:(DTT<0), model stop")
+ 			  IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND2-DEL2N<0:(DTT<0), model stop")
 
    			DEL1_d = DEL1
    			DEL2_d = DEL2
@@ -7924,7 +7779,7 @@ end module module_mp_SBM_Auxiliary
 
        IF((DEL2.LT.0.AND.DEL2N.GT.0) &
             .AND.ABS(DEL2N).GT.EPSDEL) THEN
-             call wrf_error_fatal("fatal error in module_mp_fast_sbm (DEL2.LT.0.AND.DEL2N.GT.0), model stop")
+             call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (DEL2.LT.0.AND.DEL2N.GT.0), model stop")
        ENDIF
 
  		 ! IN CASE : KCOND.NE.21
@@ -8010,7 +7865,7 @@ end module module_mp_SBM_Auxiliary
       print*,"PSI5",PSI5
       print*,"ONECOND2-out (end)"
       IF(ABS(DAL2*DELMASSI1) > 5.0 )THEN
-      call wrf_error_fatal("fatal error in ONECOND2-out (ABS(DAL2*DELMASSI1) > 5.0), model stop")
+      call mpp_error (FATAL, "fatal error in ONECOND2-out (ABS(DAL2*DELMASSI1) > 5.0), model stop")
  		ENDIF
  	  ENDIF
 
@@ -8023,7 +7878,7 @@ end module module_mp_SBM_Auxiliary
  	  IF(ES1N == 0.0)THEN
  	   DEL1N=0.5
  	   DIV1=1.5
- 	   call wrf_error_fatal("fatal error in ONECOND2 (ES1N.EQ.0), model stop")
+ 	   call mpp_error (FATAL, "fatal error in ONECOND2 (ES1N.EQ.0), model stop")
  	  ELSE
  	   DIV1=EW1N/ES1N
  	   DEL1N=EW1N/ES1N-1.
@@ -8031,7 +7886,7 @@ end module module_mp_SBM_Auxiliary
  	  IF(ES2N == 0.0)THEN
  	   DEL2N=0.5
  	   DIV2=1.5
- 	   call wrf_error_fatal("fatal error in ONECOND2 (ES2N.EQ.0), model stop")
+ 	   call mpp_error (FATAL, "fatal error in ONECOND2 (ES2N.EQ.0), model stop")
  	  ELSE
  	   DEL2N=EW1N/ES2N-1.
  	   DIV2=EW1N/ES2N
@@ -8332,7 +8187,7 @@ end module module_mp_SBM_Auxiliary
 
  	IF(RW.NE.RW .or. PW.NE.PW)THEN
  	  print*, 'NaN In ONECOND3'
- 	  call wrf_error_fatal("fatal error in ONECOND3 (RW or PW are NaN), model stop")
+ 	  call mpp_error (FATAL, "fatal error in ONECOND3 (RW or PW are NaN), model stop")
  	ENDIF
 
  	! DEL1 > 0, DEL2 < 0    (ANTIBERGERON MIXED PHASE - KCOND=50)
@@ -8388,7 +8243,7 @@ end module module_mp_SBM_Auxiliary
  	! IN CASE : KCOND = 32
  	ENDIF
 
-   IF (DTT < 0.0) call wrf_error_fatal("fatal error in ONECOND3:(DTT<0), model stop")
+   IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND3:(DTT<0), model stop")
 
  	DEL1_d = DEL1
  	DEL2_d = DEL2
@@ -8580,7 +8435,7 @@ end module module_mp_SBM_Auxiliary
  		print*,"R5D",R5D,"R5ND",R5ND
  		print*,"ONECOND3-out (end)"
  		IF(ABS(DAL1*DELMASSL1+DAL2*DELMASSI1) > 5.0 )THEN
- 			call wrf_error_fatal("fatal error in ONECOND3-out (ABS(DAL1*DELMASSL1+DAL2*DELMASSI1) > 5.0), model stop")
+ 			call mpp_error (FATAL, "fatal error in ONECOND3-out (ABS(DAL1*DELMASSL1+DAL2*DELMASSI1) > 5.0), model stop")
  		ENDIF
  	ENDIF
 
@@ -8594,7 +8449,7 @@ end module module_mp_SBM_Auxiliary
  	 DEL1N=0.5
  	 DIV1=1.5
  	 print*,'es1n onecond3 = 0'
- 	 call wrf_error_fatal("fatal error in ONECOND3 (ES1N.EQ.0), model stop")
+ 	 call mpp_error (FATAL, "fatal error in ONECOND3 (ES1N.EQ.0), model stop")
  	ELSE
  	 DIV1=EW1N/ES1N
  	 DEL1N=EW1N/ES1N-1.
@@ -8603,7 +8458,7 @@ end module module_mp_SBM_Auxiliary
  	 DEL2N=0.5
  	 DIV2=1.5
  	 print*,'es2n onecond3 = 0'
- 	 call wrf_error_fatal("fatal error in ONECOND3 (ES2N.EQ.0), model stop")
+ 	 call mpp_error (FATAL, "fatal error in ONECOND3 (ES2N.EQ.0), model stop")
  	ELSE
  	 DEL2N=EW1N/ES2N-1.
  	 DIV2=EW1N/ES2N
@@ -8768,14 +8623,14 @@ end module module_mp_SBM_Auxiliary
         FF1R(KR) = (1.0d3*GDUMB(KR))/(3.*XL(KR)*XL(KR)*1.E3)
         if(GDUMB(KR) < 0.0)then
           go to 11
-          !call wrf_error_fatal("in coal_bott af-coll_breakup - FF1R/GDUMB < 0.0")
+          !call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R/GDUMB < 0.0")
         endif
         if(GDUMB(kr) .ne. GDUMB(kr)) then
           print*,kr,GDUMB(kr),GDUMB_BF_BREAKUP(kr),XL(kr)
           print*,IT,NDIV, DTBREAKUP
           print*,GDUMB
           print*,GDUMB_BF_BREAKUP
-          call wrf_error_fatal("in coal_bott af-coll_breakup - FF1R NaN, model stop")
+          call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R NaN, model stop")
         endif
       enddo
     end do
@@ -8963,7 +8818,7 @@ end if
        else
   	     ! if deldrop < 0
          if(abs(deldrop).gt.cont_init_drop*0.05) then
-           call wrf_error_fatal("fatal error in module_mp_fast_sbm (abs(deldrop).gt.cont_init_drop), model stop")
+           call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (abs(deldrop).gt.cont_init_drop), model stop")
          endif
        endif
       endif
@@ -8974,21 +8829,21 @@ end if
         FF1R(KR)=G1(KR)/(3.*XL(KR)*XL(KR)*1.E3)
         if((FF1R(kr) .ne. FF1R(kr)) .or. FF1R(kr) < 0.0)then
 	 	       print*,"G1",G1
- 		 	     call wrf_error_fatal("stop at end coal_bott - FF1R NaN or FF1R < 0.0, model stop")
+ 		 	     call mpp_error (FATAL, "stop at end coal_bott - FF1R NaN or FF1R < 0.0, model stop")
 	      endif
         FF3R(KR)=G3(KR)/(3.*xs(kr)*xs(kr)*1.e3)
           if((FF3R(kr) .ne. FF3R(kr)) .or. FF3R(kr) < 0.0)then
-           call wrf_error_fatal("stop at end coal_bott - FF3R NaN or FF3R < 0.0, model stop")
+           call mpp_error (FATAL, "stop at end coal_bott - FF3R NaN or FF3R < 0.0, model stop")
           endif
  		   if(hail_opt == 0)then
  		 	   FF4R(KR)=G4(KR)/(3.*xg(kr)*xg(kr)*1.e3)
       	 if((FF4R(kr) .ne. FF4R(kr)) .or. FF4R(kr) < 0.0) then
-          call wrf_error_fatal("stop at end coal_bott - FF4R NaN or FF4R < 0.0, model stop")
+          call mpp_error (FATAL, "stop at end coal_bott - FF4R NaN or FF4R < 0.0, model stop")
          end if
       else
  		 	   FF5R(KR)=G5(KR)/(3.*xh(kr)*xh(kr)*1.e3)
 		     if((FF5R(kr) .ne. FF5R(kr)) .or. FF5R(kr) < 0.0) then
-           call wrf_error_fatal("stop at end coal_bott - FF5R NaN or FF5R < 0.0, model stop")
+           call mpp_error (FATAL, "stop at end coal_bott - FF5R NaN or FF5R < 0.0, model stop")
          endif
  		 endif
  		END DO
@@ -9000,7 +8855,7 @@ end if
  	FRIMFR_S(:) = rf3(:)
 
  	if (abs(tt-t_new).gt.5.0) then
- 		call wrf_error_fatal("fatal error in module_mp_FAST_sbm Del_T 5 K, model stop")
+ 		call mpp_error (FATAL, "fatal error in module_mp_FAST_sbm Del_T 5 K, model stop")
  	endif
 
     tt = t_new
@@ -9010,8 +8865,6 @@ end if
  ! ..................................................................................................
      SUBROUTINE BREAKINIT_KS(PKIJ,QKJ,ECOALMASSM,BRKWEIGHT,XL_r,DROPRADII,BR_MAX,JBREAK,JMAX,NKR,VR1)
 
-     USE module_domain
-     USE module_dm
 
      IMPLICIT NONE
 
@@ -9026,7 +8879,6 @@ end if
      INTEGER :: hujisbm_unit1
      LOGICAL, PARAMETER :: PRINT_diag=.FALSE.
      LOGICAL :: opened
-     LOGICAL , EXTERNAL :: wrf_dm_on_monitor
      CHARACTER*80 errmess
 
  !.....INPUT VARIABLES
@@ -9064,7 +8916,7 @@ end if
      if(nkr == 33) file_q = 'SBM_input_33/'//'coeff_q_new_33.dat' ! new Version 33   (taken from 43 bins)
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
          DO i = 20,99
              INQUIRE ( i , OPENED = opened )
              IF ( .NOT. opened ) THEN
@@ -9075,13 +8927,12 @@ end if
          2061     CONTINUE
      ENDIF
 
-     CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
 
      IF ( hujisbm_unit1 < 0 ) THEN
-       CALL wrf_error_fatal ( 'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
+       CALL mpp_error (FATAL,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
      ENDIF
 
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        OPEN(UNIT=hujisbm_unit1,FILE=trim(file_p),         &
        !OPEN(UNIT=hujisbm_unit1,FILE="coeff_p.asc",       &
             FORM="FORMATTED",STATUS="OLD",ERR=2070)
@@ -9097,7 +8948,7 @@ end if
      END IF
 
      hujisbm_unit1 = -1
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 20,99
          INQUIRE ( i , OPENED = opened )
          IF ( .NOT. opened ) THEN
@@ -9108,13 +8959,12 @@ end if
        2062     CONTINUE
      ENDIF
 
-     CALL wrf_dm_bcast_bytes ( hujisbm_unit1 , IWORDSIZE )
 
      IF ( hujisbm_unit1 < 0 ) THEN
-       CALL wrf_error_fatal ( 'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
+       CALL mpp_error (FATAL,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
      ENDIF
 
-     IF ( wrf_dm_on_monitor() ) THEN
+     IF ( mpp_root_pe() == mpp_pe() ) THEN
       OPEN(UNIT=hujisbm_unit1,FILE=trim(file_q),    &
            FORM="FORMATTED",STATUS="OLD",ERR=2070)
           DO K=1,KE
@@ -9143,7 +8993,7 @@ end if
        WRITE( errmess , '(A,I4)' )                                          &
         'module_FAST_SBM: error opening hujisbm_DATA on unit, model stop'  &
         , hujisbm_unit1
-       CALL wrf_error_fatal(errmess)
+       CALL mpp_error (FATAL, errmess)
        END SUBROUTINE BREAKINIT_KS
 
  !coalescence efficiency as function of masses
