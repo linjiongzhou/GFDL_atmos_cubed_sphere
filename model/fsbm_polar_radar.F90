@@ -4,6 +4,8 @@ module scatt_tables
 
 !use microprm
 
+use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe, mpp_broadcast
+
 implicit none
 
 private
@@ -170,16 +172,19 @@ real,dimension(nbins) :: m    ! >> (KS)
 do iiwl=1,nwavelengths
   write(wlstr,'(I3.3)') int(WAVELENGTHS(iiwl)*10.0d0)
   scattering_dir(iiwl)=TRIM(scattering_dir_prefix)//'_'//wlstr//'/'
+  if (mpp_root_pe() .eq. mpp_pe()) then
   WRITE(*,*) 'scattering input directory is source/',TRIM(scattering_dir(iiwl))
+  endif
 enddo
 
 DO ispecies=1,size(usetables)
   if((ispecies==1) .AND. usetables(ispecies)) then ! rain
-      WRITE(*,*) 'READING SCATTERING TABLES: RAIN'
       ALLOCATE(faf1(nbins,nfws(1),ntemps(1),nwavelengths),stat=istatus)
       ALLOCATE(fbf1(nbins,nfws(1),ntemps(1),nwavelengths),stat=istatus)
       ALLOCATE(fab1(nbins,nfws(1),ntemps(1),nwavelengths),stat=istatus)
       ALLOCATE(fbb1(nbins,nfws(1),ntemps(1),nwavelengths),stat=istatus)
+      if (mpp_root_pe() .eq. mpp_pe()) then
+      WRITE(*,*) 'READING SCATTERING TABLES: RAIN'
       do iiwl=1,nwavelengths
         do k=1,ntemps(1)
           write(temp,"(SP,I3.2)") temps_water(k)
@@ -204,12 +209,18 @@ DO ispecies=1,size(usetables)
           endif
         enddo
       enddo
+      endif
+      call mpp_broadcast(faf1,size(faf1),mpp_root_pe())
+      call mpp_broadcast(fbf1,size(fbf1),mpp_root_pe())
+      call mpp_broadcast(fab1,size(fab1),mpp_root_pe())
+      call mpp_broadcast(fbb1,size(fbb1),mpp_root_pe())
   elseif(ispecies==2 .AND. usetables(ispecies)) then ! fd
-      WRITE(*,*) 'READING SCATTERING TABLES: FD'
       ALLOCATE(faf1fd(nbins,nfws(2),ntemps(2),nwavelengths),stat=istatus)
       ALLOCATE(fbf1fd(nbins,nfws(2),ntemps(2),nwavelengths),stat=istatus)
       ALLOCATE(fab1fd(nbins,nfws(2),ntemps(2),nwavelengths),stat=istatus)
       ALLOCATE(fbb1fd(nbins,nfws(2),ntemps(2),nwavelengths),stat=istatus)
+      if (mpp_root_pe() .eq. mpp_pe()) then
+      WRITE(*,*) 'READING SCATTERING TABLES: FD'
       do iiwl=1,nwavelengths
        do k=1,ntemps(2)
         write(temp,"(SP,I3.2)") temps_fd(k)
@@ -236,8 +247,12 @@ DO ispecies=1,size(usetables)
         enddo
        enddo
       enddo
+      endif
+      call mpp_broadcast(faf1fd,size(faf1fd),mpp_root_pe())
+      call mpp_broadcast(fbf1fd,size(fbf1fd),mpp_root_pe())
+      call mpp_broadcast(fab1fd,size(fab1fd),mpp_root_pe())
+      call mpp_broadcast(fbb1fd,size(fbb1fd),mpp_root_pe())
   elseif(ispecies==3 .AND. usetables(ispecies)) then ! ice crystals (plates, dendrites, columns)
-      WRITE(*,*) 'READING SCATTERING TABLES: ICE CRYSTALS'
       ALLOCATE(faf2d(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
       ALLOCATE(fbf2d(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
       ALLOCATE(fab2d(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
@@ -250,6 +265,8 @@ DO ispecies=1,size(usetables)
       ALLOCATE(fbf2c(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
       ALLOCATE(fab2c(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
       ALLOCATE(fbb2c(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
+      if (mpp_root_pe() .eq. mpp_pe()) then
+      WRITE(*,*) 'READING SCATTERING TABLES: ICE CRYSTALS'
       do iiwl=1,nwavelengths
        do k=1,ntemps(3)
         write(temp,"(SP,I3.2)") temps_crystals(k)
@@ -321,12 +338,26 @@ DO ispecies=1,size(usetables)
         enddo
        enddo
       enddo
+      endif
+      call mpp_broadcast(faf2d,size(faf2d),mpp_root_pe())
+      call mpp_broadcast(fbf2d,size(fbf2d),mpp_root_pe())
+      call mpp_broadcast(fab2d,size(fab2d),mpp_root_pe())
+      call mpp_broadcast(fbb2d,size(fbb2d),mpp_root_pe())
+      call mpp_broadcast(faf2p,size(faf2p),mpp_root_pe())
+      call mpp_broadcast(fbf2p,size(fbf2p),mpp_root_pe())
+      call mpp_broadcast(fab2p,size(fab2p),mpp_root_pe())
+      call mpp_broadcast(fbb2p,size(fbb2p),mpp_root_pe())
+      call mpp_broadcast(faf2c,size(faf2c),mpp_root_pe())
+      call mpp_broadcast(fbf2c,size(fbf2c),mpp_root_pe())
+      call mpp_broadcast(fab2c,size(fab2c),mpp_root_pe())
+      call mpp_broadcast(fbb2c,size(fbb2c),mpp_root_pe())
   elseif(ispecies==4 .AND. usetables(ispecies)) then ! snow (aggregates)
-      WRITE(*,*) 'READING SCATTERING TABLES: SNOW'
       ALLOCATE(faf3(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
       ALLOCATE(fbf3(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
       ALLOCATE(fab3(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
       ALLOCATE(fbb3(nbins,nfws(3),ntemps(3),nwavelengths),stat=istatus)
+      if (mpp_root_pe() .eq. mpp_pe()) then
+      WRITE(*,*) 'READING SCATTERING TABLES: SNOW'
       do iiwl=1,nwavelengths
        do k=1,ntemps(3)
         write(temp,"(SP,I3.2)") temps_snow(k)
@@ -353,12 +384,18 @@ DO ispecies=1,size(usetables)
         enddo
        enddo
       enddo
+      endif
+      call mpp_broadcast(faf3,size(faf3),mpp_root_pe())
+      call mpp_broadcast(fbf3,size(fbf3),mpp_root_pe())
+      call mpp_broadcast(fab3,size(fab3),mpp_root_pe())
+      call mpp_broadcast(fbb3,size(fbb3),mpp_root_pe())
   elseif(ispecies==5 .AND. usetables(ispecies)) then ! graupel
-      WRITE(*,*) 'READING SCATTERING TABLES: GRAUPEL'
       ALLOCATE(faf4(nbins,nfws(4),ntemps(4),nwavelengths),stat=istatus)
       ALLOCATE(fbf4(nbins,nfws(4),ntemps(4),nwavelengths),stat=istatus)
       ALLOCATE(fab4(nbins,nfws(4),ntemps(4),nwavelengths),stat=istatus)
       ALLOCATE(fbb4(nbins,nfws(4),ntemps(4),nwavelengths),stat=istatus)
+      if (mpp_root_pe() .eq. mpp_pe()) then
+      WRITE(*,*) 'READING SCATTERING TABLES: GRAUPEL'
       do iiwl=1,nwavelengths
        do k=1,ntemps(4)
         write(temp,"(SP,I3.2)") temps_graupel(k)
@@ -385,12 +422,18 @@ DO ispecies=1,size(usetables)
         enddo
        enddo
       enddo
+      endif
+      call mpp_broadcast(faf4,size(faf4),mpp_root_pe())
+      call mpp_broadcast(fbf4,size(fbf4),mpp_root_pe())
+      call mpp_broadcast(fab4,size(fab4),mpp_root_pe())
+      call mpp_broadcast(fbb4,size(fbb4),mpp_root_pe())
   elseif(ispecies==6 .AND. usetables(ispecies)) then ! hail
-      WRITE(*,*) 'READING SCATTERING TABLES: HAIL'
       ALLOCATE(faf5(nbins,nfws(5),ntemps(5),nwavelengths),stat=istatus)
       ALLOCATE(fbf5(nbins,nfws(5),ntemps(5),nwavelengths),stat=istatus)
       ALLOCATE(fab5(nbins,nfws(5),ntemps(5),nwavelengths),stat=istatus)
       ALLOCATE(fbb5(nbins,nfws(5),ntemps(5),nwavelengths),stat=istatus)
+      if (mpp_root_pe() .eq. mpp_pe()) then
+      WRITE(*,*) 'READING SCATTERING TABLES: HAIL'
       do iiwl=1,nwavelengths
        do k=1,ntemps(5)
         write(temp,"(SP,I3.2)") temps_hail(k)
@@ -417,6 +460,11 @@ DO ispecies=1,size(usetables)
         enddo
        enddo
       enddo
+      endif
+      call mpp_broadcast(faf5,size(faf5),mpp_root_pe())
+      call mpp_broadcast(fbf5,size(fbf5),mpp_root_pe())
+      call mpp_broadcast(fab5,size(fab5),mpp_root_pe())
+      call mpp_broadcast(fbb5,size(fbb5),mpp_root_pe())
   endif
 enddo
 

@@ -96,7 +96,6 @@ contains
                   		 DROPRADII_dp(nkr),XL_dp(nkr)
   integer :: kr,i,j, ikr_spon_break
   real(kind=r8size),parameter :: gamma = 0.453d0
-  character*256 :: wrf_err_message
 ! ... Locals
 
 !dtime_spon_break = DTwrf
@@ -110,8 +109,9 @@ DO KR=1,NKR
 	IF (DROPRADII(kr)>=0.3) exit
 END DO
 
-WRITE( wrf_err_message , * ) 'IKR_Spon_Break=',ikr_spon_break
-CALL mpp_error (NOTE, TRIM ( wrf_err_message ) )
+if (mpp_root_pe() .eq. mpp_pe()) then
+    write(*,*) 'IKR_Spon_Break=',ikr_spon_break
+endif
 
 if (i_break_method==1) then
  	DO KR=1,NKR
@@ -3932,7 +3932,7 @@ end module module_mp_SBM_Auxiliary
     enddo
 
     CONCCCNIN = col*sum(FCCNR_tmp(:))
-    print*,'CONCCCNIN',CONCCCNIN
+    !print*,'CONCCCNIN',CONCCCNIN
 
      if(IType == 1) FCCNR_MAR = Scale_Fa*FCCNR_tmp
      if(IType == 2) FCCNR_CON = Scale_Fa*FCCNR_tmp
@@ -3945,7 +3945,7 @@ end module module_mp_SBM_Auxiliary
  ! +----------------------------------------------------------------------------+
   MODULE module_mp_fast_sbm
 
-  use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
+  use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe, mpp_broadcast
 
   USE module_mp_SBM_polar_radar,ONLY:polar_hucm
   USE module_mp_SBM_BreakUp,ONLY:Spont_Rain_BreakUp,BreakUp_Snow,KR_SNOW_MIN,KR_SNOW_MAX
@@ -5650,8 +5650,10 @@ end module module_mp_SBM_Auxiliary
  	 if(nkr == 33) input_dir = trim(dir_33)
  	 if(nkr == 43) input_dir = trim(dir_43)
 
-     call mpp_error (NOTE, " FAST SBM: INITIALIZING WRF_HUJISBM ")
-     call mpp_error (NOTE, " FAST SBM: ****** WRF_HUJISBM ******* ")
+     if (mpp_root_pe() .eq. mpp_pe()) then
+         write(*,*) "FAST SBM: INITIALIZING WRF_HUJISBM"
+         write(*,*) "FAST SBM: ****** WRF_HUJISBM *******"
+     endif
 
  ! LookUpTable #1
  ! +-------------------------------------------------------+
@@ -5675,14 +5677,15 @@ end module module_mp_SBM_Auxiliary
  	2060  CONTINUE
  	ENDIF
 
+    call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
+
  	IF ( hujisbm_unit1 < 0 ) THEN
      	CALL mpp_error (FATAL,  'module_mp_FAST-SBM: Table-1 -- FAST_SBM_INIT: '// 			&
  							              'Can not find unused fortran unit to read in lookup table, model stop' )
  	ENDIF
 
  	IF ( mpp_root_pe() == mpp_pe() ) THEN
- 			WRITE(errmess, '(A,I2)') 'module_mp_FAST-SBM : Table-1 -- opening "BLKD_SDC.dat" on unit',hujisbm_unit1
- 			CALL mpp_error (NOTE, errmess)
+ 			write(*,*) 'module_mp_FAST-SBM : Table-1 -- opening "BLKD_SDC.dat" on unit',hujisbm_unit1
  			OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/BLKD_SDC.dat",FORM="FORMATTED",STATUS="OLD",ERR=2070)
  			DO kr=1,NKR
  				READ(hujisbm_unit1,*) bin_mass(kr),tab_colum(kr),tab_dendr(kr), &
@@ -5691,11 +5694,15 @@ end module module_mp_SBM_Auxiliary
  			ENDDO
  	ENDIF
 
+     call mpp_broadcast(bin_mass, size(bin_mass), mpp_root_pe())
+     call mpp_broadcast(tab_colum, size(tab_colum), mpp_root_pe())
+     call mpp_broadcast(tab_dendr, size(tab_dendr), mpp_root_pe())
+     call mpp_broadcast(tab_snow, size(tab_snow), mpp_root_pe())
+     call mpp_broadcast(bin_log, size(bin_log), mpp_root_pe())
 
-
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-1'
-     print*,errmess
-     CALL mpp_error (NOTE, errmess)
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-1'
+     endif
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #2
@@ -5718,24 +5725,30 @@ end module module_mp_SBM_Auxiliary
      2061  CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
+
      IF ( hujisbm_unit1 < 0 ) THEN
          CALL mpp_error (FATAL,  'module_mp_FAST-SBM: Table-2 -- FAST_SBM_INIT: '// 			&
                                'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
  IF ( mpp_root_pe() == mpp_pe() ) THEN
- 	WRITE(errmess, '(A,I2)') 'module_mp_FAST-SBM : Table-2 -- opening capacity.asc on unit',hujisbm_unit1
- 	CALL mpp_error (NOTE, errmess)
+ 	write(*,*) 'module_mp_FAST-SBM : Table-2 -- opening capacity.asc on unit',hujisbm_unit1
  	OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/capacity33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
  	!OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/capacity43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
  	900	FORMAT(6E13.5)
  	READ(hujisbm_unit1,900) RLEC,RIEC,RSEC,RGEC,RHEC
  END IF
 
+     call mpp_broadcast(RLEC, size(RLEC), mpp_root_pe())
+     call mpp_broadcast(RIEC, size(RIEC), mpp_root_pe())
+     call mpp_broadcast(RSEC, size(RSEC), mpp_root_pe())
+     call mpp_broadcast(RGEC, size(RGEC), mpp_root_pe())
+     call mpp_broadcast(RHEC, size(RHEC), mpp_root_pe())
 
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-2'
-     print*,errmess
-     CALL mpp_error (NOTE, errmess)
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-2'
+     endif
  ! +----------------------------------------------------------------------+
 
  ! LookUpTable #3
@@ -5758,24 +5771,29 @@ end module module_mp_SBM_Auxiliary
      2062 CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
          CALL mpp_error (FATAL,  'module_mp_FAST_SBM: Table-3 -- FAST_SBM_INIT: '// 		&
                               'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
-         WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-3 -- opening masses.asc on unit ',hujisbm_unit1
-         CALL mpp_error (NOTE, errmess)
+         write(*,*) 'module_mp_FAST_SBM : Table-3 -- opening masses.asc on unit ',hujisbm_unit1
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/masses33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/masses43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) XL,XI,XS,XG,XH
          CLOSE(hujisbm_unit1)
      ENDIF
 
-
-      WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-3'
-      print*,errmess
-      CALL mpp_error (NOTE, errmess)
+     call mpp_broadcast(XL, size(XL), mpp_root_pe())
+     call mpp_broadcast(XI, size(XI), mpp_root_pe())
+     call mpp_broadcast(XS, size(XS), mpp_root_pe())
+     call mpp_broadcast(XG, size(XG), mpp_root_pe())
+     call mpp_broadcast(XH, size(XH), mpp_root_pe())
+ 
+      if (mpp_root_pe() == mpp_pe()) then
+          write(*,*) 'FAST_SBM_INIT : succesfull reading Table-3'
+      endif
  ! +-------------------------------------------------------------------------+
 
  ! LookUpTable #4
@@ -5799,22 +5817,30 @@ end module module_mp_SBM_Auxiliary
      2063   CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
+
      IF ( hujisbm_unit1 < 0 ) THEN
          CALL mpp_error (FATAL,  'module_mp_FAST_SBM: Table-4 -- FAST_SBM_INIT: '// 										&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
      IF ( mpp_root_pe() == mpp_pe() ) THEN
-         WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-4 -- opening termvels.asc on unit ',hujisbm_unit1
-         CALL mpp_error (NOTE, errmess)
+         write(*,*) 'module_mp_FAST_SBM : Table-4 -- opening termvels.asc on unit ',hujisbm_unit1
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/termvels33_corrected.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/termvels43_corrected.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) VR1,VR2,VR3,VR4,VR5
         CLOSE(hujisbm_unit1)
      ENDIF
 
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-4'
-     CALL mpp_error (NOTE, errmess)
+     call mpp_broadcast(VR1, size(VR1), mpp_root_pe())
+     call mpp_broadcast(VR2, size(VR2), mpp_root_pe())
+     call mpp_broadcast(VR3, size(VR3), mpp_root_pe())
+     call mpp_broadcast(VR4, size(VR4), mpp_root_pe())
+     call mpp_broadcast(VR5, size(VR5), mpp_root_pe())
+
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-4'
+     endif
  ! +----------------------------------------------------------------------+
 
 
@@ -5838,6 +5864,7 @@ end module module_mp_SBM_Auxiliary
      2065     CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
          CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-5 -- FAST_SBM_INIT: '// 										&
@@ -5845,16 +5872,20 @@ end module module_mp_SBM_Auxiliary
      ENDIF
 
      IF ( mpp_root_pe() == mpp_pe() ) THEN
-         WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-5 -- opening constants.asc on unit  ',hujisbm_unit1
-         CALL mpp_error (NOTE, errmess)
+         write(*,*) 'module_mp_FAST_SBM : Table-5 -- opening constants.asc on unit  ',hujisbm_unit1
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/constants33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/constants43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) SLIC,TLIC,COEFIN
       CLOSE(hujisbm_unit1)
      END IF
 
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-5'
-     CALL mpp_error (NOTE, errmess)
+     call mpp_broadcast(SLIC, size(SLIC), mpp_root_pe())
+     call mpp_broadcast(TLIC, size(TLIC), mpp_root_pe())
+     call mpp_broadcast(COEFIN, size(COEFIN), mpp_root_pe())
+
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-5'
+     endif
  ! +----------------------------------------------------------------------+
 
  ! LookUpTable #6
@@ -5877,19 +5908,24 @@ end module module_mp_SBM_Auxiliary
      2066     CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
+
      IF ( hujisbm_unit1 < 0 ) THEN
          CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-6 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
-         WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-6 -- opening kernels_z.asc on unit  ',hujisbm_unit1
-         CALL mpp_error (NOTE, errmess)
+         write(*,*) 'module_mp_FAST_SBM : Table-6 -- opening kernels_z.asc on unit  ',hujisbm_unit1
          Fname = trim(input_dir)//'/kernLL_z33.asc'
          !Fname = trim(input_dir)//'/kernLL_z43.asc'
          OPEN(UNIT=hujisbm_unit1,FILE=Fname,FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) YWLL_1000MB,YWLL_750MB,YWLL_500MB
          CLOSE(hujisbm_unit1)
      END IF
+
+     call mpp_broadcast(YWLL_1000MB, size(YWLL_1000MB), mpp_root_pe())
+     call mpp_broadcast(YWLL_750MB, size(YWLL_750MB), mpp_root_pe())
+     call mpp_broadcast(YWLL_500MB, size(YWLL_500MB), mpp_root_pe())
 
    	DO I=1,NKR
    		DO J=1,NKR
@@ -5902,8 +5938,9 @@ end module module_mp_SBM_Auxiliary
    	ENDDO
 
 
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-6'
-     CALL mpp_error (NOTE, errmess)
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-6'
+     endif
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #7
@@ -5962,14 +5999,15 @@ end module module_mp_SBM_Auxiliary
      2067     CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
+
  IF ( hujisbm_unit1 < 0 ) THEN
  	CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-7 -- FAST_SBM_INIT: '// 			&
  											'Can not find unused fortran unit to read in lookup table,model stop' )
  ENDIF
  ! ... KERNELS DEPENDING ON PRESSURE :
  IF ( mpp_root_pe() == mpp_pe() ) THEN
- 	WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : Table-7 -- opening kernels33.asc on unit',hujisbm_unit1
- 	CALL mpp_error (NOTE, errmess)
+ 	write(*,*) 'module_mp_WRFsbm : Table-7 -- opening kernels33.asc on unit',hujisbm_unit1
 
  	! ... Drop - IC
  	!Fname = trim(input_dir)//'/ckli_300mb_As'
@@ -6101,9 +6139,13 @@ end module module_mp_SBM_Auxiliary
   CLOSE(hujisbm_unit1)
  END IF
 
+     call mpp_broadcast(YWSS_300MB, size(YWSS_300MB), mpp_root_pe())
+     call mpp_broadcast(YWSS_500MB, size(YWSS_500MB), mpp_root_pe())
+     call mpp_broadcast(YWSS_750MB, size(YWSS_750MB), mpp_root_pe())
 
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-7'
-     CALL mpp_error (NOTE, errmess)
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-7'
+     endif
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #8
@@ -6127,21 +6169,29 @@ end module module_mp_SBM_Auxiliary
      2068     CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
+
      IF ( hujisbm_unit1 < 0 ) THEN
          CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-8 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
-         WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : Table-8 -- opening bulkdens.asc on unit ',hujisbm_unit1
-         CALL mpp_error (NOTE, errmess)
+         write(*,*) 'module_mp_WRFsbm : Table-8 -- opening bulkdens.asc on unit ',hujisbm_unit1
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkdens33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkdens43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,900) RO1BL,RO2BL,RO3BL,RO4BL,RO5BL
          CLOSE(hujisbm_unit1)
      END IF
 
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-8'
-     CALL mpp_error (NOTE, errmess)
+     call mpp_broadcast(RO1BL, size(RO1BL), mpp_root_pe())
+     call mpp_broadcast(RO2BL, size(RO2BL), mpp_root_pe())
+     call mpp_broadcast(RO3BL, size(RO3BL), mpp_root_pe())
+     call mpp_broadcast(RO4BL, size(RO4BL), mpp_root_pe())
+     call mpp_broadcast(RO5BL, size(RO5BL), mpp_root_pe())
+
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-8'
+     endif
  ! +----------------------------------------------------------------------+
 
  ! LookUpTable #9
@@ -6159,21 +6209,26 @@ end module module_mp_SBM_Auxiliary
        ENDDO
      2069     CONTINUE
      ENDIF
+
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
+
      IF ( hujisbm_unit1 < 0 ) THEN
       CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-9 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
-         WRITE(errmess, '(A,I2)') 'module_mp_FAST_SBM : Table-9 -- opening bulkradii.asc on unit',hujisbm_unit1
-         CALL mpp_error (NOTE, errmess)
+         write(*,*) 'module_mp_FAST_SBM : Table-9 -- opening bulkradii.asc on unit',hujisbm_unit1
          OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkradii33.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          !OPEN(UNIT=hujisbm_unit1,FILE=trim(input_dir)//"/bulkradii43.asc",FORM="FORMATTED",STATUS="OLD",ERR=2070)
          READ(hujisbm_unit1,*) RADXXO
          CLOSE(hujisbm_unit1)
      END IF
 
-     WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading Table-9'
-     CALL mpp_error (NOTE, errmess)
+     call mpp_broadcast(RADXXO, size(RADXXO), mpp_root_pe())
+
+     if (mpp_root_pe() == mpp_pe()) then
+         write(*,*) 'FAST_SBM_INIT : succesfull reading Table-9'
+     endif
  ! +-----------------------------------------------------------------------+
 
  ! LookUpTable #10
@@ -6182,8 +6237,9 @@ end module module_mp_SBM_Auxiliary
   CALL LOAD_TABLES(NKR)  ! (KS) - Loading the scattering look-up-table
 
  ! ... (KS) - Broadcating Liquid drops
-  WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading Table-10'
-  call mpp_error (NOTE, errmess)
+  if (mpp_root_pe() == mpp_pe()) then
+      write(*,*) 'module_mp_WRFsbm : succesfull reading Table-10'
+  endif
  ! +-----------------------------------------------------------------------+
 
  ! calculation of the mass(in mg) for categories boundaries :
@@ -6204,8 +6260,9 @@ end module module_mp_SBM_Auxiliary
    chucm  = 0.0d0
    ima = 0
    CALL courant_bott_KS(xl, nkr, chucm, ima, scal) ! ### (KS) : New courant_bott_KS (without XL_MG(0:nkr))
-   WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading "courant_bott_KS" '
-   CALL mpp_error (NOTE, errmess)
+   if (mpp_root_pe() == mpp_pe()) then
+       write(*,*) 'FAST_SBM_INIT : succesfull reading "courant_bott_KS" '
+   endif
 
   DEG01=1./3.
   CONCCCNIN=0.
@@ -6236,8 +6293,9 @@ end module module_mp_SBM_Auxiliary
         RCCN = 0.0
         CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,1)
         CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,2)
-        WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading "LogNormal_modes_Aerosol" '
-        CALL mpp_error (NOTE, errmess)
+        if (mpp_root_pe() == mpp_pe()) then
+        write(*,*) 'module_mp_WRFsbm : succesfull reading "LogNormal_modes_Aerosol" '
+        endif
     ENDIF
 
  	IF(ILogNormal_modes_Aerosol_ACPC == 1)THEN
@@ -6247,8 +6305,9 @@ end module module_mp_SBM_Auxiliary
  		XCCN = 0.0
  		RCCN = 0.0
  		CALL LogNormal_modes_Aerosol_ACPC(FCCNR_bl,FCCNR_ft,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,1)
- 		WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading "LogNormal_modes_Aerosol_ACPC" '
- 		CALL mpp_error (NOTE, errmess)
+        if (mpp_root_pe() == mpp_pe()) then
+ 		    write(*,*) 'module_mp_WRFsbm : succesfull reading "LogNormal_modes_Aerosol_ACPC" '
+        endif
  	ENDIF
  ! +-------------------------------------------------------------+
 
@@ -6261,8 +6320,9 @@ end module module_mp_SBM_Auxiliary
     ECOALMASSM = 0.0d0
     BRKWEIGHT = 0.0d0
  	 CALL BREAKINIT_KS(PKIJ,QKJ,ECOALMASSM,BRKWEIGHT,XL,DROPRADII,BR_MAX,JBREAK,JMAX,NKR,VR1) ! Rain Spontanous Breakup
- 	  WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading BREAKINIT_KS" '
-    CALL mpp_error (NOTE, errmess)
+    if (mpp_root_pe() == mpp_pe()) then
+ 	    write(*,*) 'FAST_SBM_INIT : succesfull reading BREAKINIT_KS" '
+    endif
   ! +--------------------------------------------------------------------------------------------------------------------+
 
    100	FORMAT(10I4)
@@ -6346,8 +6406,9 @@ end module module_mp_SBM_Auxiliary
   Gain_Var_New = 0.0
   NND = 0.0
   call Spontanous_Init(dt, XL, DROPRADII, Prob, Gain_Var_New, NND, NKR, ikr_spon_break)
-  WRITE(errmess, '(A,I2)') 'FAST_SBM_INIT : succesfull reading "Spontanous_Init" '
-  CALL mpp_error (NOTE, errmess)
+  if (mpp_root_pe() == mpp_pe()) then
+      write(*,*) 'FAST_SBM_INIT : succesfull reading "Spontanous_Init" '
+  endif
 
   return
   2070  continue
@@ -8927,6 +8988,7 @@ end if
          2061     CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
        CALL mpp_error (FATAL,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
@@ -8947,6 +9009,11 @@ end if
          CLOSE(hujisbm_unit1)
      END IF
 
+     call mpp_broadcast(KP, mpp_root_pe())
+     call mpp_broadcast(IP, mpp_root_pe())
+     call mpp_broadcast(JP, mpp_root_pe())
+     call mpp_broadcast(PKIJ, size(PKIJ), mpp_root_pe())
+
      hujisbm_unit1 = -1
      IF ( mpp_root_pe() == mpp_pe() ) THEN
        DO i = 20,99
@@ -8959,6 +9026,7 @@ end if
        2062     CONTINUE
      ENDIF
 
+     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
        CALL mpp_error (FATAL,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
@@ -8974,6 +9042,10 @@ end if
           ENDDO
       CLOSE(hujisbm_unit1)
      END IF
+
+     call mpp_broadcast(KQ, mpp_root_pe())
+     call mpp_broadcast(JQ, mpp_root_pe())
+     call mpp_broadcast(QKJ, size(QKJ), mpp_root_pe())
 
      DROPRADII_d = DROPRADII
      vr1_d = vr1
