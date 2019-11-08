@@ -69,7 +69,7 @@ contains
                       ng, ua, va, omga, te, ws, fill, reproduce_sum, out_dt, dtdt,      &
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, do_omega, adiabatic, do_adiabatic_init, &
-                      do_inline_mp, inline_mp, c2l_ord, bd, fv_debug, &
+                      do_inline_mp, do_fsbm, inline_mp, c2l_ord, bd, fv_debug, &
                       moist_phys)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
@@ -99,6 +99,7 @@ contains
 
   logical, intent(in):: do_sat_adj
   logical, intent(in):: do_inline_mp
+  logical, intent(in):: do_fsbm
   logical, intent(in):: fill                  ! fill negative tracers
   logical, intent(in):: reproduce_sum
   logical, intent(in):: do_omega, adiabatic, do_adiabatic_init
@@ -610,7 +611,7 @@ contains
 !$OMP                               mdt,cld_amt,cappa,dtdt,out_dt,rrg,akap,do_sat_adj,  &
 !$OMP                               fast_mp_consv,kord_tm,pe4, &
 !$OMP                               npx,npy,ccn_cm3,cin_cm3,inline_mp,u_dt,v_dt,   &
-!$OMP                               do_inline_mp,c2l_ord,bd,dp0,ps,qnl,qni) &
+!$OMP                               do_inline_mp,do_fsbm,c2l_ord,bd,dp0,ps,qnl,qni) &
 !$OMP                       private(q2,q3,pe0,pe1,pe2,pe3,qv,cvm,gz,gsize,phis,dpln,dp2,t0)
 
 !$OMP do

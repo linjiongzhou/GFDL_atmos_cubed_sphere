@@ -557,7 +557,7 @@ contains
                      flagstruct%do_sat_adj, hydrostatic, &
                      hybrid_z, do_omega,     &
                      flagstruct%adiabatic, do_adiabatic_init, flagstruct%do_inline_mp, &
-                     inline_mp, flagstruct%c2l_ord, bd, flagstruct%fv_debug, &
+                     flagstruct%do_fsbm, inline_mp, flagstruct%c2l_ord, bd, flagstruct%fv_debug, &
                      flagstruct%moist_phys)
 
      if ( flagstruct%fv_debug ) then

@@ -260,8 +260,11 @@ contains
 
    if (Atm(mygrid)%flagstruct%do_inline_mp) then
      call gfdl_mp_init(mpp_pe(), mpp_root_pe(), nlunit, input_nml_file, stdlog(), fn_nml)
-     call cld_eff_rad_init(nlunit, input_nml_file, stdlog(), fn_nml)
    endif
+   if (Atm(mygrid)%flagstruct%do_fsbm) then
+     call fast_hucminit(dt_atmos/(real(abs(p_split))*Atm(mygrid)%flagstruct%k_split))
+   endif
+   call cld_eff_rad_init(nlunit, input_nml_file, stdlog(), fn_nml)
 
    call fv_restart(Atm(mygrid)%domain, Atm, dt_atmos, seconds, days, cold_start, Atm(mygrid)%gridstruct%grid_type, mygrid)
 
