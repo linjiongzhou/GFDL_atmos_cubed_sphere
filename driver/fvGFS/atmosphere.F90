@@ -79,6 +79,7 @@ use fv_regional_mod,    only: current_time_in_seconds
 use mpp_domains_mod, only:  mpp_get_data_domain, mpp_get_compute_domain
 use gfdl_mp_mod,        only: gfdl_mp_init, gfdl_mp_end
 use cld_eff_rad_mod,    only: cld_eff_rad_init
+use module_mp_fast_sbm, only: fast_hucminit
 
 implicit none
 private
