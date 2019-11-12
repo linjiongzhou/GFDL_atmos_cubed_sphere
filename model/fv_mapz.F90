@@ -36,6 +36,7 @@ module fv_mapz_mod
 #ifndef DYCORE_SOLO
   use gfdl_mp_mod,       only: gfdl_mp_driver
 #endif
+  use module_mp_fast_sbm,only: fast_sbm
 
   implicit none
   real, parameter:: consv_min = 0.001   ! below which no correction applies
@@ -54,6 +55,8 @@ module fv_mapz_mod
   real, parameter :: w_min = -30.
   logical, parameter :: w_limiter = .false. ! doesn't work so well??
 
+  logical :: fsbm_init = .false.
+
   real(kind=4) :: E_Flux = 0.
   private
 
@@ -70,7 +73,7 @@ contains
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, do_omega, adiabatic, do_adiabatic_init, &
                       do_inline_mp, do_fsbm, inline_mp, c2l_ord, bd, fv_debug, &
-                      moist_phys)
+                      moist_phys, pt_old, q_old)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
   real,    intent(in):: mdt                   ! remap time step
@@ -124,6 +127,8 @@ contains
   real, intent(inout)::  w(isd:     ,jsd:     ,1:)   ! vertical velocity (m/s)
   real, intent(inout):: pt(isd:ied  ,jsd:jed  ,km)   ! cp*virtual potential temperature 
                                                      ! as input; output: temperature
+  real, intent(inout):: pt_old(isd:ied  ,jsd:jed  ,km)   ! temperature at the previous time step (K), used in fsbm
+  real, intent(inout):: q_old(isd:ied,jsd:jed,km) ! specific humidity at the previous time step, used in fsbm
   real, intent(inout), dimension(isd:,jsd:,1:)::q_con, cappa
   real, intent(inout), dimension(is:,js:,1:)::delz
   logical, intent(in):: hydrostatic
@@ -159,9 +164,24 @@ contains
 
   real rcp, rg, rrg, bkh, dtmp, k1k
   logical:: fast_mp_consv
-  integer:: i,j,k 
+  integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
   integer:: ccn_cm3, cin_cm3
+
+  ! Linjiong Zhou, FSBM
+
+  logical :: diagflag = .false.
+  integer, parameter :: n_chem = 33 * 4, num_sbmradar = 55
+  integer :: itimestep
+  real :: dx = 13.e3, dy = 13.e3
+  real, dimension(is:ie,js:je) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
+  real, dimension(is:ie,km,js:je) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
+  real, dimension(is:ie,km,js:je) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
+  real, dimension(is:ie,km,js:je) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
+  real, dimension(is:ie,km,js:je) :: cldnucl_rate, icenucl_rate
+  real, dimension(is:ie,km,js:je) :: th_old, qv_old
+  real, dimension(is:ie,km,js:je,n_chem) :: chem_new
+  real, dimension(is:ie,km,js:je,num_sbmradar) :: sbmradar
 
        k1k = rdgas/cv_air   ! akap / (1.-akap) = rg/Cv=0.4
         rg = rdgas
@@ -568,7 +588,7 @@ contains
 ! Inline GFDL MP
 !-----------------------------------------------------------------------
 
-  if ((.not. do_adiabatic_init) .and. do_inline_mp) then
+  if ((.not. do_adiabatic_init) .and. (do_inline_mp .or. do_fsbm)) then
 
     allocate(u_dt(isd:ied,jsd:jed,km))
     allocate(v_dt(isd:ied,jsd:jed,km))
@@ -611,7 +631,14 @@ contains
 !$OMP                               mdt,cld_amt,cappa,dtdt,out_dt,rrg,akap,do_sat_adj,  &
 !$OMP                               fast_mp_consv,kord_tm,pe4, &
 !$OMP                               npx,npy,ccn_cm3,cin_cm3,inline_mp,u_dt,v_dt,   &
-!$OMP                               do_inline_mp,do_fsbm,c2l_ord,bd,dp0,ps,qnl,qni) &
+!$OMP                               do_inline_mp,do_fsbm,c2l_ord,bd,dp0,ps,qnl,qni, &
+!$OMP                               wr,ur,vr,th_old,chem_new,itimestep,dx,dy, &
+!$OMP                               dz8w,rho_phy,p_phy,pi_phy,th_phy,xland,sbqv,sbqc, &
+!$OMP                               sbqr,sbqi,sbqs,sbqg,qv_old,sbqnc,sbqnr,sbqni,sbqns, &
+!$OMP                               sbqng,sbqna,diagflag,sbmradar,rainnc, &
+!$OMP                               rainncv,snownc,snowncv,graupelnc,graupelncv,ma,lh_rate, &
+!$OMP                               ce_rate,ds_rate,melt_rate,frz_rate,cldnucl_rate, &
+!$OMP                               icenucl_rate,pt_old,q_old,fsbm_init) &
 !$OMP                       private(q2,q3,pe0,pe1,pe2,pe3,qv,cvm,gz,gsize,phis,dpln,dp2,t0)
 
 !$OMP do
@@ -885,6 +912,112 @@ endif        ! end last_step check
     enddo
 
   endif
+
+!-----------------------------------------------------------------------
+! Fast Spectral-Bin Microphysics
+!-----------------------------------------------------------------------
+
+    if ((.not. do_adiabatic_init) .and. do_fsbm) then
+
+        if (fsbm_init) then
+            itimestep = 2
+        else
+            itimestep = 1
+        endif
+
+!$OMP do
+        do j = js, je
+            do i = is, ie
+                if (hs(i,j) .gt. 0) then
+                    xland(i,j) = 1
+                else
+                    xland(i,j) = 0
+                endif
+            enddo
+        enddo
+
+!$OMP do
+        do k = 1, km
+            do j = js, je
+                do i = is, ie
+                    ur(i,k,j) = ua(i,j,km+1-k)
+                    vr(i,k,j) = va(i,j,km+1-k)
+                    wr(i,k,j) = w(i,j,km+1-k)
+                    dz8w(i,k,j) = - delz(i,j,km+1-k)
+                    p_phy(i,k,j) = delp(i,j,km+1-k) / (peln(i,km+1-k+1,j)-peln(i,km+1-k,j))
+                    pi_phy(i,k,j) = pkz(i,j,km+1-k)
+                    rho_phy(i,k,j) = p_phy(i,k,j) / (rdgas * pt(i,j,km+1-k))
+                    th_phy(i,k,j) = pt(i,j,km+1-k) / pi_phy(i,k,j)
+                    th_old(i,k,j) = pt_old(i,j,km+1-k) / pi_phy(i,k,j)
+                    qv_old(i,k,j) = q_old(i,j,km+1-k)
+                    sbqv(i,k,j) = q(i,j,km+1-k,sphum)
+                    do n = 33*0+1, 33*1
+                        chem_new(i,k,j,n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) / 33.0
+                    enddo
+                    do n = 33*1+1, 33*2
+                        chem_new(i,k,j,n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) / 33.0
+                    enddo
+                    do n = 33*2+1, 33*3
+                        chem_new(i,k,j,n) = q(i,j,km+1-k,graupel) / 33.0
+                    enddo
+                    do n = 33*3+1, 33*4
+                        if (cin_cm3 .gt. 0) then
+                            chem_new(i,k,j,n) = q(i,j,km+1-k,cin_cm3) / 33.0
+                        else
+                            chem_new(i,k,j,n) = 1.e8 / rho_phy(i,k,j) / 33.0
+                        endif
+                    enddo
+                    MA(i,k,j) = 0.0
+                    LH_rate(i,k,j) = 0.0
+                    CE_rate(i,k,j) = 0.0
+                    DS_rate(i,k,j) = 0.0
+                    Melt_rate(i,k,j) = 0.0
+                    Frz_rate(i,k,j) = 0.0
+                    CldNucl_rate(i,k,j) = 0.0
+                    IceNucl_rate(i,k,j) = 0.0
+                enddo
+            enddo
+        enddo
+  
+!$OMP single
+        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, itimestep, &
+            abs(mdt), dx, dy, dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, &
+            sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, qv_old, sbqnc, sbqnr, sbqni, &
+            sbqns, sbqng, sbqna, 1, ie-is+2, 1, je-js+2, 1, km, 1, ie-is+1, 1, je-js+1, 1, km, &
+            1, ie-is+1, 1, je-js+1, 1, km, diagflag, sbmradar, num_sbmradar, rainnc, &
+            rainncv, snownc, snowncv, graupelnc, graupelncv, ma, lh_rate, &
+            ce_rate, ds_rate, melt_rate, frz_rate, cldnucl_rate, icenucl_rate)
+!$OMP end single
+
+!$OMP do
+        do j = js, je
+            do i = is, ie
+                inline_mp%prer(i,j) = inline_mp%prer(i,j) + rainncv(i,j) / abs(mdt) * 86400
+                inline_mp%pres(i,j) = inline_mp%pres(i,j) + snowncv(i,j) / abs(mdt) * 86400
+                inline_mp%preg(i,j) = inline_mp%preg(i,j) + graupelncv(i,j) / abs(mdt) * 86400
+            enddo
+        enddo
+  
+!$OMP do
+        do k = 1, km
+            do j = js, je
+                do i = is, ie
+                    q(i,j,k,sphum) = sbqv(i,km+1-k,j)
+                    q(i,j,k,liq_wat) = sbqc(i,km+1-k,j)
+                    q(i,j,k,rainwat) = sbqr(i,km+1-k,j)
+                    q(i,j,k,ice_wat) = sbqi(i,km+1-k,j)
+                    q(i,j,k,snowwat) = sbqs(i,km+1-k,j)
+                    q(i,j,k,graupel) = sbqg(i,km+1-k,j)
+                    pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
+                    pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
+                    q_old(i,j,k) = qv_old(i,km+1-k,j)
+                enddo
+            enddo
+        enddo
+
+        fsbm_init = .true.
+
+    endif
 
 
   if ( last_step ) then

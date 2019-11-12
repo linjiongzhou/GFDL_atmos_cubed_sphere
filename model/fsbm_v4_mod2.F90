@@ -4107,7 +4107,7 @@ end module module_mp_SBM_Auxiliary
       &                      chem_new,n_chem,                            &
       &                      itimestep,DT,DX,DY,                         &
       &                      dz8w,rho_phy,p_phy,pi_phy,th_phy,           &
-      &                      xland,ivgtyp,xlat,xlong,                    &
+      &                      xland,                                      &
       &                      QV,QC,QR,QI,QS,QG,QV_OLD,                   &
       &                      QNC,QNR,QNI,QNS,QNG,QNA,                    &
       &                      ids,ide, jds,jde, kds,kde,		        	 &
@@ -4115,7 +4115,7 @@ end module module_mp_SBM_Auxiliary
       &                      its,ite, jts,jte, kts,kte,                  &
       &                      diagflag,      	                         &
       &                      sbmradar,num_sbmradar,                      &
-      &                      RAINNC,RAINNCV,SNOWNC,SNOWNCV,GRAUPELNC,GRAUPELNCV,SR,       &
+      &                      RAINNC,RAINNCV,SNOWNC,SNOWNCV,GRAUPELNC,GRAUPELNCV,       &
       &                      MA,LH_rate,CE_rate,DS_rate,Melt_rate,Frz_rate,CldNucl_rate, &
       &                      IceNucl_rate)
 
@@ -4160,14 +4160,12 @@ end module module_mp_SBM_Auxiliary
        REAL , DIMENSION( ims:ime , jms:jme ) , INTENT(IN)   :: XLAND
        LOGICAL, OPTIONAL, INTENT(IN) :: diagflag
 
-       INTEGER, DIMENSION( ims:ime , jms:jme ), INTENT(IN)::   IVGTYP
-       REAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN   )    :: XLAT, XLONG
        REAL, INTENT(IN),     DIMENSION(ims:ime, kms:kme, jms:jme)::      &
       &                      dz8w,p_phy,pi_phy,rho_phy
        REAL, INTENT(INOUT),  DIMENSION(ims:ime, kms:kme, jms:jme)::      &
       &                      th_phy
        REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme), OPTIONAL ::     &
-      &      RAINNC,RAINNCV,SNOWNC,SNOWNCV,GRAUPELNC,GRAUPELNCV,SR
+      &      RAINNC,RAINNCV,SNOWNC,SNOWNCV,GRAUPELNC,GRAUPELNCV
 
  !-----------------------------------------------------------------------
  !     LOCAL VARS
