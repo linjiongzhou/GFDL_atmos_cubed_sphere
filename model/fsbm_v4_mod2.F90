@@ -4766,13 +4766,13 @@ end module module_mp_SBM_Auxiliary
 
              IF(del1in > 0.0 .or. del2in > 0.0 .or. (sum(FF1R)+sum(FF3R)+sum(FF4R)+sum(FF5R)) > 1.0e-10)THEN
 
-                !CALL Relaxation_Time(TT,QQ,PP,rhocgs(I,K,J),DEL1IN,DEL2IN, &
-                !                  XL,VR1_Z(:,K),FF1R,RLEC,RO1BL, &
-                !                  XI,VR2_Z,FF2R,RIEC,RO2BL, &
-                !                  XS,VR3_Z(:,K),FF3R,RSEC,RO3BL, &
-                !                  XG,VR4_Z(:,K),FF4R,RGEC,RO4BL, &
-                !                  XH,VR5_Z(:,k),FF5R,RHEC,RO5BL, &
-                !                  NKR,ICEMAX,COL,DT,NCOND,DTCOND)
+                CALL Relaxation_Time(TT,QQ,PP,rhocgs(I,K,J),DEL1IN,DEL2IN, &
+                                  XL,VR1_Z(:,K),FF1R,RLEC,RO1BL, &
+                                  XI,VR2_Z,FF2R,RIEC,RO2BL, &
+                                  XS,VR3_Z(:,K),FF3R,RSEC,RO3BL, &
+                                  XG,VR4_Z(:,K),FF4R,RGEC,RO4BL, &
+                                  XH,VR5_Z(:,k),FF5R,RHEC,RO5BL, &
+                                  NKR,ICEMAX,COL,DT,NCOND,DTCOND)
 
                ES1N=AA1_MY*DEXP(-BB1_MY/TTA)
                ES2N=AA2_MY*DEXP(-BB2_MY/TTA)
