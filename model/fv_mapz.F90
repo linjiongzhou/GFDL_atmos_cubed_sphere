@@ -159,7 +159,7 @@ contains
   real, dimension(is:ie,km+1):: pe1, pe2, pk1, pk2, pn2, phis
   real, dimension(isd:ied,jsd:jed,km):: pe4
   real, dimension(is:ie+1,km+1):: pe0, pe3
-  real, dimension(is:ie):: gsize, gz, cvm, qv
+  real, dimension(is:ie):: gsize, gz, cvm
   real, dimension(isd:ied,jsd:jed,km):: qnl, qni
 
   real rcp, rg, rrg, bkh, dtmp, k1k
@@ -174,6 +174,7 @@ contains
   integer, parameter :: n_chem = 33 * 4, num_sbmradar = 55
   integer :: itimestep
   real :: dx = 13.e3, dy = 13.e3
+  real :: qliq, qsol
   real, dimension(is:ie,js:je) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
   real, dimension(is:ie,km,js:je) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
   real, dimension(is:ie,km,js:je) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
@@ -212,7 +213,7 @@ contains
 !$OMP                                  delz,akap,pkz,te,u,v,ps, gridstruct, last_step, &
 !$OMP                                  ak,bk,nq,isd,ied,jsd,jed,kord_tr,fill, adiabatic, &
 !$OMP                                  hs,w,ws,kord_wz,do_omega,omga,rrg,kord_mt,pe4)    &
-!$OMP                          private(qv,gz,cvm,kp,k_next,bkh,dp2,   &
+!$OMP                          private(gz,cvm,kp,k_next,bkh,dp2,   &
 !$OMP                                  pe0,pe1,pe2,pe3,pk1,pk2,pn2,phis,q2,w2)
   do 1000 j=js,je+1
 
@@ -622,24 +623,17 @@ contains
 
   endif
 
-!$OMP parallel default(none) shared(is,ie,js,je,km,kmp,ptop,u,v,pe,ua,va,isd,ied,jsd,jed,kord_mt, &
+!$OMP parallel default(none) shared(is,ie,js,je,km,kmp,ptop,u,v,pe,ua,va,isd,ied,jsd,jed, &
 !$OMP                               te_2d,te,delp,hydrostatic,hs,rg,pt,peln,adiabatic, &
 !$OMP                               cp,delz,nwat,rainwat,liq_wat,ice_wat,snowwat,       &
 !$OMP                               graupel,q_con,r_vir,sphum,w,pk,pkz,last_step,consv, &
 !$OMP                               do_adiabatic_init,zsum1,zsum0,te0_2d,domain,        &
-!$OMP                               ng,gridstruct,E_Flux,pdt,dtmp,reproduce_sum,q,      &
+!$OMP                               ng,gridstruct,E_Flux,pdt,dtmp,q,      &
 !$OMP                               mdt,cld_amt,cappa,dtdt,out_dt,rrg,akap,do_sat_adj,  &
 !$OMP                               fast_mp_consv,kord_tm,pe4, &
-!$OMP                               npx,npy,ccn_cm3,cin_cm3,inline_mp,u_dt,v_dt,   &
-!$OMP                               do_inline_mp,do_fsbm,c2l_ord,bd,dp0,ps,qnl,qni, &
-!$OMP                               wr,ur,vr,th_old,chem_new,itimestep,dx,dy, &
-!$OMP                               dz8w,rho_phy,p_phy,pi_phy,th_phy,xland,sbqv,sbqc, &
-!$OMP                               sbqr,sbqi,sbqs,sbqg,qv_old,sbqnc,sbqnr,sbqni,sbqns, &
-!$OMP                               sbqng,sbqna,diagflag,sbmradar,rainnc, &
-!$OMP                               rainncv,snownc,snowncv,graupelnc,graupelncv,ma,lh_rate, &
-!$OMP                               ce_rate,ds_rate,melt_rate,frz_rate,cldnucl_rate, &
-!$OMP                               icenucl_rate,pt_old,q_old,fsbm_init) &
-!$OMP                       private(q2,q3,pe0,pe1,pe2,pe3,qv,cvm,gz,gsize,phis,dpln,dp2,t0)
+!$OMP                               ccn_cm3,cin_cm3,inline_mp,u_dt,v_dt,   &
+!$OMP                               do_inline_mp,do_fsbm,ps,qnl,qni) &
+!$OMP                       private(q2,q3,cvm,gz,gsize,phis,dpln,dp2,t0)
 
 !$OMP do
   do k=2,km
@@ -909,9 +903,33 @@ endif        ! end last_step check
 #endif
         endif
  
+        if (consv .gt. consv_min) then
+            do i = is, ie
+                do k = 1, km
+                    te0_2d(i, j) = te0_2d(i, j) + te(i, j, k)
+                enddo
+            enddo
+        endif
+
     enddo
 
   endif
+!$OMP end parallel
+
+!$OMP parallel default(none) shared(is,ie,js,je,km,ua,va,isd,ied,jsd,jed, &
+!$OMP                               te,delp,hydrostatic,hs,pt,peln,adiabatic, &
+!$OMP                               cp,delz,nwat,rainwat,liq_wat,ice_wat,snowwat, &
+!$OMP                               graupel,q_con,r_vir,sphum,w,pkz,last_step,consv, &
+!$OMP                               do_adiabatic_init,te0_2d,dtmp,q,mdt,cappa,  &
+!$OMP                               kord_tm,ccn_cm3,inline_mp,do_fsbm, &
+!$OMP                               wr,ur,vr,th_old,chem_new,itimestep,dx,dy, &
+!$OMP                               dz8w,rho_phy,p_phy,pi_phy,th_phy,xland,sbqv,sbqc, &
+!$OMP                               sbqr,sbqi,sbqs,sbqg,qv_old,sbqnc,sbqnr,sbqni,sbqns, &
+!$OMP                               sbqng,sbqna,diagflag,sbmradar,rainnc, &
+!$OMP                               rainncv,snownc,snowncv,graupelnc,graupelncv,ma,lh_rate, &
+!$OMP                               ce_rate,ds_rate,melt_rate,frz_rate,cldnucl_rate, &
+!$OMP                               icenucl_rate,pt_old,q_old,fsbm_init) &
+!$OMP                       private(cvm,gz,qliq,qsol)
 
 !-----------------------------------------------------------------------
 ! Fast Spectral-Bin Microphysics
@@ -933,13 +951,7 @@ endif        ! end last_step check
                 else
                     xland(i,j) = 0
                 endif
-            enddo
-        enddo
-
-!$OMP do
-        do k = 1, km
-            do j = js, je
-                do i = is, ie
+                do k = 1, km
                     ur(i,k,j) = ua(i,j,km+1-k)
                     vr(i,k,j) = va(i,j,km+1-k)
                     wr(i,k,j) = w(i,j,km+1-k)
@@ -951,30 +963,16 @@ endif        ! end last_step check
                     th_old(i,k,j) = pt_old(i,j,km+1-k) / pi_phy(i,k,j)
                     qv_old(i,k,j) = q_old(i,j,km+1-k)
                     sbqv(i,k,j) = q(i,j,km+1-k,sphum)
-                    do n = 33*0+1, 33*1
-                        chem_new(i,k,j,n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) / 33.0
-                    enddo
-                    do n = 33*1+1, 33*2
-                        chem_new(i,k,j,n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) / 33.0
-                    enddo
-                    do n = 33*2+1, 33*3
-                        chem_new(i,k,j,n) = q(i,j,km+1-k,graupel) / 33.0
-                    enddo
-                    do n = 33*3+1, 33*4
-                        if (cin_cm3 .gt. 0) then
-                            chem_new(i,k,j,n) = q(i,j,km+1-k,cin_cm3) / 33.0
-                        else
-                            chem_new(i,k,j,n) = 1.e8 / rho_phy(i,k,j) / 33.0
-                        endif
-                    enddo
-                    MA(i,k,j) = 0.0
-                    LH_rate(i,k,j) = 0.0
-                    CE_rate(i,k,j) = 0.0
-                    DS_rate(i,k,j) = 0.0
-                    Melt_rate(i,k,j) = 0.0
-                    Frz_rate(i,k,j) = 0.0
-                    CldNucl_rate(i,k,j) = 0.0
-                    IceNucl_rate(i,k,j) = 0.0
+                    chem_new(i,k,j,33*0+1:33*1) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) / 33.0
+                    chem_new(i,k,j,33*1+1:33*2) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) / 33.0
+                    chem_new(i,k,j,33*2+1:33*3) = q(i,j,km+1-k,graupel) / 33.0
+                    chem_new(i,k,j,33*3+1:33*4) = 1.e8 / rho_phy(i,k,j) / 33.0
+
+                    cvm(i) = (1 - (q(i,j,k,sphum) + q(i,j,k,liq_wat) + q(i,j,k,rainwat) + &
+                        q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel))) * cv_air + &
+                        q(i,j,k,sphum) * cv_vap + q(i,j,k,liq_wat) + q(i,j,k,rainwat) * c_liq + &
+                        q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel) * c_ice
+                    te(i,j,k) = - cvm(i) * pt(i,j,k) * delp(i,j,k)
                 enddo
             enddo
         enddo
@@ -995,13 +993,7 @@ endif        ! end last_step check
                 inline_mp%prer(i,j) = inline_mp%prer(i,j) + rainncv(i,j) / abs(mdt) * 86400
                 inline_mp%pres(i,j) = inline_mp%pres(i,j) + snowncv(i,j) / abs(mdt) * 86400
                 inline_mp%preg(i,j) = inline_mp%preg(i,j) + graupelncv(i,j) / abs(mdt) * 86400
-            enddo
-        enddo
-  
-!$OMP do
-        do k = 1, km
-            do j = js, je
-                do i = is, ie
+                do k = 1, km
                     q(i,j,k,sphum) = sbqv(i,km+1-k,j)
                     q(i,j,k,liq_wat) = sbqc(i,km+1-k,j)
                     q(i,j,k,rainwat) = sbqr(i,km+1-k,j)
@@ -1011,6 +1003,14 @@ endif        ! end last_step check
                     pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     q_old(i,j,k) = qv_old(i,km+1-k,j)
+
+                    q_con(i,j,k) = q(i,j,k,liq_wat) + q(i,j,k,rainwat) + q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
+                    cvm(i) = (1 - (q(i,j,k,sphum) + q(i,j,k,liq_wat) + q(i,j,k,rainwat) + &
+                        q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel))) * cv_air + &
+                        q(i,j,k,sphum) * cv_vap + q(i,j,k,liq_wat) + q(i,j,k,rainwat) * c_liq + &
+                        q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel) * c_ice
+                    cappa(i,j,k) = rdgas / (rdgas + cvm(i) / (1. + r_vir * q(i,j,k,sphum)))
+                    te(i,j,k) = te(i,j,k) + cvm(i) * pt(i,j,k) * delp(i,j,k)
                 enddo
             enddo
         enddo
@@ -1088,7 +1088,7 @@ endif        ! end last_step check
         if (hydrostatic) then
           do k = 1, km
             do i=is,ie
-              te0_2d(i,j) = te0_2d(i,j) + te(i,j,k) + delp(i,j,k) * &
+              te0_2d(i,j) = te0_2d(i,j) + delp(i,j,k) * &
                            (0.25*gridstruct%rsin2(i,j)*(u(i,j,k)**2+u(i,j+1,k)**2 +  &
                                                         v(i,j,k)**2+v(i+1,j,k)**2 -  &
                            (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j))) &
@@ -1109,7 +1109,7 @@ endif        ! end last_step check
           enddo
           do k = 1, km
             do i=is,ie
-              te0_2d(i,j) = te0_2d(i,j) + te(i,j,k) + delp(i,j,k) * &
+              te0_2d(i,j) = te0_2d(i,j) + delp(i,j,k) * &
                              (0.5*(phis(i,k)+phis(i,k+1) + w(i,j,k)**2 + 0.5*gridstruct%rsin2(i,j)*( &
                               u(i,j,k)**2+u(i,j+1,k)**2 + v(i,j,k)**2+v(i+1,j,k)**2 -  &
                              (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j)))) &
