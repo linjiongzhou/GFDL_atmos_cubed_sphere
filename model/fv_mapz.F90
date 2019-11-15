@@ -173,7 +173,7 @@ contains
 
   logical :: diagflag = .false.
   integer, parameter :: n_chem = 33 * 4, num_sbmradar = 55
-  real :: dx = 13.e3, dy = 13.e3
+  real :: dx = 200.e3, dy = 200.e3
   real :: qliq, qsol
   real, dimension(is:ie,js:je) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
   real, dimension(is:ie,km,js:je) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
@@ -926,7 +926,7 @@ endif        ! end last_step check
 !$OMP                                  pt,p_phy,pkz,pi_phy,th_phy,pt_old,th_old,q_old,qv_old,q, &
 !$OMP                                  sbqv,chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
-!$OMP                                  frz_rate) &
+!$OMP                                  frz_rate,consv) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -958,11 +958,13 @@ endif        ! end last_step check
                     melt_rate(i,k,j) = 0.0
                     frz_rate(i,k,j) = 0.0
 
-                    qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
-                    qsol = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
-                    cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
-                        q(i,j,k,sphum) * cv_vap + qliq* c_liq + qsol * c_ice
-                    te(i,j,k) = - cvm(i) * pt(i,j,k) * delp(i,j,k)
+                    if (consv .gt. consv_min) then
+                        qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
+                        qsol = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
+                        cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
+                            q(i,j,k,sphum) * cv_vap + qliq* c_liq + qsol * c_ice
+                        te(i,j,k) = - cvm(i) * pt(i,j,k) * delp(i,j,k)
+                    endif
                 enddo
             enddo
         enddo
@@ -978,7 +980,8 @@ endif        ! end last_step check
 !$OMP parallel do default(none) shared(is,ie,js,je,km,inline_mp,do_inline_mp,rainncv,snowncv, &
 !$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &
 !$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
-!$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel) &
+!$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
+!$OMP                                  consv) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -1004,7 +1007,9 @@ endif        ! end last_step check
                         q(i,j,k,sphum) * cv_vap + qliq* c_liq + qsol * c_ice
                     q_con(i,j,k) = qliq + qsol
                     cappa(i,j,k) = rdgas / (rdgas + cvm(i) / (1. + r_vir * q(i,j,k,sphum)))
-                    te(i,j,k) = te(i,j,k) + cvm(i) * pt(i,j,k) * delp(i,j,k)
+                    if (consv .gt. consv_min) then
+                        te(i,j,k) = te(i,j,k) + cvm(i) * pt(i,j,k) * delp(i,j,k)
+                    endif
                 enddo
             enddo
         enddo
