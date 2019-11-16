@@ -36,7 +36,7 @@ module fv_mapz_mod
   use fv_mp_mod,         only: is_master, mp_reduce_min, mp_reduce_max
   use fast_sat_adj_mod,  only: fast_sat_adj, qsmith_init
 #ifndef DYCORE_SOLO
-  use gfdl_mp_mod,       only: gfdl_mp_driver
+  use gfdl_mp_mod,       only: gfdl_mp_driver, iqs1
 #endif
   use module_mp_fast_sbm,only: fast_sbm
 
@@ -173,8 +173,12 @@ contains
 
   logical :: diagflag = .false.
   integer, parameter :: n_chem = 33 * 4, num_sbmradar = 55
-  real :: dx = 200.e3, dy = 200.e3
-  real :: qliq, qsol
+  real, parameter :: dx = 1.e3, dy = 1.e3
+  real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
+  real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
+  real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
+  real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
+  real, dimension(33) :: f
   real, dimension(is:ie,js:je) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
   real, dimension(is:ie,km,js:je) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
   real, dimension(is:ie,km,js:je) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
@@ -809,7 +813,7 @@ endif        ! end last_step check
 ! Inline GFDL MP
 !-----------------------------------------------------------------------
 
-  if ((.not. do_adiabatic_init) .and. do_inline_mp) then
+  if ((.not. do_adiabatic_init) .and. do_inline_mp .and. (.not. do_fsbm)) then
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,pe,ua,va, &
 !$OMP                                  te,delp,hydrostatic,hs,pt,peln, &
@@ -920,13 +924,31 @@ endif        ! end last_step check
 ! Fast Spectral-Bin Microphysics
 !-----------------------------------------------------------------------
 
-    if ((.not. do_adiabatic_init) .and. do_fsbm) then
+    if ((.not. do_adiabatic_init) .and. do_inline_mp .and. do_fsbm) then
+
+        f_sum = 0
+        do n = 1, 33
+
+            ! normal distribution
+            ! mu = (1 + 33) / 2.
+            ! sigma = 10.
+            ! f(n) = 1. / (sigma * sqrt(2. * pi)) * exp(- (n - mu) ** 2. / (2. * sigma ** 2.))
+
+            ! gamma distribution
+            alpha = 3.
+            beta = 3.
+            f(n) = 1. / (gamma(alpha) * beta ** alpha) * n ** (alpha - 1.) * exp(- n / beta)
+
+            f_sum = f_sum + f(n)
+
+        enddo
+        f = f / f_sum
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,hs,ua,ur,va,vr,w,wr,delz,dz8w,delp,rho_phy, &
 !$OMP                                  pt,p_phy,pkz,pi_phy,th_phy,pt_old,th_old,q_old,qv_old,q, &
 !$OMP                                  sbqv,chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
-!$OMP                                  frz_rate,consv) &
+!$OMP                                  frz_rate,consv,f) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -947,10 +969,12 @@ endif        ! end last_step check
                     th_old(i,k,j) = pt_old(i,j,km+1-k) / pi_phy(i,k,j)
                     qv_old(i,k,j) = q_old(i,j,km+1-k)
                     sbqv(i,k,j) = q(i,j,km+1-k,sphum)
-                    chem_new(i,k,j,33*0+1:33*1) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) / 33.0
-                    chem_new(i,k,j,33*1+1:33*2) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) / 33.0
-                    chem_new(i,k,j,33*2+1:33*3) = q(i,j,km+1-k,graupel) / 33.0
-                    chem_new(i,k,j,33*3+1:33*4) = 1.e8 / rho_phy(i,k,j) / 33.0
+                    do n = 1, 33
+                        chem_new(i,k,j,33*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
+                        chem_new(i,k,j,33*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
+                        chem_new(i,k,j,33*2+n) = q(i,j,km+1-k,graupel) * f(n)
+                        chem_new(i,k,j,33*3+n) = 1.e8 / rho_phy(i,k,j) * f(n)
+                    enddo
                     ma(i,k,j) = 0.0
                     lh_rate(i,k,j) = 0.0
                     ce_rate(i,k,j) = 0.0
@@ -981,7 +1005,7 @@ endif        ! end last_step check
 !$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &
 !$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
 !$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
-!$OMP                                  consv) &
+!$OMP                                  consv,qsat,rh,cld_amt,rho_phy) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -1003,6 +1027,17 @@ endif        ! end last_step check
 
                     qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
                     qsol = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
+                    qsat = iqs1(pt(i,j,k), rho_phy(i,km+1-k,j))
+                    rh = q(i,j,k,sphum) / qsat
+                    if (rh >= 1.0) then
+                        q(i,j,k,cld_amt) = 1.0
+                    elseif (rh > 0.75 .and. qliq + qsol > 1.e-6) then
+                        q(i,j,k,cld_amt) = rh ** xr_a * (1.0 - exp (- xr_b * max (0.0, qliq + qsol) / &
+                            max (1.e-5, (max (1.e-10, 1.0 - rh) * qsat) ** xr_c)))
+                        q(i,j,k,cld_amt) = max (0.0, min (1., q(i,j,k,cld_amt)))
+                    else
+                        q(i,j,k,cld_amt) = 0.0
+                    endif
                     cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
                         q(i,j,k,sphum) * cv_vap + qliq* c_liq + qsol * c_ice
                     q_con(i,j,k) = qliq + qsol
