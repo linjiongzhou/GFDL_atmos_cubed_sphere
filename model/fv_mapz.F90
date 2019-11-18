@@ -128,8 +128,8 @@ contains
   real, intent(inout)::  w(isd:     ,jsd:     ,1:)   ! vertical velocity (m/s)
   real, intent(inout):: pt(isd:ied  ,jsd:jed  ,km)   ! cp*virtual potential temperature 
                                                      ! as input; output: temperature
-  real, intent(inout):: pt_old(isd:ied  ,jsd:jed  ,km)   ! temperature at the previous time step (K), used in fsbm
-  real, intent(inout):: q_old(isd:ied,jsd:jed,km) ! specific humidity at the previous time step, used in fsbm
+  real, intent(inout):: pt_old(isd:  ,jsd:  ,1:)   ! temperature at the previous time step (K), used in fsbm
+  real, intent(inout):: q_old(isd:,jsd:,1:) ! specific humidity at the previous time step, used in fsbm
   real, intent(inout), dimension(isd:,jsd:,1:)::q_con, cappa
   real, intent(inout), dimension(is:,js:,1:)::delz
   logical, intent(in):: hydrostatic
@@ -181,14 +181,14 @@ contains
   real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
   integer, dimension(bin) :: qlr_ind, qis_ind, qg_ind, ccn_ind
   real, dimension(bin) :: f
-  real, dimension(is:ie,js:je) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
-  real, dimension(is:ie,km,js:je) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
-  real, dimension(is:ie,km,js:je) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
-  real, dimension(is:ie,km,js:je) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
-  real, dimension(is:ie,km,js:je) :: cldnucl_rate, icenucl_rate
-  real, dimension(is:ie,km,js:je) :: th_old, qv_old
-  real, dimension(is:ie,km,js:je,n_chem) :: chem_new
-  real, dimension(is:ie,km,js:je,num_sbmradar) :: sbmradar
+  real, allocatable, dimension(:,:) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
+  real, allocatable, dimension(:,:,:) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
+  real, allocatable, dimension(:,:,:) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
+  real, allocatable, dimension(:,:,:) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
+  real, allocatable, dimension(:,:,:) :: cldnucl_rate, icenucl_rate
+  real, allocatable, dimension(:,:,:) :: th_old, qv_old
+  real, allocatable, dimension(:,:,:,:) :: chem_new
+  real, allocatable, dimension(:,:,:,:) :: sbmradar
   character(len=4) :: ind
 
        k1k = rdgas/cv_air   ! akap / (1.-akap) = rg/Cv=0.4
@@ -954,6 +954,20 @@ endif        ! end last_step check
         enddo
         f = f / f_sum
 
+        allocate(xland(is:ie,js:je), rainnc(is:ie,js:je), rainncv(is:ie,js:je), snownc(is:ie,js:je))
+        allocate(snowncv(is:ie,js:je), graupelnc(is:ie,js:je), graupelncv(is:ie,js:je))
+        allocate(ur(is:ie,km,js:je), vr(is:ie,km,js:je), wr(is:ie,km,js:je), dz8w(is:ie,km,js:je))
+        allocate(p_phy(is:ie,km,js:je), pi_phy(is:ie,km,js:je), rho_phy(is:ie,km,js:je))
+        allocate(th_phy(is:ie,km,js:je), sbqv(is:ie,km,js:je), sbqc(is:ie,km,js:je))
+        allocate(sbqr(is:ie,km,js:je), sbqi(is:ie,km,js:je), sbqs(is:ie,km,js:je))
+        allocate(sbqg(is:ie,km,js:je), sbqnc(is:ie,km,js:je), sbqnr(is:ie,km,js:je))
+        allocate(sbqni(is:ie,km,js:je), sbqns(is:ie,km,js:je), sbqng(is:ie,km,js:je))
+        allocate(sbqna(is:ie,km,js:je), ma(is:ie,km,js:je), lh_rate(is:ie,km,js:je))
+        allocate(ce_rate(is:ie,km,js:je), ds_rate(is:ie,km,js:je), melt_rate(is:ie,km,js:je))
+        allocate(frz_rate(is:ie,km,js:je), cldnucl_rate(is:ie,km,js:je), icenucl_rate(is:ie,km,js:je))
+        allocate(th_old(is:ie,km,js:je), qv_old(is:ie,km,js:je), chem_new(is:ie,km,js:je,n_chem))
+        allocate(sbmradar(is:ie,km,js:je,num_sbmradar))
+
 !$OMP parallel do default(none) shared(is,ie,js,je,km,hs,ua,ur,va,vr,w,wr,delz,dz8w,delp,rho_phy, &
 !$OMP                                  pt,p_phy,pkz,pi_phy,th_phy,pt_old,th_old,q_old,qv_old,q, &
 !$OMP                                  sbqv,chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
@@ -1072,6 +1086,15 @@ endif        ! end last_step check
                 enddo
             enddo
         enddo
+
+        deallocate(xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv)
+        deallocate(ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy)
+        deallocate(sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna)
+        deallocate(ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate)
+        deallocate(cldnucl_rate, icenucl_rate)
+        deallocate(th_old, qv_old)
+        deallocate(chem_new)
+        deallocate(sbmradar)
 
     endif
 

@@ -98,10 +98,10 @@ contains
     real, intent(inout), dimension(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz) :: v ! D grid meridional wind (m/s)
     real, intent(inout) :: w(   bd%isd:  ,bd%jsd:  ,1:)  !  W (m/s)
     real, intent(inout) :: pt(  bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! temperature (K)
-    real, intent(inout) :: pt_old(  bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! temperature at the previous time step (K), used in fsbm
+    real, intent(inout) :: pt_old(  bd%isd:  ,bd%jsd:  ,1:)  ! temperature at the previous time step (K), used in fsbm
     real, intent(inout) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! pressure thickness (pascal)
     real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst) ! specific humidity and constituents
-    real, intent(inout) :: q_old(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz) ! specific humidity at the previous time step, used in fsbm
+    real, intent(inout) :: q_old(   bd%isd:  ,bd%jsd:  ,1:) ! specific humidity at the previous time step, used in fsbm
     real, intent(inout) :: delz(bd%is:,bd%js:,1:)   ! delta-height (m); non-hydrostatic only
     real, intent(inout) ::  ze0(bd%is:, bd%js: ,1:) ! height at edges (m); non-hydrostatic
 ! ze0 no longer used

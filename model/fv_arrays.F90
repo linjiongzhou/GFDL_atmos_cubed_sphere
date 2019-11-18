@@ -735,11 +735,11 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: u(:,:,:)    _NULL  ! D grid zonal wind (m/s)
     real, _ALLOCATABLE :: v(:,:,:)    _NULL  ! D grid meridional wind (m/s)
     real, _ALLOCATABLE :: pt(:,:,:)   _NULL  ! temperature (K)
-    real, _ALLOCATABLE :: pt_old(:,:,:)   _NULL  ! temperature at previous time step (K), used in fsbm
     real, _ALLOCATABLE :: delp(:,:,:) _NULL  ! pressure thickness (pascal)
     real, _ALLOCATABLE :: q(:,:,:,:)  _NULL  ! specific humidity and prognostic constituents
-    real, _ALLOCATABLE :: q_old(:,:,:)  _NULL  ! specific humidity at previous time step, used in fsbm
     real, _ALLOCATABLE :: qdiag(:,:,:,:)  _NULL  ! diagnostic tracers
+    real, _ALLOCATABLE :: pt_old(:,:,:)   _NULL  ! temperature at previous time step (K), used in fsbm
+    real, _ALLOCATABLE :: q_old(:,:,:)  _NULL  ! specific humidity at previous time step, used in fsbm
 
 !----------------------
 ! non-hydrostatic state:
@@ -971,11 +971,16 @@ contains
     allocate (    Atm%v(isd:ied+1,jsd:jed  ,npz) )
 
     allocate (   Atm%pt(isd:ied  ,jsd:jed  ,npz) )
-    allocate (Atm%pt_old(isd:ied  ,jsd:jed  ,npz) ) ! used in fsbm
     allocate ( Atm%delp(isd:ied  ,jsd:jed  ,npz) )
     allocate (    Atm%q(isd:ied  ,jsd:jed  ,npz, nq) )
-    allocate (Atm%q_old(isd:ied  ,jsd:jed  ,npz) ) ! used in fsbm
     allocate (Atm%qdiag(isd:ied  ,jsd:jed  ,npz, nq+1:ncnst) )
+    if (Atm%flagstruct%do_fsbm) then
+       allocate (Atm%pt_old(isd:ied  ,jsd:jed  ,npz) ) ! used in fsbm
+       allocate (Atm%q_old(isd:ied  ,jsd:jed  ,npz) ) ! used in fsbm
+    else
+       allocate (Atm%pt_old(1  ,1  ,1) ) ! used in fsbm
+       allocate (Atm%q_old(1  ,1  ,1) ) ! used in fsbm
+    endif
 
     ! Allocate Auxilliary pressure arrays
     allocate (   Atm%ps(isd:ied  ,jsd:jed) )
@@ -1051,9 +1056,7 @@ contains
                 Atm%ua(i,j,k) = real_big
                 Atm%va(i,j,k) = real_big
                 Atm%pt(i,j,k) = real_big ! used in fsbm
-                Atm%pt_old(i,j,k) = real_big
               Atm%delp(i,j,k) = real_big
-                Atm%q_old(i,j,k) = real_big ! used in fsbm
            enddo
         enddo
         do j=jsd, jed+1
@@ -1325,11 +1328,13 @@ contains
     deallocate (    Atm%u )
     deallocate (    Atm%v )
     deallocate (   Atm%pt )
-    deallocate ( Atm%pt_old ) ! used in fsbm
     deallocate ( Atm%delp )
     deallocate (    Atm%q )
-    deallocate ( Atm%q_old ) ! used in fsbm
     deallocate (    Atm%qdiag )
+    if (Atm%flagstruct%do_fsbm) then
+       deallocate ( Atm%pt_old ) ! used in fsbm
+       deallocate ( Atm%q_old ) ! used in fsbm
+    endif
     deallocate (   Atm%ps )
     deallocate (   Atm%pe )
     deallocate (   Atm%pk )
