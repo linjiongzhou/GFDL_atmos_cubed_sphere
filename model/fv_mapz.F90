@@ -172,13 +172,15 @@ contains
   ! Linjiong Zhou, FSBM
 
   logical :: diagflag = .false.
-  integer, parameter :: n_chem = 33 * 4, num_sbmradar = 55
+  integer, parameter :: bin = 33
+  integer, parameter :: n_chem = bin * 4, num_sbmradar = 55
   real, parameter :: dx = 1.e3, dy = 1.e3
   real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
   real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
   real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
   real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
-  real, dimension(33) :: f
+  integer, dimension(bin) :: qlr_ind, qis_ind, qg_ind, ccn_ind
+  real, dimension(bin) :: f
   real, dimension(is:ie,js:je) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
   real, dimension(is:ie,km,js:je) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
   real, dimension(is:ie,km,js:je) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
@@ -187,6 +189,7 @@ contains
   real, dimension(is:ie,km,js:je) :: th_old, qv_old
   real, dimension(is:ie,km,js:je,n_chem) :: chem_new
   real, dimension(is:ie,km,js:je,num_sbmradar) :: sbmradar
+  character(len=4) :: ind
 
        k1k = rdgas/cv_air   ! akap / (1.-akap) = rg/Cv=0.4
         rg = rdgas
@@ -927,20 +930,27 @@ endif        ! end last_step check
     if ((.not. do_adiabatic_init) .and. do_inline_mp .and. do_fsbm) then
 
         f_sum = 0
-        do n = 1, 33
-
+        do n = 1, bin
             ! normal distribution
-            ! mu = (1 + 33) / 2.
+            ! mu = (1 + bin) / 2.
             ! sigma = 10.
             ! f(n) = 1. / (sigma * sqrt(2. * pi)) * exp(- (n - mu) ** 2. / (2. * sigma ** 2.))
-
             ! gamma distribution
             alpha = 3.
             beta = 3.
             f(n) = 1. / (gamma(alpha) * beta ** alpha) * n ** (alpha - 1.) * exp(- n / beta)
-
+            ! sum up
             f_sum = f_sum + f(n)
-
+            ! get tracer index
+            if (n .lt. 10) then
+                write (ind,'(I1)') n
+            else
+                write (ind,'(I2)') n
+            endif
+            qlr_ind(n) = get_tracer_index(MODEL_ATMOS, 'qlr_'//trim(ind))
+            qis_ind(n) = get_tracer_index(MODEL_ATMOS, 'qis_'//trim(ind))
+            qg_ind(n) = get_tracer_index(MODEL_ATMOS, 'qg_'//trim(ind))
+            ccn_ind(n) = get_tracer_index(MODEL_ATMOS, 'ccn_'//trim(ind))
         enddo
         f = f / f_sum
 
@@ -948,7 +958,7 @@ endif        ! end last_step check
 !$OMP                                  pt,p_phy,pkz,pi_phy,th_phy,pt_old,th_old,q_old,qv_old,q, &
 !$OMP                                  sbqv,chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
-!$OMP                                  frz_rate,consv,f) &
+!$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,ccn_ind,a_step) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -969,11 +979,18 @@ endif        ! end last_step check
                     th_old(i,k,j) = pt_old(i,j,km+1-k) / pi_phy(i,k,j)
                     qv_old(i,k,j) = q_old(i,j,km+1-k)
                     sbqv(i,k,j) = q(i,j,km+1-k,sphum)
-                    do n = 1, 33
-                        chem_new(i,k,j,33*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
-                        chem_new(i,k,j,33*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
-                        chem_new(i,k,j,33*2+n) = q(i,j,km+1-k,graupel) * f(n)
-                        chem_new(i,k,j,33*3+n) = 1.e8 / rho_phy(i,k,j) * f(n)
+                    do n = 1, bin
+                        if (a_step .eq. 1) then
+                            chem_new(i,k,j,bin*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
+                            chem_new(i,k,j,bin*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
+                            chem_new(i,k,j,bin*2+n) = q(i,j,km+1-k,graupel) * f(n)
+                            chem_new(i,k,j,bin*3+n) = 1.e8 / rho_phy(i,k,j) * f(n)
+                        else
+                            chem_new(i,k,j,bin*0+n) = q(i,j,km+1-k,qlr_ind(n))
+                            chem_new(i,k,j,bin*1+n) = q(i,j,km+1-k,qis_ind(n))
+                            chem_new(i,k,j,bin*2+n) = q(i,j,km+1-k,qg_ind(n))
+                            chem_new(i,k,j,bin*3+n) = q(i,j,km+1-k,ccn_ind(n)) 
+                        endif
                     enddo
                     ma(i,k,j) = 0.0
                     lh_rate(i,k,j) = 0.0
@@ -1005,7 +1022,8 @@ endif        ! end last_step check
 !$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &
 !$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
 !$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
-!$OMP                                  consv,qsat,rh,cld_amt,rho_phy) &
+!$OMP                                  consv,qsat,rh,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind, &
+!$OMP                                  ccn_ind,chem_new) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -1024,6 +1042,12 @@ endif        ! end last_step check
                     pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     q_old(i,j,k) = qv_old(i,km+1-k,j)
+                    do n = 1, bin
+                        q(i,j,k,qlr_ind(n)) = chem_new(i,km+1-k,j,bin*0+n)
+                        q(i,j,k,qis_ind(n)) = chem_new(i,km+1-k,j,bin*1+n)
+                        q(i,j,k,qg_ind(n))  = chem_new(i,km+1-k,j,bin*2+n)
+                        q(i,j,k,ccn_ind(n)) = chem_new(i,km+1-k,j,bin*3+n)
+                    enddo
 
                     qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
                     qsol = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)

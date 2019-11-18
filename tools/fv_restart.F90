@@ -101,7 +101,7 @@ contains
     logical,             intent(inout)    :: cold_start
     integer,             intent(in)    :: grid_type, this_grid
 
-    integer :: i, j, k, n, ntileMe, nt, iq
+    integer :: i, j, k, m, n, ntileMe, nt, iq
     integer :: isc, iec, jsc, jec, ncnst, ntprog, ntdiag
     integer :: isd, ied, jsd, jed, npz
     integer isd_p, ied_p, jsd_p, jed_p, isc_p, iec_p, jsc_p, jec_p, isg, ieg, jsg,jeg, npx_p, npy_p
@@ -123,6 +123,10 @@ contains
     logical :: do_read_restart = .false.
     logical :: do_read_restart_bc = .false.
     integer, allocatable :: ideal_test_case(:), new_nest_topo(:)
+
+    integer, parameter :: bin = 33
+    integer :: qlr_ind, qis_ind, qg_ind, ccn_ind
+    character (len=4) :: ind
 
     rgrav = 1. / grav
 
@@ -536,6 +540,24 @@ contains
 !      call make_eta_level(npz, Atm(n)%pe, area, Atm(n)%ks, Atm(n)%ak, Atm(n)%bk, Atm(n)%ptop)
      endif
 !---------------------------------------------------------------------------------------------
+
+     if (Atm(n)%flagstruct%do_fsbm) then
+        do m = 1, bin
+           if (m .lt. 10) then
+               write (ind,'(I1)') m
+           else
+               write (ind,'(I2)') m
+           endif
+           qlr_ind = get_tracer_index(MODEL_ATMOS, 'qlr_'//trim(ind))
+           qis_ind = get_tracer_index(MODEL_ATMOS, 'qis_'//trim(ind))
+           qg_ind = get_tracer_index(MODEL_ATMOS, 'qg_'//trim(ind))
+           ccn_ind = get_tracer_index(MODEL_ATMOS, 'ccn_'//trim(ind))
+           Atm(n)%q(isc:iec,jsc:jec,:,qlr_ind) = 0.0
+           Atm(n)%q(isc:iec,jsc:jec,:,qis_ind) = 0.0
+           Atm(n)%q(isc:iec,jsc:jec,:,qg_ind) = 0.0
+           Atm(n)%q(isc:iec,jsc:jec,:,ccn_ind) = 0.0
+        enddo
+     endif
 
      if (Atm(n)%flagstruct%add_noise > 0.) then
         write(errstring,'(A, E16.9)') "Adding thermal noise of amplitude ", Atm(n)%flagstruct%add_noise
