@@ -1024,13 +1024,13 @@ endif        ! end last_step check
             enddo
         enddo
   
-        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, a_step, &
-            abs(mdt), dx, dy, dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, &
-            sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, qv_old, sbqnc, sbqnr, sbqni, &
-            sbqns, sbqng, sbqna, 1, ie-is+2, 1, je-js+2, 1, km, 1, ie-is+1, 1, je-js+1, 1, km, &
-            1, ie-is+1, 1, je-js+1, 1, km, diagflag, sbmradar, num_sbmradar, rainnc, &
-            rainncv, snownc, snowncv, graupelnc, graupelncv, ma, lh_rate, &
-            ce_rate, ds_rate, melt_rate, frz_rate, cldnucl_rate, icenucl_rate)
+        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, a_step, abs(mdt), dx, dy, &
+            dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, sbqv, sbqc, sbqr, sbqi, sbqs, &
+            sbqg, qv_old, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, 1, ie-is+2, 1, &
+            je-js+2, 1, km+1, 1, ie-is+1, 1, je-js+1, 1, km, 1, ie-is+1, 1, je-js+1, 1, &
+            km, diagflag, sbmradar, num_sbmradar, rainnc, rainncv, snownc, snowncv, &
+            graupelnc, graupelncv, ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, &
+            cldnucl_rate, icenucl_rate)
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,inline_mp,do_inline_mp,rainncv,snowncv, &
 !$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &
