@@ -177,6 +177,7 @@ contains
   logical :: diagflag = .false.
   integer :: n_chem, num_sbmradar
   real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
+  real :: dqv, dql, dqr, dqi, dqs, dqg, ps_dt
   real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
   real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
   real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
@@ -977,7 +978,7 @@ endif        ! end last_step check
 !$OMP                                  sbqv,chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
 !$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,ccn_ind,a_step, &
-!$OMP                                  fsbm_bin) &
+!$OMP                                  fsbm_bin,r_vir) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -1022,8 +1023,9 @@ endif        ! end last_step check
                         qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
                         qsol = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
                         cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
-                            q(i,j,k,sphum) * cv_vap + qliq* c_liq + qsol * c_ice
-                        te(i,j,k) = - cvm(i) * pt(i,j,k) * delp(i,j,k)
+                            q(i,j,k,sphum) * cv_vap + qliq * c_liq + qsol * c_ice
+                        te(i,j,k) = - cvm(i) * pt(i,j,k) / ((1. + r_vir * q(i,j,k,sphum)) * &
+                            (1. - (qliq + qsol))) * delp(i,j,k)
                     endif
                 enddo
             enddo
@@ -1041,9 +1043,9 @@ endif        ! end last_step check
 !$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &
 !$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
 !$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
-!$OMP                                  consv,qsat,rh,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind, &
-!$OMP                                  ccn_ind,chem_new,fsbm_bin) &
-!$OMP                          private(qliq,qsol,cvm)
+!$OMP                                  consv,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind, ccn_ind, &
+!$OMP                                  chem_new,fsbm_bin,te0_2d) &
+!$OMP                          private(qliq,qsol,cvm,dqv,dql,dqr,dqi,dqs,dqg,rh,qsat,ps_dt)
         do j = js, je
             do i = is, ie
                 if (do_inline_mp) then
@@ -1052,12 +1054,19 @@ endif        ! end last_step check
                     inline_mp%preg(i,j) = inline_mp%preg(i,j) + graupelncv(i,j) / abs(mdt) * 86400
                 endif
                 do k = 1, km
-                    q(i,j,k,sphum) = sbqv(i,km+1-k,j)
-                    q(i,j,k,liq_wat) = sbqc(i,km+1-k,j)
-                    q(i,j,k,rainwat) = sbqr(i,km+1-k,j)
-                    q(i,j,k,ice_wat) = sbqi(i,km+1-k,j)
-                    q(i,j,k,snowwat) = sbqs(i,km+1-k,j)
-                    q(i,j,k,graupel) = sbqg(i,km+1-k,j)
+                    dqv = sbqv(i,km+1-k,j) - q(i,j,k,sphum)
+                    dql = sbqc(i,km+1-k,j) - q(i,j,k,liq_wat)
+                    dqr = sbqr(i,km+1-k,j) - q(i,j,k,rainwat)
+                    dqi = sbqi(i,km+1-k,j) - q(i,j,k,ice_wat)
+                    dqs = sbqs(i,km+1-k,j) - q(i,j,k,snowwat)
+                    dqg = sbqg(i,km+1-k,j) - q(i,j,k,graupel)
+                    ps_dt = 1 + dqv + dql + dqr + dqi + dqs + dqg
+                    q(i,j,k,sphum) = sbqv(i,km+1-k,j) / ps_dt
+                    q(i,j,k,liq_wat) = sbqc(i,km+1-k,j) / ps_dt
+                    q(i,j,k,rainwat) = sbqr(i,km+1-k,j) / ps_dt
+                    q(i,j,k,ice_wat) = sbqi(i,km+1-k,j) / ps_dt
+                    q(i,j,k,snowwat) = sbqs(i,km+1-k,j) / ps_dt
+                    q(i,j,k,graupel) = sbqg(i,km+1-k,j) / ps_dt
                     pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     q_old(i,j,k) = qv_old(i,km+1-k,j)
@@ -1082,11 +1091,14 @@ endif        ! end last_step check
                         q(i,j,k,cld_amt) = 0.0
                     endif
                     cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
-                        q(i,j,k,sphum) * cv_vap + qliq* c_liq + qsol * c_ice
+                        q(i,j,k,sphum) * cv_vap + qliq * c_liq + qsol * c_ice
                     q_con(i,j,k) = qliq + qsol
                     cappa(i,j,k) = rdgas / (rdgas + cvm(i) / (1. + r_vir * q(i,j,k,sphum)))
+                    delp(i,j,k) = delp(i,j,k) * ps_dt
                     if (consv .gt. consv_min) then
-                        te(i,j,k) = te(i,j,k) + cvm(i) * pt(i,j,k) * delp(i,j,k)
+                        te(i,j,k) = te(i,j,k) + cvm(i) * pt(i,j,k) / ((1. + r_vir * q(i,j,k,sphum)) * &
+                            (1. - (qliq + qsol))) * delp(i,j,k)
+                        te0_2d(i,j) = te0_2d(i,j) + te(i,j,k)
                     endif
                 enddo
             enddo
