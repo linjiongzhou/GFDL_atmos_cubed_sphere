@@ -73,7 +73,7 @@ contains
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, do_omega, adiabatic, do_adiabatic_init, &
                       do_inline_mp, do_fsbm, inline_mp, c2l_ord, bd, fv_debug, &
-                      moist_phys, a_step, pt_old, q_old)
+                      moist_phys, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
   real,    intent(in):: mdt                   ! remap time step
@@ -92,7 +92,10 @@ contains
   integer, intent(in):: kord_tm               ! Mapping order for thermodynamics
   integer, intent(in):: c2l_ord
   integer, intent(in):: a_step
+  integer, intent(in):: fsbm_bin
 
+  real, intent(in):: fsbm_dx
+  real, intent(in):: fsbm_dy
   real, intent(in):: consv                 ! factor for TE conservation
   real, intent(in):: r_vir
   real, intent(in):: cp
@@ -172,15 +175,13 @@ contains
   ! Linjiong Zhou, FSBM
 
   logical :: diagflag = .false.
-  integer, parameter :: bin = 33
-  integer, parameter :: n_chem = bin * 4, num_sbmradar = 55
-  real, parameter :: dx = 1.e3, dy = 1.e3
+  integer :: n_chem, num_sbmradar
   real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
   real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
   real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
   real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
-  integer, dimension(bin) :: qlr_ind, qis_ind, qg_ind, ccn_ind
-  real, dimension(bin) :: f
+  integer, dimension(fsbm_bin) :: qlr_ind, qis_ind, qg_ind, ccn_ind
+  real, dimension(fsbm_bin) :: f
   real, allocatable, dimension(:,:) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
   real, allocatable, dimension(:,:,:) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
   real, allocatable, dimension(:,:,:) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
@@ -930,9 +931,9 @@ endif        ! end last_step check
     if ((.not. do_adiabatic_init) .and. do_inline_mp .and. do_fsbm) then
 
         f_sum = 0
-        do n = 1, bin
+        do n = 1, fsbm_bin
             ! normal distribution
-            ! mu = (1 + bin) / 2.
+            ! mu = (1 + fsbm_bin) / 2.
             ! sigma = 10.
             ! f(n) = 1. / (sigma * sqrt(2. * pi)) * exp(- (n - mu) ** 2. / (2. * sigma ** 2.))
             ! gamma distribution
@@ -954,6 +955,9 @@ endif        ! end last_step check
         enddo
         f = f / f_sum
 
+        n_chem = fsbm_bin * 4
+        num_sbmradar = 55
+
         allocate(xland(is:ie,js:je), rainnc(is:ie,js:je), rainncv(is:ie,js:je), snownc(is:ie,js:je))
         allocate(snowncv(is:ie,js:je), graupelnc(is:ie,js:je), graupelncv(is:ie,js:je))
         allocate(ur(is:ie,km,js:je), vr(is:ie,km,js:je), wr(is:ie,km,js:je), dz8w(is:ie,km,js:je))
@@ -972,7 +976,8 @@ endif        ! end last_step check
 !$OMP                                  pt,p_phy,pkz,pi_phy,th_phy,pt_old,th_old,q_old,qv_old,q, &
 !$OMP                                  sbqv,chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
-!$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,ccn_ind,a_step) &
+!$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,ccn_ind,a_step, &
+!$OMP                                  fsbm_bin) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -993,17 +998,17 @@ endif        ! end last_step check
                     th_old(i,k,j) = pt_old(i,j,km+1-k) / pi_phy(i,k,j)
                     qv_old(i,k,j) = q_old(i,j,km+1-k)
                     sbqv(i,k,j) = q(i,j,km+1-k,sphum)
-                    do n = 1, bin
+                    do n = 1, fsbm_bin
                         if (a_step .eq. 1) then
-                            chem_new(i,k,j,bin*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
-                            chem_new(i,k,j,bin*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
-                            chem_new(i,k,j,bin*2+n) = q(i,j,km+1-k,graupel) * f(n)
-                            chem_new(i,k,j,bin*3+n) = 1.e8 / rho_phy(i,k,j) * f(n)
+                            chem_new(i,k,j,fsbm_bin*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
+                            chem_new(i,k,j,fsbm_bin*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
+                            chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,graupel) * f(n)
+                            chem_new(i,k,j,fsbm_bin*3+n) = 1.e8 / rho_phy(i,k,j) * f(n)
                         else
-                            chem_new(i,k,j,bin*0+n) = q(i,j,km+1-k,qlr_ind(n))
-                            chem_new(i,k,j,bin*1+n) = q(i,j,km+1-k,qis_ind(n))
-                            chem_new(i,k,j,bin*2+n) = q(i,j,km+1-k,qg_ind(n))
-                            chem_new(i,k,j,bin*3+n) = q(i,j,km+1-k,ccn_ind(n)) 
+                            chem_new(i,k,j,fsbm_bin*0+n) = q(i,j,km+1-k,qlr_ind(n))
+                            chem_new(i,k,j,fsbm_bin*1+n) = q(i,j,km+1-k,qis_ind(n))
+                            chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,qg_ind(n))
+                            chem_new(i,k,j,fsbm_bin*3+n) = q(i,j,km+1-k,ccn_ind(n)) 
                         endif
                     enddo
                     ma(i,k,j) = 0.0
@@ -1024,7 +1029,7 @@ endif        ! end last_step check
             enddo
         enddo
   
-        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, a_step, abs(mdt), dx, dy, &
+        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, a_step, abs(mdt), fsbm_dx, fsbm_dy, &
             dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, sbqv, sbqc, sbqr, sbqi, sbqs, &
             sbqg, qv_old, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, 1, ie-is+2, 1, &
             je-js+2, 1, km+1, 1, ie-is+1, 1, je-js+1, 1, km, 1, ie-is+1, 1, je-js+1, 1, &
@@ -1037,7 +1042,7 @@ endif        ! end last_step check
 !$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
 !$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
 !$OMP                                  consv,qsat,rh,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind, &
-!$OMP                                  ccn_ind,chem_new) &
+!$OMP                                  ccn_ind,chem_new,fsbm_bin) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -1056,11 +1061,11 @@ endif        ! end last_step check
                     pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     q_old(i,j,k) = qv_old(i,km+1-k,j)
-                    do n = 1, bin
-                        q(i,j,k,qlr_ind(n)) = chem_new(i,km+1-k,j,bin*0+n)
-                        q(i,j,k,qis_ind(n)) = chem_new(i,km+1-k,j,bin*1+n)
-                        q(i,j,k,qg_ind(n))  = chem_new(i,km+1-k,j,bin*2+n)
-                        q(i,j,k,ccn_ind(n)) = chem_new(i,km+1-k,j,bin*3+n)
+                    do n = 1, fsbm_bin
+                        q(i,j,k,qlr_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*0+n)
+                        q(i,j,k,qis_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*1+n)
+                        q(i,j,k,qg_ind(n))  = chem_new(i,km+1-k,j,fsbm_bin*2+n)
+                        q(i,j,k,ccn_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*3+n)
                     enddo
 
                     qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)

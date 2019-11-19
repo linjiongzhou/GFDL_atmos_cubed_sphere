@@ -535,6 +535,10 @@ module fv_arrays_mod
   !integer, pointer :: test_case
   !real,    pointer :: alpha
 
+  integer :: fsbm_bin = 33
+  real :: fsbm_dx = 1.e3
+  real :: fsbm_dy = 1.e3
+
   end type fv_flags_type
 
   type fv_nest_BC_type_3D

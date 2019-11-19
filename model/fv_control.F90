@@ -277,6 +277,10 @@ module fv_control_mod
      integer , pointer :: a2b_ord 
      integer , pointer :: c2l_ord 
 
+     integer , pointer :: fsbm_bin
+     real , pointer :: fsbm_dx
+     real , pointer :: fsbm_dy
+
      integer, pointer :: ndims
 
      real(kind=R_GRID), pointer :: dx_const
@@ -801,6 +805,9 @@ module fv_control_mod
        add_noise                     => Atm%flagstruct%add_noise
        a2b_ord                       => Atm%flagstruct%a2b_ord
        c2l_ord                       => Atm%flagstruct%c2l_ord
+       fsbm_bin                      => Atm%flagstruct%fsbm_bin
+       fsbm_dx                       => Atm%flagstruct%fsbm_dx
+       fsbm_dy                       => Atm%flagstruct%fsbm_dy
        ndims                         => Atm%flagstruct%ndims
 
        dx_const                      => Atm%flagstruct%dx_const
@@ -937,7 +944,7 @@ module fv_control_mod
             nested, twowaynest, nudge_qv, &
             nestbctype, nestupdate, nsponge, s_weight, &
             check_negative, nudge_ic, halo_update_type, gfs_phil, agrid_vel_rst,     &
-            do_uni_zfull, adj_mass_vmr, update_blend, regional, bc_update_interval
+            do_uni_zfull, adj_mass_vmr, update_blend, regional, bc_update_interval, fsbm_bin, fsbm_dx, fsbm_dy
 
 #ifdef INTERNAL_FILE_NML
        ! Read FVCORE namelist 

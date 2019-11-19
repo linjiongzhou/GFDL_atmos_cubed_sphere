@@ -124,7 +124,6 @@ contains
     logical :: do_read_restart_bc = .false.
     integer, allocatable :: ideal_test_case(:), new_nest_topo(:)
 
-    integer, parameter :: bin = 33
     integer :: qlr_ind, qis_ind, qg_ind, ccn_ind
     character (len=4) :: ind
 
@@ -542,7 +541,7 @@ contains
 !---------------------------------------------------------------------------------------------
 
      if (Atm(n)%flagstruct%do_fsbm) then
-        do m = 1, bin
+        do m = 1, Atm(n)%flagstruct%fsbm_bin
            if (m .lt. 10) then
                write (ind,'(I1)') m
            else
