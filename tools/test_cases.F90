@@ -21,7 +21,7 @@
  module test_cases_mod
 
       use constants_mod,     only: cnst_radius=>radius, pi=>pi_8, omega, grav, kappa, rdgas, cp_air, rvgas
-      use init_hydro_mod,    only: p_var, hydro_eq
+      use init_hydro_mod,    only: p_var, hydro_eq, hydro_eq_ext
       use fv_mp_mod,         only: is_master,        &
                                    domain_decomp, fill_corners, XDir, YDir, &
                                    mp_stop, mp_reduce_sum, mp_reduce_max, mp_gather, mp_bcst
@@ -6146,6 +6146,8 @@ end subroutine terminator_tracers
         real :: ze1(npz+1)
          real:: dz1(npz)
         real:: zvir
+        real :: sigma, mu, amp, zint, zmid, qsum, pint, pmid
+        integer :: o3mr
         integer :: i, j, k, m, icenter, jcenter
 
         real, pointer, dimension(:,:,:)   :: agrid, grid
@@ -6322,6 +6324,33 @@ end subroutine terminator_tracers
                enddo
             enddo
          enddo
+
+         !--------------------------------------------------------------
+         ! *** Add o3 distribution *** Linjiong Zhou
+         ! normal distribution based on pressure
+         o3mr = get_tracer_index (MODEL_ATMOS, 'o3mr')
+         if (o3mr > 0) then
+            sigma = 19.0
+            mu = 1.e3
+            amp = 0.00023
+            do j=js,je
+               do i=is,ie
+                  pint = ptop
+                  qsum = 0.0
+                  do k=1,npz
+                     pmid = pint + 0.5 * delp(i,j,k)
+                     pint = pint + delp(i,j,k)
+                     q(i,j,k,o3mr) = 1.0 / (sigma * sqrt(2.0 * pi)) * &
+                        exp(- (pmid ** 0.5 - mu ** 0.5) ** 2.0 / (2.0 * sigma ** 2.0))
+                     qsum = qsum + q(i,j,k,o3mr)
+                  enddo
+                  do k=npz,1,-1
+                     q(i,j,k,o3mr) = amp * q(i,j,k,o3mr) / qsum
+                  enddo
+               enddo
+            enddo
+         endif
+         !--------------------------------------------------------------
 
         case ( 15 )
 !---------------------------

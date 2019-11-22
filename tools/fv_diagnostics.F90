@@ -1768,6 +1768,23 @@ contains
           if(prt_minmax) then
              call prt_maxmin('RH_sf (%)', wk(isc:iec,jsc:jec,npz), isc, iec, jsc, jec, 0,   1, 1.)
              call prt_maxmin('RH_3D (%)', wk, isc, iec, jsc, jec, 0, npz, 1.)
+             call interpolate_vertical(isc, iec, jsc, jec, npz, 200.e2, Atm(n)%peln, wk(isc:iec,jsc:jec,:), a2)
+             if (.not. Atm(n)%gridstruct%bounded_domain) then
+                tmp = 0.
+                sar = 0.
+                do j=jsc,jec
+                   do i=isc,iec
+                      slat = Atm(n)%gridstruct%agrid(i,j,2)*rad2deg
+                      sar = sar + Atm(n)%gridstruct%area(i,j)
+                      tmp = tmp + a2(i,j)*Atm(n)%gridstruct%area(i,j)
+                   enddo
+                enddo
+                call mp_reduce_sum(sar)
+                call mp_reduce_sum(tmp)
+                if ( sar > 0. ) then
+                   if (master) write(*,*) 'RH200 =', tmp/sar
+                endif
+             endif
           endif
        endif
 
