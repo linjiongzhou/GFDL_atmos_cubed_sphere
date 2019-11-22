@@ -6325,6 +6325,7 @@ end subroutine terminator_tracers
             enddo
          enddo
 
+#ifdef O3_IC
          !--------------------------------------------------------------
          ! *** Add o3 distribution *** Linjiong Zhou
          ! normal distribution based on pressure
@@ -6351,6 +6352,7 @@ end subroutine terminator_tracers
             enddo
          endif
          !--------------------------------------------------------------
+#endif
 
         case ( 15 )
 !---------------------------
