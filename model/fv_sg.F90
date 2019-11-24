@@ -976,7 +976,7 @@ contains
        allocate ( table(length) )
        allocate (  des (length) )
 
-       call qs_table(length, table)
+       call qs_table_m(length, table)
 
        do i=1,length-1
           des(i) = table(i+1) - table(i)
