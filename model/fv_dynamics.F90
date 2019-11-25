@@ -561,7 +561,7 @@ contains
                      flagstruct%adiabatic, do_adiabatic_init, flagstruct%do_inline_mp, &
                      flagstruct%do_fsbm, inline_mp, flagstruct%c2l_ord, bd, flagstruct%fv_debug, &
                      flagstruct%moist_phys, a_step, flagstruct%fsbm_bin, flagstruct%fsbm_dx, &
-                     flagstruct%fsbm_dy, pt_old, q_old)
+                     flagstruct%fsbm_dy, pt_old, q_old, flagstruct%warm_start)
 
      if ( flagstruct%fv_debug ) then
         if (is_master()) write(*,'(A, I3, A1, I3)') 'finished k_split ', n_map, '/', k_split

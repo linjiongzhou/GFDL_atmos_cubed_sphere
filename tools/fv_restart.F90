@@ -540,7 +540,7 @@ contains
      endif
 !---------------------------------------------------------------------------------------------
 
-     if (Atm(n)%flagstruct%do_fsbm) then
+     if (cold_start .and. Atm(n)%flagstruct%do_fsbm) then
         do m = 1, Atm(n)%flagstruct%fsbm_bin
            if (m .lt. 10) then
                write (ind,'(I1)') m
