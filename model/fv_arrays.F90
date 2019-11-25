@@ -1059,7 +1059,7 @@ contains
            do i=isd, ied
                 Atm%ua(i,j,k) = real_big
                 Atm%va(i,j,k) = real_big
-                Atm%pt(i,j,k) = real_big ! used in fsbm
+                Atm%pt(i,j,k) = real_big
               Atm%delp(i,j,k) = real_big
            enddo
         enddo
