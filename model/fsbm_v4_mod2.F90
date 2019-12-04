@@ -2970,7 +2970,7 @@ end module module_mp_SBM_Auxiliary
  	INTEGER, PARAMETER, PRIVATE:: R4SIZE = 4
 
 	INTEGER,PARAMETER :: Use_cloud_base_nuc = 1
-	real(kind=r8size),PARAMETER::T_NUCL_DROP_MIN = -60.0D0
+	real(kind=r8size),PARAMETER::T_NUCL_DROP_MIN = -80.0D0
 	real(kind=r8size),PARAMETER::T_NUCL_ICE_MIN = -37.0D0
 ! Ice nucleation method
 ! using MEYERS method : ice_nucl_method == 0
@@ -3991,7 +3991,7 @@ end module module_mp_SBM_Auxiliary
  INTEGER,PARAMETER :: hail_opt = 1
  INTEGER,PARAMETER :: ILogNormal_modes_Aerosol = 1, ILogNormal_modes_Aerosol_ACPC = 0, do_case_CLN = 1, do_case_POL = 0
 
- REAL,PARAMETER :: DX_BOUND = 1555
+ REAL,PARAMETER :: DX_BOUND = 999
  REAL(kind=r8size), PARAMETER :: SCAL = 1.d0
  INTEGER,PARAMETER :: ICEPROCS = 1
  INTEGER,PARAMETER :: ICETURB = 0, LIQTURB = 0
@@ -4744,7 +4744,7 @@ end module module_mp_SBM_Auxiliary
 ! +---------------------------------------------+
 ! Neucliation, Condensation, Collisions
 ! +---------------------------------------------+
-          IF (T_OLD(I,K,J).GT.213.15)THEN
+          IF (T_OLD(I,K,J).GT.193.15)THEN
              TT=T_OLD(I,K,J)
              QQ=QV_OLD(I,K,J)
              IF(QQ.LE.0.0) QQ = 1.D-10
@@ -4926,7 +4926,7 @@ end module module_mp_SBM_Auxiliary
 
                       ELSE IF(ISYM1==0 .AND. (TT-273.15)<-0.187 .AND. &
                           (sum(ISYM2)>1 .OR. ISYM3==1 .OR. ISYM4==1 .OR. ISYM5==1))THEN
-                            IF (T_OLD(I,K,J).GT.213.15)THEN
+                            !IF (T_OLD(I,K,J).GT.213.15)THEN
                                VR2_Z(:,1) = VR2_ZC(:,K)
                                VR2_Z(:,2) = VR2_ZP(:,K)
                                VR2_Z(:,3) = VR2_ZD(:,K)
@@ -4941,7 +4941,7 @@ end module module_mp_SBM_Auxiliary
                                ,C1_MEY,C2_MEY &
                                ,COL,DTCOND,ICEMAX,NKR &
                                ,ISYM1,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep,lh_ce_2)
-                           END IF
+                           !END IF
                         ELSE IF(ISYM1==1 .AND. (TT-273.15)<-0.187 .AND. &
                              (sum(ISYM2)>1 .OR. ISYM3==1 .OR. ISYM4==1 .OR. ISYM5==1))THEN
                              IF (T_OLD(I,K,J).GT.233.15)THEN
