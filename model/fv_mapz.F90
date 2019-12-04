@@ -172,6 +172,7 @@ contains
   integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
   integer:: ccn_cm3, cin_cm3
+  integer:: ql_num, qr_num, qi_num, qs_num, qg_num, qa_num
 
   ! Linjiong Zhou, FSBM
 
@@ -207,6 +208,12 @@ contains
        cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
        ccn_cm3 = get_tracer_index (MODEL_ATMOS, 'ccn_cm3')
        cin_cm3 = get_tracer_index (MODEL_ATMOS, 'cin_cm3')
+       ql_num = get_tracer_index (MODEL_ATMOS, 'ql_num')
+       qr_num = get_tracer_index (MODEL_ATMOS, 'qr_num')
+       qi_num = get_tracer_index (MODEL_ATMOS, 'qi_num')
+       qs_num = get_tracer_index (MODEL_ATMOS, 'qs_num')
+       qg_num = get_tracer_index (MODEL_ATMOS, 'qg_num')
+       qa_num = get_tracer_index (MODEL_ATMOS, 'qa_num')
 
        if ( do_adiabatic_init .or. do_sat_adj ) then
             fast_mp_consv = (.not.do_adiabatic_init) .and. consv>consv_min
@@ -1047,7 +1054,8 @@ endif        ! end last_step check
 !$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
 !$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
 !$OMP                                  consv,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind, ccn_ind, &
-!$OMP                                  chem_new,fsbm_bin,te0_2d) &
+!$OMP                                  chem_new,fsbm_bin,te0_2d,ql_num,qr_num,qi_num,qs_num, &
+!$OMP                                  qg_num,qa_num,sbqnc,sbqnr,sbqni,sbqns,sbqng,sbqna) &
 !$OMP                          private(qliq,qsol,cvm,dqv,dql,dqr,dqi,dqs,dqg,rh,qsat,ps_dt)
         do j = js, je
             do i = is, ie
@@ -1070,6 +1078,12 @@ endif        ! end last_step check
                     q(i,j,k,ice_wat) = sbqi(i,km+1-k,j) / ps_dt
                     q(i,j,k,snowwat) = sbqs(i,km+1-k,j) / ps_dt
                     q(i,j,k,graupel) = sbqg(i,km+1-k,j) / ps_dt
+                    q(i,j,k,ql_num) = sbqnc(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qr_num) = sbqnr(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qi_num) = sbqni(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qs_num) = sbqns(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qg_num) = sbqng(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qa_num) = sbqna(i,km+1-k,j) / ps_dt
                     pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     q_old(i,j,k) = qv_old(i,km+1-k,j)
