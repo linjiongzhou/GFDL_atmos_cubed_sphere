@@ -1092,13 +1092,12 @@ endif        ! end last_step check
         !write(unit,*) 'fsbm chksum before: qgg', mpp_chksum(q(is:ie,js:je,:,7+67:7+99))
         !write(unit,*) 'fsbm chksum before: ccn', mpp_chksum(q(is:ie,js:je,:,7+100:7+132))
   
-        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, itimestep, abs(mdt), fsbm_dx, fsbm_dy, &
-            dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, sbqv, sbqc, sbqr, sbqi, sbqs, &
-            sbqg, qv_old, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, 1, ie-is+2, 1, &
-            je-js+2, 1, km+1, 1, ie-is+1, 1, je-js+1, 1, km, 1, ie-is+1, 1, je-js+1, 1, &
-            km, diagflag, sbmradar, num_sbmradar, rainnc, rainncv, snownc, snowncv, &
-            graupelnc, graupelncv, ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, &
-            cldnucl_rate, icenucl_rate)
+        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, itimestep, abs(mdt), fsbm_dx, &
+            fsbm_dy, dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, sbqv, sbqc, sbqr, sbqi, &
+            sbqs, sbqg, qv_old, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, 1, npx, 1, npy, &
+            1, km, is, ie, js, je, 1, km, is, ie, js, je, 1, km, diagflag, sbmradar, &
+            num_sbmradar, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv, ma, &
+            lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, cldnucl_rate, icenucl_rate)
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,inline_mp,do_inline_mp,rainncv,snowncv, &
 !$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &

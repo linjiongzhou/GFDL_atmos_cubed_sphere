@@ -4373,10 +4373,10 @@ end module module_mp_SBM_Auxiliary
   DXHUCM=100.*DX
   DYHUCM=100.*DY
 
-  I_START=MIN(1,ITS-1)
-  J_START=MIN(1,JTS-1)
-  I_END=MAX(IDE-1,ITE+1)
-  J_END=MAX(JDE-1,JTE+1)
+  I_START=ITS-1
+  J_START=JTS-1
+  I_END=ITE+1
+  J_END=JTE+1
 
    DO j = j_start,j_end
       DO i = i_start,i_end
