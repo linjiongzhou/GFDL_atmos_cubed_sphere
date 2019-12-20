@@ -165,6 +165,7 @@ module fv_control_mod
      logical , pointer :: consv_am
      logical , pointer :: do_sat_adj
      logical , pointer :: do_inline_mp
+     logical , pointer :: do_fsbm
      logical , pointer :: do_f3d
      logical , pointer :: no_dycore 
      logical , pointer :: convert_ke 
@@ -276,6 +277,10 @@ module fv_control_mod
 
      integer , pointer :: a2b_ord 
      integer , pointer :: c2l_ord 
+
+     integer , pointer :: fsbm_bin
+     real , pointer :: fsbm_dx
+     real , pointer :: fsbm_dy
 
      integer, pointer :: ndims
 
@@ -699,6 +704,7 @@ module fv_control_mod
        consv_am                      => Atm%flagstruct%consv_am
        do_sat_adj                    => Atm%flagstruct%do_sat_adj
        do_inline_mp                  => Atm%flagstruct%do_inline_mp
+       do_fsbm                       => Atm%flagstruct%do_fsbm
        do_f3d                        => Atm%flagstruct%do_f3d
        no_dycore                     => Atm%flagstruct%no_dycore
        convert_ke                    => Atm%flagstruct%convert_ke
@@ -805,6 +811,9 @@ module fv_control_mod
        add_noise                     => Atm%flagstruct%add_noise
        a2b_ord                       => Atm%flagstruct%a2b_ord
        c2l_ord                       => Atm%flagstruct%c2l_ord
+       fsbm_bin                      => Atm%flagstruct%fsbm_bin
+       fsbm_dx                       => Atm%flagstruct%fsbm_dx
+       fsbm_dy                       => Atm%flagstruct%fsbm_dy
        ndims                         => Atm%flagstruct%ndims
 
        dx_const                      => Atm%flagstruct%dx_const
@@ -926,7 +935,7 @@ module fv_control_mod
             use_logp, p_fac, a_imp, k_split, n_split, m_split, q_split, print_freq, write_3d_diags, &
             do_schmidt, do_cube_transform, &
             hord_mt, hord_vt, hord_tm, hord_dp, hord_tr, shift_fac, stretch_fac, target_lat, target_lon, &
-            kord_mt, kord_wz, kord_tm, kord_tr, fv_debug, fv_land, nudge, do_sat_adj, do_inline_mp, do_f3d, &
+            kord_mt, kord_wz, kord_tm, kord_tr, fv_debug, fv_land, nudge, do_sat_adj, do_inline_mp, do_fsbm, do_f3d, &
             external_ic, read_increment, ncep_ic, nggps_ic, ecmwf_ic, use_new_ncep, use_ncep_phy, fv_diag_ic, &
             external_eta, res_latlon_dynamics, res_latlon_tracers, scale_z, w_max, z_min, lim_fac, &
             dddmp, d2_bg, d4_bg, vtdm4, trdm2, d_ext, delt_max, beta, non_ortho, n_sponge, &
@@ -944,7 +953,7 @@ module fv_control_mod
             nestbctype, nestupdate, nsponge, s_weight, &
             check_negative, nudge_ic, halo_update_type, gfs_phil, agrid_vel_rst,     &
             do_uni_zfull, adj_mass_vmr, update_blend, regional,&
-            & bc_update_interval, restart_resolution
+            bc_update_interval, restart_resolution, fsbm_bin, fsbm_dx, fsbm_dy
 
 #ifdef INTERNAL_FILE_NML
        ! Read FVCORE namelist 

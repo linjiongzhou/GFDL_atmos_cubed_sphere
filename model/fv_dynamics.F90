@@ -71,7 +71,7 @@ contains
                         ps, pe, pk, peln, pkz, phis, q_con, omga, ua, va, uc, vc,          &
                         ak, bk, mfx, mfy, cx, cy, ze0, hybrid_z, &
                         gridstruct, flagstruct, neststruct, idiag, bd, &
-                        parent_grid, domain, inline_mp, time_total)
+                        parent_grid, domain, inline_mp, pt_old, q_old, time_total)
 
     real, intent(IN) :: bdt  ! Large time-step
     real, intent(IN) :: consv_te
@@ -98,8 +98,10 @@ contains
     real, intent(inout), dimension(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz) :: v ! D grid meridional wind (m/s)
     real, intent(inout) :: w(   bd%isd:  ,bd%jsd:  ,1:)  !  W (m/s)
     real, intent(inout) :: pt(  bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! temperature (K)
+    real, intent(inout) :: pt_old(  bd%isd:  ,bd%jsd:  ,1:)  ! temperature at the previous time step (K), used in fsbm
     real, intent(inout) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! pressure thickness (pascal)
     real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst) ! specific humidity and constituents
+    real, intent(inout) :: q_old(   bd%isd:  ,bd%jsd:  ,1:) ! specific humidity at the previous time step, used in fsbm
     real, intent(inout) :: delz(bd%is:,bd%js:,1:)   ! delta-height (m); non-hydrostatic only
     real, intent(inout) ::  ze0(bd%is:, bd%js: ,1:) ! height at edges (m); non-hydrostatic
 ! ze0 no longer used
@@ -557,8 +559,9 @@ contains
                      flagstruct%do_sat_adj, hydrostatic, &
                      hybrid_z, do_omega,     &
                      flagstruct%adiabatic, do_adiabatic_init, flagstruct%do_inline_mp, &
-                     inline_mp, flagstruct%c2l_ord, bd, flagstruct%fv_debug, &
-                     flagstruct%moist_phys)
+                     flagstruct%do_fsbm, inline_mp, flagstruct%c2l_ord, bd, flagstruct%fv_debug, &
+                     flagstruct%moist_phys, a_step, flagstruct%fsbm_bin, flagstruct%fsbm_dx, &
+                     flagstruct%fsbm_dy, pt_old, q_old, flagstruct%warm_start)
 
      if ( flagstruct%fv_debug ) then
         if (is_master()) write(*,'(A, I3, A1, I3)') 'finished k_split ', n_map, '/', k_split
