@@ -1,3 +1,24 @@
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
+
 #ifndef _FV_ETA_
 #define _FV_ETA__
 
@@ -113,7 +134,7 @@
 ! Wilson's 32L settings:
 !---------------------
 ! Top changed to 0.01 mb
-      data a32w/  1.00,       26.6378,     84.5529,     228.8592,   & 
+      data a32w/  1.00,       26.6378,     84.5529,     228.8592,   &
                 539.9597,   1131.7087,   2141.8082,    3712.0454,   &
                5963.5317,   8974.1873,  12764.5388,   17294.5911,   &
               20857.7007,  22221.8651,  22892.7202,   22891.1641,   &
@@ -122,7 +143,7 @@
                8073.9717,   6458.0824,   5027.9893,    3784.6104,   &
                2722.0093,   1828.9741,   1090.2397,     487.4575,   &
                0.0000 /
-         
+
       data b32w/ 0.0000,   0.0000,   0.0000,   0.0000,       &
                 0.0000,   0.0000,   0.0000,    0.0000,       &
                 0.0000,   0.0000,   0.0000,    0.0000,       &
@@ -416,7 +437,7 @@
                  7.7938009300e+03,   6.1769062800e+03,   4.7874276000e+03, &
                  3.6050497500e+03,   2.6059860700e+03,   1.7668328200e+03, &
                  1.0656131200e+03,   4.8226201000e+02,   0.0000000000e+00, &
-                 0.0000000000e+00 /  
+                 0.0000000000e+00 /
 
 
       data b60/ 0.0000000000e+00,   0.0000000000e+00,   0.0000000000e+00, &
@@ -446,7 +467,7 @@
 ! 3 layers
       data a63/64.247,       137.790,       221.958,      &
               318.266,       428.434,       554.424,      &
-              698.457,       863.05803,    1051.07995,    &  
+              698.457,       863.05803,    1051.07995,    &
              1265.75194,    1510.71101,    1790.05098,    &
              2108.36604,    2470.78817,    2883.03811,    &
              3351.46002,    3883.05187,    4485.49315,    &
@@ -509,7 +530,7 @@
                    677.44387,     582.87349,       493.75161,    &
                    409.80694,     330.78356,       256.42688,    &
                    186.49670,     120.75560,        58.97959,     0.   /
-      
+
       data b63meso/ 0.     ,  0.     ,  0.     ,  &
                     0.     ,  0.     ,  0.     ,  &
                     0.     ,  0.     ,  0.     ,  &
@@ -848,7 +869,7 @@
   1.1164595563e+04,   9.4227665517e+03,   7.7259097899e+03, &
   6.1538244381e+03,   4.7808126007e+03,   3.5967415552e+03, &
   2.5886394104e+03,   1.7415964865e+03,   1.0393721271e+03, &
-  4.6478852032e+02,   7.0308342481e-13,   0.0000000000e+00    / 
+  4.6478852032e+02,   7.0308342481e-13,   0.0000000000e+00    /
 
 
       data b104/           &

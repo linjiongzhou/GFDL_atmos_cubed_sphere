@@ -1,22 +1,24 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
 ! SJL: Apr 12, 2012
 ! This revision may actually produce rounding level differences due to the elimination of KS to compute
 ! pressure level for remapping.
@@ -130,7 +132,7 @@ contains
   real, intent(inout)::  u(isd:ied  ,jsd:jed+1,km)   ! u-wind (m/s)
   real, intent(inout)::  v(isd:ied+1,jsd:jed  ,km)   ! v-wind (m/s)
   real, intent(inout)::  w(isd:     ,jsd:     ,1:)   ! vertical velocity (m/s)
-  real, intent(inout):: pt(isd:ied  ,jsd:jed  ,km)   ! cp*virtual potential temperature 
+  real, intent(inout):: pt(isd:ied  ,jsd:jed  ,km)   ! cp*virtual potential temperature
                                                      ! as input; output: temperature
   real, intent(inout):: pt_old(isd:  ,jsd:  ,1:)   ! temperature at the previous time step (K), used in fsbm
   real, intent(inout):: q_old(isd:,jsd:,1:) ! specific humidity at the previous time step, used in fsbm
@@ -351,7 +353,7 @@ contains
 
    if ( kord_tm<0 ) then
 !----------------------------------
-! Map t using logp 
+! Map t using logp
 !----------------------------------
          call map_scalar(km,  peln(is,1,j),  pt, gz,   &
                          km,  pn2,           pt,              &
@@ -872,7 +874,7 @@ endif        ! end last_step check
         dp2(is:ie,:) = q(is:ie,j,:,sphum)
         t0(is:ie,:) = pt(is:ie,j,:)
 
-        if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(is:ie,j,:) = q(is:ie,j,:,liq_wat) + q(is:ie,j,:,rainwat) 
+        if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(is:ie,j,:) = q(is:ie,j,:,liq_wat) + q(is:ie,j,:,rainwat)
         if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt(is:ie,j,:) = &
              q(is:ie,j,:,ice_wat) + q(is:ie,j,:,snowwat) + q(is:ie,j,:,graupel)
 
@@ -888,7 +890,7 @@ endif        ! end last_step check
                        is, ie, 1, km, q_con(is:ie,j,:), cappa(is:ie,j,:), consv>consv_min, &
                        te(is:ie,j,:), last_step, do_inline_mp)
 #endif
- 
+
         ! compute wind tendency at A grid fori D grid wind update
         u_dt(is:ie,j,:) = (ua(is:ie,j,:) - u_dt(is:ie,j,:)) / abs(mdt)
         v_dt(is:ie,j,:) = (va(is:ie,j,:) - v_dt(is:ie,j,:)) / abs(mdt)
@@ -911,7 +913,7 @@ endif        ! end last_step check
             peln(is:ie,k,j) = log(pe(is:ie,k,j))
             pk(is:ie,j,k) = exp(akap*peln(is:ie,k,j))
         enddo
-        
+
         ps(is:ie,j) = pe(is:ie,km+1,j)
 
         ! update pkz
@@ -1221,7 +1223,7 @@ endif        ! end last_step check
                  do i=is,ie
                     pt(i,j,k) = (pt(i,j,k)+dtmp/cvm(i)*pkz(i,j,k))/((1.+r_vir*q(i,j,k,sphum))*(1.-gz(i)))
                  enddo
-#else          
+#else
                  if ( .not. adiabatic ) then
                     do i=is,ie
                        pt(i,j,k) = (pt(i,j,k)+dtmp/cv_air*pkz(i,j,k)) / (1.+r_vir*q(i,j,k,sphum))
@@ -1251,13 +1253,13 @@ endif        ! end last_step check
   if ((.not. do_adiabatic_init) .and. do_inline_mp) then
 
     ! Note: (ua,va) are *lat-lon* wind tendenies on cell centers
-    if ( gridstruct%square_domain ) then                  
+    if ( gridstruct%square_domain ) then
          call mpp_update_domains(u_dt, domain, whalo=1, ehalo=1, shalo=1, nhalo=1, complete=.false.)
          call mpp_update_domains(v_dt, domain, whalo=1, ehalo=1, shalo=1, nhalo=1, complete=.true.)
     else
          call mpp_update_domains(u_dt, domain, complete=.false.)
          call mpp_update_domains(v_dt, domain, complete=.true.)
-    endif                
+    endif
     ! update u_dt and v_dt in halo
     call mpp_update_domains(u_dt, v_dt, domain)
 
@@ -1524,9 +1526,9 @@ endif        ! end last_step check
       integer, intent(in) :: kn                ! Target vertical dimension
       integer, intent(in) :: iv
 
-      real, intent(in) ::  pe1(i1:i2,km+1)     ! height at layer edges 
+      real, intent(in) ::  pe1(i1:i2,km+1)     ! height at layer edges
                                                ! (from model top to bottom surface)
-      real, intent(in) ::  pe2(i1:i2,kn+1)     ! hieght at layer edges 
+      real, intent(in) ::  pe2(i1:i2,kn+1)     ! hieght at layer edges
                                                ! (from model top to bottom surface)
       real, intent(in) ::  q1(i1:i2,km)        ! Field input
 
@@ -1612,10 +1614,10 @@ endif        ! end last_step check
  integer, intent(in) :: km                ! Original vertical dimension
  integer, intent(in) :: kn                ! Target vertical dimension
  real, intent(in) ::   qs(i1:i2)       ! bottom BC
- real, intent(in) ::  pe1(i1:i2,km+1)  ! pressure at layer edges 
+ real, intent(in) ::  pe1(i1:i2,km+1)  ! pressure at layer edges
                                        ! (from model top to bottom surface)
                                        ! in the original vertical coordinate
- real, intent(in) ::  pe2(i1:i2,kn+1)  ! pressure at layer edges 
+ real, intent(in) ::  pe2(i1:i2,kn+1)  ! pressure at layer edges
                                        ! (from model top to bottom surface)
                                        ! in the new vertical coordinate
  real, intent(in) ::    q1(ibeg:iend,jbeg:jend,km) ! Field input
@@ -1706,10 +1708,10 @@ endif        ! end last_step check
  integer, intent(in) :: km                ! Original vertical dimension
  integer, intent(in) :: kn                ! Target vertical dimension
  real, intent(in) ::   qs(i1:i2)       ! bottom BC (only used if iv == -2 ?? )
- real, intent(in) ::  pe1(i1:i2,km+1)  ! pressure at layer edges 
+ real, intent(in) ::  pe1(i1:i2,km+1)  ! pressure at layer edges
                                        ! (from model top to bottom surface)
                                        ! in the original vertical coordinate
- real, intent(in) ::  pe2(i1:i2,kn+1)  ! pressure at layer edges 
+ real, intent(in) ::  pe2(i1:i2,kn+1)  ! pressure at layer edges
                                        ! (from model top to bottom surface)
                                        ! in the new vertical coordinate
  real, intent(in) ::    q1(ibeg:iend,jbeg:jend,km) ! Field input
@@ -1793,10 +1795,10 @@ endif        ! end last_step check
       integer, intent(in):: j, nq, i1, i2
       integer, intent(in):: isd, ied, jsd, jed
       integer, intent(in):: kord(nq)
-      real, intent(in)::  pe1(i1:i2,km+1)     ! pressure at layer edges 
+      real, intent(in)::  pe1(i1:i2,km+1)     ! pressure at layer edges
                                               ! (from model top to bottom surface)
                                               ! in the original vertical coordinate
-      real, intent(in)::  pe2(i1:i2,km+1)     ! pressure at layer edges 
+      real, intent(in)::  pe2(i1:i2,km+1)     ! pressure at layer edges
                                               ! (from model top to bottom surface)
                                               ! in the new vertical coordinate
       real, intent(in)::  dp2(i1:i2,km)
@@ -1839,7 +1841,7 @@ endif        ! end last_step check
 ! entire new grid is within the original grid
             pr = (pe2(i,k+1)-pe1(i,l)) / dp1(i,l)
             fac1 = pr + pl
-            fac2 = r3*(pr*fac1 + pl*pl) 
+            fac2 = r3*(pr*fac1 + pl*pl)
             fac1 = 0.5*fac1
             do iq=1,nq
                q2(i,k,iq) = q4(2,i,l,iq) + (q4(4,i,l,iq)+q4(3,i,l,iq)-q4(2,i,l,iq))*fac1  &
@@ -1917,10 +1919,10 @@ endif        ! end last_step check
       integer, intent(in) :: km                ! Original vertical dimension
       integer, intent(in) :: kn                ! Target vertical dimension
 
-      real, intent(in) ::  pe1(i1:i2,km+1)     ! pressure at layer edges 
+      real, intent(in) ::  pe1(i1:i2,km+1)     ! pressure at layer edges
                                                ! (from model top to bottom surface)
                                                ! in the original vertical coordinate
-      real, intent(in) ::  pe2(i1:i2,kn+1)     ! pressure at layer edges 
+      real, intent(in) ::  pe2(i1:i2,kn+1)     ! pressure at layer edges
                                                ! (from model top to bottom surface)
                                                ! in the new vertical coordinate
       real, intent(in) ::  q1(ibeg:iend,jbeg:jend,km) ! Field input
@@ -2004,10 +2006,10 @@ endif        ! end last_step check
    integer, intent(in):: kord
    integer, intent(in):: km               ! Original vertical dimension
    integer, intent(in):: kn               ! Target vertical dimension
-   real, intent(in):: pe1(i1:i2,km+1)     ! pressure at layer edges 
+   real, intent(in):: pe1(i1:i2,km+1)     ! pressure at layer edges
                                           ! (from model top to bottom surface)
                                           ! in the original vertical coordinate
-   real, intent(in):: pe2(i1:i2,kn+1)     ! pressure at layer edges 
+   real, intent(in):: pe2(i1:i2,kn+1)     ! pressure at layer edges
                                           ! (from model top to bottom surface)
                                           ! in the new vertical coordinate
    real, intent(in) :: q1(i1:i2,km) ! Field input
@@ -2109,7 +2111,7 @@ endif        ! end last_step check
  real  gam(i1:i2,km)
  real    q(i1:i2,km+1)
  real   d4(i1:i2)
- real   bet, a_bot, grat 
+ real   bet, a_bot, grat
  real   pmp_1, lac_1, pmp_2, lac_2, x0, x1
  integer i, k, im
 
@@ -2127,7 +2129,7 @@ endif        ! end last_step check
          enddo
       enddo
       do i=i1,i2
-            grat = delp(i,km-1) / delp(i,km) 
+            grat = delp(i,km-1) / delp(i,km)
          q(i,km) = (3.*(a4(1,i,km-1)+a4(1,i,km)) - grat*qs(i) - q(i,km-1)) /  &
                    (2. + grat + grat - gam(i,km))
          q(i,km+1) = qs(i)
@@ -2153,7 +2155,7 @@ endif        ! end last_step check
         gam(i,k) = d4(i) / bet
      enddo
   enddo
- 
+
   do i=i1,i2
          a_bot = 1. + d4(i)*(d4(i)+1.5)
      q(i,km+1) = (2.*d4(i)*(d4(i)+1.)*a4(1,i,km)+a4(1,i,km-1)-a_bot*q(i,km))  &
@@ -2184,7 +2186,7 @@ endif        ! end last_step check
 !------------------
   im = i2 - i1 + 1
 
-! Apply *large-scale* constraints 
+! Apply *large-scale* constraints
   do i=i1,i2
      q(i,2) = min( q(i,2), max(a4(1,i,1), a4(1,i,2)) )
      q(i,2) = max( q(i,2), min(a4(1,i,1), a4(1,i,2)) )
@@ -2260,7 +2262,7 @@ endif        ! end last_step check
      do i=i1,i2
         a4(2,i,1) = max(0., a4(2,i,1))
      enddo
-  elseif ( iv==-1 ) then 
+  elseif ( iv==-1 ) then
       do i=i1,i2
          if ( a4(2,i,1)*a4(1,i,1) <= 0. ) a4(2,i,1) = 0.
       enddo
@@ -2484,7 +2486,7 @@ endif        ! end last_step check
      do i=i1,i2
         a4(3,i,km) = max(0., a4(3,i,km))
      enddo
-  elseif ( iv .eq. -1 ) then 
+  elseif ( iv .eq. -1 ) then
       do i=i1,i2
          if ( a4(3,i,km)*a4(1,i,km) <= 0. )  a4(3,i,km) = 0.
       enddo
@@ -2518,7 +2520,7 @@ endif        ! end last_step check
  real  gam(i1:i2,km)
  real    q(i1:i2,km+1)
  real   d4(i1:i2)
- real   bet, a_bot, grat 
+ real   bet, a_bot, grat
  real   pmp_1, lac_1, pmp_2, lac_2, x0, x1
  integer i, k, im
 
@@ -2536,7 +2538,7 @@ endif        ! end last_step check
          enddo
       enddo
       do i=i1,i2
-            grat = delp(i,km-1) / delp(i,km) 
+            grat = delp(i,km-1) / delp(i,km)
          q(i,km) = (3.*(a4(1,i,km-1)+a4(1,i,km)) - grat*qs(i) - q(i,km-1)) /  &
                    (2. + grat + grat - gam(i,km))
          q(i,km+1) = qs(i)
@@ -2562,7 +2564,7 @@ endif        ! end last_step check
         gam(i,k) = d4(i) / bet
      enddo
   enddo
- 
+
   do i=i1,i2
          a_bot = 1. + d4(i)*(d4(i)+1.5)
      q(i,km+1) = (2.*d4(i)*(d4(i)+1.)*a4(1,i,km)+a4(1,i,km-1)-a_bot*q(i,km))  &
@@ -2593,7 +2595,7 @@ endif        ! end last_step check
 !------------------
   im = i2 - i1 + 1
 
-! Apply *large-scale* constraints 
+! Apply *large-scale* constraints
   do i=i1,i2
      q(i,2) = min( q(i,2), max(a4(1,i,1), a4(1,i,2)) )
      q(i,2) = max( q(i,2), min(a4(1,i,1), a4(1,i,2)) )
@@ -2669,7 +2671,7 @@ endif        ! end last_step check
      do i=i1,i2
         a4(2,i,1) = max(0., a4(2,i,1))
      enddo
-  elseif ( iv==-1 ) then 
+  elseif ( iv==-1 ) then
       do i=i1,i2
          if ( a4(2,i,1)*a4(1,i,1) <= 0. ) a4(2,i,1) = 0.
       enddo
@@ -2887,7 +2889,7 @@ endif        ! end last_step check
      do i=i1,i2
         a4(3,i,km) = max(0., a4(3,i,km))
      enddo
-  elseif ( iv .eq. -1 ) then 
+  elseif ( iv .eq. -1 ) then
       do i=i1,i2
          if ( a4(3,i,km)*a4(1,i,km) <= 0. )  a4(3,i,km) = 0.
       enddo
@@ -2994,7 +2996,7 @@ endif        ! end last_step check
  integer, intent(in):: i2      ! Finishing longitude
  integer, intent(in):: km      ! vertical dimension
  integer, intent(in):: kord    ! Order (or more accurately method no.):
-                               ! 
+                               !
  real , intent(in):: delp(i1:i2,km)     ! layer pressure thickness
 
 ! !INPUT/OUTPUT PARAMETERS:
@@ -3003,8 +3005,8 @@ endif        ! end last_step check
 ! DESCRIPTION:
 !
 !   Perform the piecewise parabolic reconstruction
-! 
-! !REVISION HISTORY: 
+!
+! !REVISION HISTORY:
 ! S.-J. Lin   revised at GFDL 2007
 !-----------------------------------------------------------------------
 ! local arrays:
@@ -3087,7 +3089,7 @@ endif        ! end last_step check
          do i=i1,i2
             a4(2,i,1) = max(0., a4(2,i,1))
             a4(2,i,2) = max(0., a4(2,i,2))
-         enddo 
+         enddo
       elseif( iv==-1 ) then
          do i=i1,i2
             if ( a4(2,i,1)*a4(1,i,1) <= 0. ) a4(2,i,1) = 0.
@@ -3180,7 +3182,7 @@ endif        ! end last_step check
 ! Method#2 - better
             h2(i,k) = 2.*(dc(i,k+1)/delp(i,k+1) - dc(i,k-1)/delp(i,k-1))  &
                      / ( delp(i,k)+0.5*(delp(i,k-1)+delp(i,k+1)) )        &
-                     * delp(i,k)**2 
+                     * delp(i,k)**2
 ! Method#3
 !!!            h2(i,k) = dc(i,k+1) - dc(i,k-1)
          enddo
@@ -3332,7 +3334,7 @@ endif        ! end last_step check
  integer, intent(in) :: km, i1, i2
    real , intent(in) ::  dp(i1:i2,km)       ! grid size
    real , intent(in) ::  dq(i1:i2,km)       ! backward diff of q
-   real , intent(in) ::  d4(i1:i2,km)       ! backward sum:  dp(k)+ dp(k-1) 
+   real , intent(in) ::  d4(i1:i2,km)       ! backward sum:  dp(k)+ dp(k-1)
    real , intent(in) :: df2(i1:i2,km)       ! first guess mismatch
    real , intent(in) ::  dm(i1:i2,km)       ! monotonic mismatch
 ! !INPUT/OUTPUT PARAMETERS:
@@ -3517,7 +3519,7 @@ endif        ! end last_step check
                    kn, pe2,   u(is:ie,j:j,1:kn),       &
                    is, ie, -1, kord)
 
-  if ( j /= (je+1) )  then 
+  if ( j /= (je+1) )  then
 
 !---------------
 ! Hybrid sigma-p
@@ -3572,7 +3574,7 @@ endif        ! end last_step check
              w(i,j,k) = 0.
           endif
        enddo
-       enddo         
+       enddo
 #endif
 
 #ifndef HYDRO_DELZ_REMAP
@@ -3654,7 +3656,7 @@ endif        ! end last_step check
         do i=is,ie
            pt(i,j,k) = pt(i,j,k) / (1.+r_vir*q(i,j,k,1))
         enddo
-     enddo   
+     enddo
   enddo
 
  end subroutine rst_remap
@@ -3666,9 +3668,9 @@ endif        ! end last_step check
 ! IV = 0: constituents
 ! IV = 1: potential temp
 ! IV =-1: winds
- 
+
 ! Mass flux preserving mapping: q1(im,km) -> q2(im,kn)
- 
+
 ! pe1: pressure at layer edges (from model top to bottom surface)
 !      in the original vertical coordinate
 ! pe2: pressure at layer edges (from model top to bottom surface)
@@ -3830,36 +3832,36 @@ endif        ! end last_step check
   case (3)
      do i=is,ie
         qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) 
+        ql(i) = q(i,j,k,liq_wat)
         qs(i) = q(i,j,k,ice_wat)
         qd(i) = ql(i) + qs(i)
         cvm(i) = (1.-(qv(i)+qd(i)))*cv_air + qv(i)*cv_vap + ql(i)*c_liq + qs(i)*c_ice
      enddo
   case(4)              ! K_warm_rain with fake ice
-     do i=is,ie 
+     do i=is,ie
         qv(i) = q(i,j,k,sphum)
         qd(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
         cvm(i) = (1.-(qv(i)+qd(i)))*cv_air + qv(i)*cv_vap + qd(i)*c_liq
      enddo
   case(5)
-     do i=is,ie 
+     do i=is,ie
         qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat) 
+        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
         qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat)
         qd(i) = ql(i) + qs(i)
         cvm(i) = (1.-(qv(i)+qd(i)))*cv_air + qv(i)*cv_vap + ql(i)*c_liq + qs(i)*c_ice
      enddo
   case(6)
-     do i=is,ie 
+     do i=is,ie
         qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat) 
+        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
         qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
         qd(i) = ql(i) + qs(i)
         cvm(i) = (1.-(qv(i)+qd(i)))*cv_air + qv(i)*cv_vap + ql(i)*c_liq + qs(i)*c_ice
      enddo
   case default
      !call mpp_error (NOTE, 'fv_mapz::moist_cv - using default cv_air')
-     do i=is,ie 
+     do i=is,ie
          qd(i) = 0.
         cvm(i) = cv_air
      enddo
@@ -3909,7 +3911,7 @@ endif        ! end last_step check
   case(3)
      do i=is,ie
         qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) 
+        ql(i) = q(i,j,k,liq_wat)
         qs(i) = q(i,j,k,ice_wat)
         qd(i) = ql(i) + qs(i)
         cpm(i) = (1.-(qv(i)+qd(i)))*cp_air + qv(i)*cp_vapor + ql(i)*c_liq + qs(i)*c_ice
@@ -3921,24 +3923,24 @@ endif        ! end last_step check
         cpm(i) = (1.-(qv(i)+qd(i)))*cp_air + qv(i)*cp_vapor + qd(i)*c_liq
      enddo
   case(5)
-     do i=is,ie 
+     do i=is,ie
         qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat) 
+        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
         qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat)
         qd(i) = ql(i) + qs(i)
         cpm(i) = (1.-(qv(i)+qd(i)))*cp_air + qv(i)*cp_vapor + ql(i)*c_liq + qs(i)*c_ice
      enddo
   case(6)
-     do i=is,ie 
+     do i=is,ie
         qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat) 
+        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
         qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
         qd(i) = ql(i) + qs(i)
         cpm(i) = (1.-(qv(i)+qd(i)))*cp_air + qv(i)*cp_vapor + ql(i)*c_liq + qs(i)*c_ice
      enddo
   case default
      !call mpp_error (NOTE, 'fv_mapz::moist_cp - using default cp_air')
-     do i=is,ie 
+     do i=is,ie
         qd(i) = 0.
         cpm(i) = cp_air
      enddo

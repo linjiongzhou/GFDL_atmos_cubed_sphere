@@ -1,3 +1,24 @@
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
+
 ! =======================================================================
 ! cloud radii diagnosis built for gfdl cloud microphysics
 ! authors: linjiong zhou and shian - jiann lin
@@ -8,7 +29,7 @@ module cld_eff_rad_mod
         ccn_o, ccn_l, rhow, rhor, rhos, rhog
     
     implicit none
-    
+
     private
     
     public cld_eff_rad, cld_eff_rad_init
@@ -31,16 +52,16 @@ module cld_eff_rad_mod
     real :: resmin = 0.0, resmax = 10000.0
     real :: regmin = 0.0, regmax = 10000.0
 #endif
-    
+
     real :: betaw = 1.0
     real :: betai = 1.0
     real :: betar = 1.0
     real :: betas = 1.0
     real :: betag = 1.0
-    
+
     logical :: liq_ice_combine = .true.
     logical :: snow_grauple_combine = .false.
-    
+
     integer :: rewflag = 1
     ! 1: martin et al., 1994
     ! 2: martin et al., 1994, gfdl revision
@@ -66,32 +87,32 @@ contains
 subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
         qcw, qci, qcr, qcs, qcg, rew, rei, rer, res, reg, &
         cld, cloud, snowd, cnvw, cnvi, cnvc)
-    
+
     implicit none
-    
+
     integer, intent (in) :: is, ie
     integer, intent (in) :: ks, ke
-    
+
     real, intent (in), dimension (is:ie) :: lsm ! land sea mask, 0: ocean, 1: land, 2: sea ice
     real, intent (in), dimension (is:ie) :: snowd ! snow depth (mm)
-    
+
     real, intent (in), dimension (is:ie, ks:ke) :: delp, t, p
     real, intent (in), dimension (is:ie, ks:ke) :: cloud ! cloud fraction
     real, intent (in), dimension (is:ie, ks:ke) :: qw, qi, qr, qs, qg ! mass mixing ratio (kg / kg)
     
     real, intent (in), dimension (is:ie, ks:ke), optional :: cnvw, cnvi ! convective cloud water / ice mass mixing ratio (kg / kg)
     real, intent (in), dimension (is:ie, ks:ke), optional :: cnvc ! convective cloud fraction
-    
+
     real, intent (inout), dimension (is:ie, ks:ke) :: qcw, qci, qcr, qcs, qcg ! units: g / m^2
     real, intent (inout), dimension (is:ie, ks:ke) :: rew, rei, rer, res, reg ! radii (micron)
     real, intent (inout), dimension (is:ie, ks:ke) :: cld ! total cloud fraction
-    
+
     ! local variables
-    
+
     integer :: i, k, ind
-    
+
     real, dimension (is:ie, ks:ke) :: qmw, qmr, qmi, qms, qmg ! mass mixing ratio (kg / kg)
-    
+
     real :: dpg ! dp / g
     real :: rho ! density (kg / m^3)
     real :: ccnw ! cloud condensate nuclei for cloud water (cm^ - 3)
@@ -99,7 +120,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
     real :: cor
     real :: tc0
     real :: bw
-    
+
     real :: lambdar, lambdas, lambdag
     real :: rei_fac
     
@@ -107,7 +128,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
     real, parameter :: alphar = 0.8, alphas = 0.25, alphag = 0.5 ! parameters in terminal equation in lin et al., (1983)
     real, parameter :: gammar = 17.837789, gammas = 8.2850630, gammag = 11.631769 ! gamma values as a result of different alpha
     real, parameter :: rho_0 = 50.e-3
-    
+
     real :: retab (138) = (/ &
         0.05000, 0.05000, 0.05000, 0.05000, 0.05000, 0.05000, &
         0.05500, 0.06000, 0.07000, 0.08000, 0.09000, 0.10000, &
@@ -132,14 +153,14 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
         124.954, 130.630, 136.457, 142.446, 148.608, 154.956, &
         161.503, 168.262, 175.248, 182.473, 189.952, 197.699, &
         205.728, 214.055, 222.694, 231.661, 240.971, 250.639 /)
-    
+
     qmw = qw
     qmi = qi
     qmr = qr
     qms = qs
     qmg = qg
     cld = cloud
-    
+
     if (present (cnvw)) then
         qmw = qmw + cnvw
     endif
@@ -149,7 +170,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
     if (present (cnvc)) then
         cld = cnvc + (1 - cnvc) * cld
     endif
-    
+
     if (liq_ice_combine) then
         do k = ks, ke
             do i = is, ie
@@ -199,7 +220,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
         enddo
 #endif
     endif
-    
+
     if (snow_grauple_combine) then
         do k = ks, ke
             do i = is, ie
@@ -208,7 +229,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
             enddo
         enddo
     endif
-    
+
     ! liquid condensates:
     ! sjl: 20180825
 #ifdef COMBINE_QR
@@ -226,21 +247,21 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
         enddo
     enddo
 #endif
-    
+
     do k = ks, ke
-        
+
         do i = is, ie
-            
+
             qmw (i, k) = max (qmw (i, k), 0.0)
             qmi (i, k) = max (qmi (i, k), 0.0)
             qmr (i, k) = max (qmr (i, k), 0.0)
             qms (i, k) = max (qms (i, k), 0.0)
             qmg (i, k) = max (qmg (i, k), 0.0)
-            
+
             cld (i, k) = min (max (cld (i, k), 0.0), 1.0)
-            
+
             mask = min (max (lsm (i), 0.0), 2.0)
-            
+
             dpg = abs (delp (i, k)) / grav
             ! rho = p (i, k) / (rdgas * t (i, k) * (1. + zvir * qv)) ! needs qv
             rho = p (i, k) / (rdgas * t (i, k))
@@ -249,7 +270,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
             tc0 = t (i, k) - t_ice
             
             if (rewflag .eq. 1) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud water (martin et al., 1994)
                 ! -----------------------------------------------------------------------
@@ -260,7 +281,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 ccnw = 0.80 * (- 1.15e-3 * (ccn_o ** 2) + 0.963 * ccn_o + 5.30) * abs (mask - 1.0) + &
                     0.67 * (- 2.10e-4 * (ccn_l ** 2) + 0.568 * ccn_l - 27.9) * (1.0 - abs (mask - 1.0))
 #endif
-                
+
                 if (qmw (i, k) .gt. qmin) then
                     qcw (i, k) = betaw * dpg * qmw (i, k) * 1.0e3
                     rew (i, k) = exp (1.0 / 3.0 * log ((3.0 * qmw (i, k) * rho) / (4.0 * pi * rhow * ccnw))) * 1.0e4
@@ -269,17 +290,17 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qcw (i, k) = 0.0
                     rew (i, k) = rewmin
                 endif
-                
+
             endif
-            
+
             if (rewflag .eq. 2) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud water (martin et al., 1994, gfdl revision)
                 ! -----------------------------------------------------------------------
-                
+
                 ccnw = 1.077 * ccn_o * abs (mask - 1.0) + 1.143 * ccn_l * (1.0 - abs (mask - 1.0))
-                
+
                 if (qmw (i, k) .gt. qmin) then
                     qcw (i, k) = betaw * dpg * qmw (i, k) * 1.0e3
                     rew (i, k) = exp (1.0 / 3.0 * log ((3.0 * qmw (i, k) * rho) / (4.0 * pi * rhow * ccnw))) * 1.0e4
@@ -288,15 +309,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qcw (i, k) = 0.0
                     rew (i, k) = rewmin
                 endif
-                
+
             endif
-            
+
             if (rewflag .eq. 3) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud water (kiehl et al., 1994)
                 ! -----------------------------------------------------------------------
-                
+
                 if (qmw (i, k) .gt. qmin) then
                     qcw (i, k) = betaw * dpg * qmw (i, k) * 1.0e3
                     rew (i, k) = 14.0 * abs (mask - 1.0) + &
@@ -307,15 +328,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qcw (i, k) = 0.0
                     rew (i, k) = rewmin
                 endif
-                
+
             endif
-            
+
             if (reiflag .eq. 1) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud ice (heymsfield and mcfarquhar, 1996)
                 ! -----------------------------------------------------------------------
-                
+
                 if (qmi (i, k) .gt. qmin) then
                     qci (i, k) = betai * dpg * qmi (i, k) * 1.0e3
 #ifdef SJ_CLD_TEST
@@ -337,15 +358,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qci (i, k) = 0.0
                     rei (i, k) = reimin
                 endif
-                
+
             endif
-            
+
             if (reiflag .eq. 2) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud ice (donner et al., 1997)
                 ! -----------------------------------------------------------------------
-                
+
                 if (qmi (i, k) .gt. qmin) then
                     qci (i, k) = betai * dpg * qmi (i, k) * 1.0e3
                     if (tc0 .le. - 55) then
@@ -370,15 +391,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qci (i, k) = 0.0
                     rei (i, k) = reimin
                 endif
-                
+
             endif
-            
+
             if (reiflag .eq. 3) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud ice (fu, 2007)
                 ! -----------------------------------------------------------------------
-                
+
                 if (qmi (i, k) .gt. qmin) then
                     qci (i, k) = betai * dpg * qmi (i, k) * 1.0e3
 #ifdef SJ_CLD_TEST
@@ -399,15 +420,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qci (i, k) = 0.0
                     rei (i, k) = reimin
                 endif
-                
+
             endif
-            
+
             if (reiflag .eq. 4) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud ice (kristjansson et al., 2000)
                 ! -----------------------------------------------------------------------
-                
+
                 if (qmi (i, k) .gt. qmin) then
                     qci (i, k) = betai * dpg * qmi (i, k) * 1.0e3
                     ind = min (max (int (t (i, k) - 136.0), 44), 138 - 1)
@@ -418,15 +439,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qci (i, k) = 0.0
                     rei (i, k) = reimin
                 endif
-                
+
             endif
-            
+
             if (reiflag .eq. 5) then
-                
+
                 ! -----------------------------------------------------------------------
                 ! cloud ice (wyser, 1998)
                 ! -----------------------------------------------------------------------
-                
+
                 if (qmi (i, k) .gt. qmin) then
                     qci (i, k) = betai * dpg * qmi (i, k) * 1.0e3
                     bw = - 2. + 1.e-3 * log10 (rho * qmi (i, k) / rho_0) * max (0.0, - tc0) ** 1.5
@@ -436,13 +457,13 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                     qci (i, k) = 0.0
                     rei (i, k) = reimin
                 endif
-                
+
             endif
-            
+
             ! -----------------------------------------------------------------------
             ! rain (lin et al., 1983)
             ! -----------------------------------------------------------------------
-            
+
             if (qmr (i, k) .gt. qmin) then
                 qcr (i, k) = betar * dpg * qmr (i, k) * 1.0e3
                 lambdar = exp (0.25 * log (pi * rhor * n0r / qmr (i, k) / rho))
@@ -452,11 +473,11 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 qcr (i, k) = 0.0
                 rer (i, k) = rermin
             endif
-            
+
             ! -----------------------------------------------------------------------
             ! snow (lin et al., 1983)
             ! -----------------------------------------------------------------------
-            
+
             if (qms (i, k) .gt. qmin) then
                 qcs (i, k) = betas * dpg * qms (i, k) * 1.0e3
                 lambdas = exp (0.25 * log (pi * rhos * n0s / qms (i, k) / rho))
@@ -466,11 +487,11 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 qcs (i, k) = 0.0
                 res (i, k) = resmin
             endif
-            
+
             ! -----------------------------------------------------------------------
             ! graupel (lin et al., 1983)
             ! -----------------------------------------------------------------------
-            
+
             if (qmg (i, k) .gt. qmin) then
                 qcg (i, k) = betag * dpg * qmg (i, k) * 1.0e3
                 lambdag = exp (0.25 * log (pi * rhog * n0g / qmg (i, k) / rho))
@@ -480,9 +501,9 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 qcg (i, k) = 0.0
                 reg (i, k) = regmin
             endif
-            
+
         enddo
-        
+
     enddo
     
 end subroutine cld_eff_rad
@@ -490,15 +511,15 @@ end subroutine cld_eff_rad
 subroutine cld_eff_rad_init (nlunit, input_nml_file, logunit, fn_nml)
     
     implicit none
-    
+
     integer, intent (in) :: nlunit
     integer, intent (in) :: logunit
-    
+
     character (len = 64), intent (in) :: fn_nml
     character (len = *), intent (in) :: input_nml_file (:)
     
     logical :: exists
-    
+
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml = cld_eff_rad_nml)
 #else

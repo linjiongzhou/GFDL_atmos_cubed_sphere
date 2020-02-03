@@ -1,22 +1,24 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
       module fv_timing_mod
 
       use mpp_mod, only: mpp_error, FATAL
@@ -79,7 +81,7 @@
 ! ... To reduce the overhead for the first call
 !
 #if defined(SPMD)
-    wclk = MPI_Wtime() 
+    wclk = MPI_Wtime()
     totim = wclk
 #else
 #   if defined( IRIX64 ) || ( defined FFC )
@@ -107,7 +109,7 @@
 
 
          character(len=20) :: UC_blk_name
-         character(len=20) ::  ctmp 
+         character(len=20) ::  ctmp
          integer i
          integer iblk
 
@@ -133,7 +135,7 @@
                iblk =i
             endif
          enddo
-      
+
          if ( iblk .eq. 0 ) then
             tblk=tblk+1
             iblk=tblk
@@ -158,7 +160,7 @@
         last(iblk)%usr = wclk
         last(iblk)%sys = 0.0
 # endif
-#endif  
+#endif
 
         end subroutine timing_on
 
@@ -192,12 +194,12 @@
               iblk =i
            endif
         enddo
-      
+
 !         write(*,*) 'timing_off ', ctmp, tblk, tblk
         if ( iblk .eq. 0 ) then
             call mpp_error(FATAL,'fv_timing_mod: timing_off called before timing_on for: '//trim(blk_name))
 !           write(*,*) 'stop in timing off in ', ctmp
-!           stop 
+!           stop
         endif
 
 #if defined(SPMD)
@@ -207,7 +209,7 @@
         last(iblk)%usr  = wclk
         last(iblk)%sys  = 0.0
 #else
-# if defined( IRIX64 ) || ( defined FFC ) 
+# if defined( IRIX64 ) || ( defined FFC )
         totim = etime(tarray)
         accum(iblk)%usr = accum(iblk)%usr +           &
                         tarray(1) - last(iblk)%usr

@@ -1,21 +1,22 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
 
 module atmosphere_mod
@@ -272,7 +273,7 @@ contains
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u, Atm(n)%v, Atm(n)%w,         &
-                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      & 
+                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      &
                      Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
@@ -287,7 +288,7 @@ contains
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u, Atm(n)%v, Atm(n)%w,         &
-                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      & 
+                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      &
                      Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
@@ -335,7 +336,7 @@ contains
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u, Atm(n)%v, Atm(n)%w,         &
-                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      & 
+                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      &
                      Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
@@ -350,7 +351,7 @@ contains
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u, Atm(n)%v, Atm(n)%w,         &
-                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      & 
+                     Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,                      &
                      Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
@@ -421,7 +422,7 @@ contains
     call get_time (fv_time, seconds,  days)
 
     time_total = days*SECONDS_PER_DAY + seconds
-    
+
     do psc=1,abs(p_split)
 
     do n=1,ngrids
@@ -430,7 +431,7 @@ contains
           cycle
        endif
 
-       call switch_current_Atm(Atm(n)) 
+       call switch_current_Atm(Atm(n))
 
        call set_domain(Atm(n)%domain)  ! needed for diagnostic output done in fv_dynamics
 
@@ -447,7 +448,7 @@ contains
        endif
 
                                               call timing_on('fv_dynamics')
-       call fv_dynamics(Atm(n)%npx, Atm(n)%npy, Atm(n)%npz, Atm(n)%ncnst, Atm(n)%ng,   & 
+       call fv_dynamics(Atm(n)%npx, Atm(n)%npy, Atm(n)%npz, Atm(n)%ncnst, Atm(n)%ng,   &
             dt_atmos/real(abs(p_split)), Atm(n)%flagstruct%consv_te, Atm(n)%flagstruct%fill, &
             Atm(n)%flagstruct%reproduce_sum, kappa,   &
             cp_air, zvir, Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, &
@@ -524,7 +525,7 @@ contains
        call nullify_domain()
        call timing_on('FV_DIAG')
        call fv_diag(Atm(n:n), zvir, fv_time, Atm(n)%flagstruct%print_freq)
-       
+
        call timing_off('FV_DIAG')
     end do
 
@@ -552,14 +553,14 @@ contains
 
 !  returns the domain2d variable associated with the coupling grid
 !  note: coupling is done using the mass/temperature grid with no halos
-        
+
    fv_domain = Atm(mytile)%domain
-        
+
  end subroutine atmosphere_domain
 
  subroutine p_adi(km, ng, ifirst, ilast, jfirst, jlast, ptop,   &
                   delp, ps, pe, peln, pk, pkz, hydrostatic)
-               
+
 ! Given (ptop, delp) computes (ps, pk, pe, peln, pkz)
 ! Input:
    integer,  intent(in):: km, ng

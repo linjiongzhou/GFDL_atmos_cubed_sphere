@@ -1,22 +1,24 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
 module fv_fill_mod
 
    use mpp_domains_mod,     only: mpp_update_domains, domain2D
@@ -80,20 +82,20 @@ contains
              zfix(i) = .true.
              if ( q(i,k-1,ic) > 0. ) then
 ! Borrow from above
-                dq = min ( q(i,k-1,ic)*dp(i,k-1), -q(i,k,ic)*dp(i,k) ) 
+                dq = min ( q(i,k-1,ic)*dp(i,k-1), -q(i,k,ic)*dp(i,k) )
                 q(i,k-1,ic) = q(i,k-1,ic) - dq/dp(i,k-1)
                 q(i,k  ,ic) = q(i,k  ,ic) + dq/dp(i,k  )
              endif
              if ( q(i,k,ic)<0.0 .and. q(i,k+1,ic)>0. ) then
 ! Borrow from below:
-                dq = min ( q(i,k+1,ic)*dp(i,k+1), -q(i,k,ic)*dp(i,k) ) 
+                dq = min ( q(i,k+1,ic)*dp(i,k+1), -q(i,k,ic)*dp(i,k) )
                 q(i,k+1,ic) = q(i,k+1,ic) - dq/dp(i,k+1)
                 q(i,k  ,ic) = q(i,k  ,ic) + dq/dp(i,k  )
              endif
           endif
          enddo
       enddo
- 
+
 ! Bottom layer
       k = km
       do i=1,im
@@ -103,7 +105,7 @@ contains
              qup =  q(i,k-1,ic)*dp(i,k-1)
              qly = -q(i,k  ,ic)*dp(i,k  )
              dup =  min(qly, qup)
-             q(i,k-1,ic) = q(i,k-1,ic) - dup/dp(i,k-1) 
+             q(i,k-1,ic) = q(i,k-1,ic) - dup/dp(i,k-1)
              q(i,k,  ic) = q(i,k,  ic) + dup/dp(i,k  )
           endif
       enddo
