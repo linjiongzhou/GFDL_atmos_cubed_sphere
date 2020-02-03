@@ -1,3 +1,23 @@
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
 
 module read_climate_nudge_data_mod
 
@@ -42,7 +62,7 @@ end interface
                         INDEX_U  = 8, INDEX_V  = 9
   character(len=8), dimension(NUM_REQ_FLDS) :: required_field_names = &
        (/ 'P0  ', 'hyai', 'hybi', 'PHI ', 'PS  ', 'T   ', 'Q   ', 'U   ', 'V   ' /)
- 
+
   integer, parameter :: MAXFILES = 53
   character(len=256) :: filenames(MAXFILES)
   character(len=256) :: filename_tails(MAXFILES)
@@ -66,7 +86,7 @@ type filedata_type
   integer, dimension(NUM_REQ_FLDS) :: field_index   ! varid for variables
   integer, dimension(NUM_REQ_AXES) :: axis_index    ! varid for dimensions
   type(axistype),  dimension(NUM_REQ_FLDS) :: axes
-  type(fieldtype), dimension(NUM_REQ_FLDS) :: fields  
+  type(fieldtype), dimension(NUM_REQ_FLDS) :: fields
 end type
 
   type(filedata_type), allocatable :: Files(:)
@@ -282,7 +302,7 @@ real, intent(out), dimension(:) :: lon, lat, ak, bk
       else
          ak = 0.
       endif
- 
+
       call mpp_read(Files(1)%ncid, Files(1)%fields(INDEX_BK), bk)
 
 
@@ -373,7 +393,7 @@ integer :: nread(4), start(4)
          call error_mesg ('read_climate_nudge_data_mod', 'itime out of range', FATAL)
       endif
 
-     ! check dimensions 
+     ! check dimensions
      if (present(js)) then
         if (size(dat,1) .ne. global_axis_size(INDEX_LON) .or. &
             size(dat,2) .ne. sub_domain_latitude_size) then
@@ -395,7 +415,7 @@ integer :: nread(4), start(4)
      else
          call error_mesg ('read_climate_nudge_data_mod', 'incorrect field requested in read_climate_nudge_data_2d', FATAL)
      endif
-     
+
      ! file index and actual time index in file
      n = file_index(itime)
      atime = itime - Files(n)%time_offset
@@ -408,9 +428,9 @@ integer :: nread(4), start(4)
      nread = 1
      nread(1) = size(dat,1)
      nread(2) = size(dat,2)
-     
+
      call mpp_read(Files(n)%ncid, Files(n)%fields(this_index), dat, start, nread)
-  
+
       ! geopotential height (convert to m2/s2 if necessary)
      if (field .eq. 'phis') then
         if (maxval(dat) > 1000.*GRAV) then
@@ -470,7 +490,7 @@ integer :: istat, atime, n, this_index, start(4), nread(4)
      else
         call error_mesg ('read_climate_nudge_data_mod', 'incorrect field requested in read_climate_nudge_data_3d', FATAL)
      endif
-     
+
 
      ! file index and actual time index in file
      n = file_index(itime)

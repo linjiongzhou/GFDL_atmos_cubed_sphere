@@ -1,3 +1,24 @@
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
+
 module fv_cmip_diag_mod
 
 use mpp_mod,            only: input_nml_file
@@ -376,64 +397,64 @@ real, dimension(Atm(1)%bd%isc:Atm(1)%bd%iec, &
 
 !----------------------------------------------------------------------
 ! process 2D fields on specific pressure levels
-! 
+!
   if (id_ua10 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 10.e2, Atm(n)%peln, &
-                               Atm(n)%ua(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%ua(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_ua10, dat2, Time)
   endif
 
   if (id_ua200 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 200.e2, Atm(n)%peln, &
-                               Atm(n)%ua(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%ua(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_ua200, dat2, Time)
   endif
 
   if (id_va200 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 200.e2, Atm(n)%peln, &
-                               Atm(n)%va(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%va(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_va200, dat2, Time)
   endif
 
   if (id_ua850 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 850.e2, Atm(n)%peln, &
-                               Atm(n)%ua(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%ua(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_ua850, dat2, Time)
   endif
 
   if (id_va850 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 850.e2, Atm(n)%peln, &
-                               Atm(n)%va(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%va(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_va850, dat2, Time)
   endif
 
   if (id_ta500 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 500.e2, Atm(n)%peln, &
-                               Atm(n)%pt(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%pt(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_ta500, dat2, Time)
   endif
 
   if (id_ta700 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 700.e2, Atm(n)%peln, &
-                               Atm(n)%pt(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%pt(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_ta700, dat2, Time)
   endif
 
   if (id_ta850 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 850.e2, Atm(n)%peln, &
-                               Atm(n)%pt(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%pt(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_ta850, dat2, Time)
     endif
 
   if (id_hus850 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 850.e2, Atm(n)%peln, &
-                               Atm(n)%q(isc:iec,jsc:jec,:,sphum), dat2)          
+                               Atm(n)%q(isc:iec,jsc:jec,:,sphum), dat2)
     used = send_data (id_hus850, dat2, Time)
   endif
 
   if (id_wap500 > 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 500.e2, Atm(n)%peln, &
-                               Atm(n)%omga(isc:iec,jsc:jec,:), dat2)          
+                               Atm(n)%omga(isc:iec,jsc:jec,:), dat2)
     used = send_data (id_wap500, dat2, Time)
   endif
 

@@ -1,22 +1,24 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
 module sim_nc_mod
 
 ! This is S-J Lin's private netcdf file reader
@@ -242,7 +244,7 @@ module sim_nc_mod
          start(4) = time_slice
       end if
 
-      nreco(1) = ie - is + 1 
+      nreco(1) = ie - is + 1
       nreco(2) = je - js + 1
       nreco(3) = ke - ks + 1
       nreco(4) = 1
@@ -260,7 +262,7 @@ module sim_nc_mod
       real*4:: wk4(im,jm,km,4)
       real*4, intent(out):: var4(im,jm)
       integer::  status, var4id
-      integer:: start(4), icount(4) 
+      integer:: start(4), icount(4)
       integer:: i,j
 
       start(1) = 1
@@ -300,7 +302,7 @@ module sim_nc_mod
       real(kind=8), intent(out):: var4(im,jm,km,1)
       integer::  status, var4id
 !
-      integer:: start(4), icount(4) 
+      integer:: start(4), icount(4)
 
       start(1) = 1
       start(2) = 1
@@ -353,7 +355,7 @@ module sim_nc_mod
       integer::  status, var3id
 
       status = nf_inq_varid (ncid, var3_name, var3id)
-      check_var = (status == NF_NOERR) 
+      check_var = (status == NF_NOERR)
 
       end function check_var
 
@@ -410,7 +412,7 @@ module sim_nc_mod
 ! Local variables
 !
       integer irem4,irem100
-      integer mdays(12)                           ! number day of month 
+      integer mdays(12)                           ! number day of month
       data mdays /31,28,31,30,31,30,31,31,30,31,30,31/
 !
 !***********************************************************************

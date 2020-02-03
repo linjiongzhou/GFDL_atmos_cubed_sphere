@@ -1,21 +1,22 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
 
 module monin_obukhov_mod
@@ -27,10 +28,10 @@ module monin_obukhov_mod
 ! explicit interface to all kernel routines
 
   use ocean_rough_mod, only: compute_ocean_roughness
- 
+
   implicit none
   private
-  
+
   public :: Mon_obkv
 
   integer, parameter :: i8 = selected_int_kind(18)
@@ -91,13 +92,13 @@ contains
   real, intent(in) :: u_mean, cd
   real, intent(in) :: t_surf0(:,:), q_surf0(:,:), q_atm(:,:)
   real, intent(inout) :: u_star(:,:)
-  real, intent(out) :: flux_t(:,:), flux_q(:,:), flux_u(:,:), flux_v(:,:)   
+  real, intent(out) :: flux_t(:,:), flux_q(:,:), flux_u(:,:), flux_v(:,:)
   real, intent(out) :: mu(:,:)
 
-  logical, dimension(size(ps,1)) :: avail 
+  logical, dimension(size(ps,1)) :: avail
   logical :: lavail
   real, dimension(size(ps,1),size(ps,2)) :: speed, drag_m, rho_drag
-  real, intent(inout), dimension(size(ps,1),size(ps,2)) :: drag_t, drag_q 
+  real, intent(inout), dimension(size(ps,1),size(ps,2)) :: drag_t, drag_q
   real, dimension(size(ps,1),size(ps,2)) :: b_star, u_surf0, v_surf0
   real, dimension(size(ps,1),size(ps,2)) :: rough_mom, rough_heat, rough_moist
 !
@@ -109,7 +110,7 @@ contains
      p_fac(:,:) = (ps(:,:)/p_atm(:,:)) ** kappa
         pt(:,:) =   t_atm(:,:)*(1.+zvir*q_atm(:,:  ))*(p00/p_atm(:,:))**kappa
        pt0(:,:) = t_surf0(:,:)*(1.+zvir*q_surf0(:,:))*(p00/   ps(:,:))**kappa
-     speed(:,:) = sqrt(u_atm(:,:)**2+v_atm(:,:)**2+u_mean**2) 
+     speed(:,:) = sqrt(u_atm(:,:)**2+v_atm(:,:)**2+u_mean**2)
 
   lavail = .false.
   avail  = .true.
@@ -158,7 +159,7 @@ contains
   rho_drag(:,:) = rho(:,:)*speed(:,:)
     flux_t(:,:) = cp_air*drag_t(:,:)*rho_drag(:,:)*(t_surf0(:,:)-t_atm(:,:)*p_fac(:,:))*t_fac
 !                                         flux of water vapor  (Kg/(m**2 s))
-    flux_q(:,:) =        drag_q(:,:)*rho_drag(:,:)*(q_surf0(:,:)-q_atm(:,:)) 
+    flux_q(:,:) =        drag_q(:,:)*rho_drag(:,:)*(q_surf0(:,:)-q_atm(:,:))
 
 #else
   deno(:,:) = 1. + dt*rho_drag(:,:)/delm(:,:)
@@ -172,7 +173,7 @@ contains
 !                                         flux of water vapor  (Kg/(m**2 s))
   rho_drag(:,:) = rho(:,:)*drag_q(:,:)*speed(:,:)
   deno(:,:) = 1. + dt*rho_drag(:,:)/delm(:,:)
-  flux_q(:,:) = rho_drag(:,:)*(q_surf0(:,:)-q_atm(:,:))/deno(:,:) 
+  flux_q(:,:) = rho_drag(:,:)*(q_surf0(:,:)-q_atm(:,:))/deno(:,:)
 #endif
 
   end subroutine Mon_obkv
@@ -186,8 +187,8 @@ contains
 
   implicit none
 
-  real   , intent(in   )                :: grav     
-  real   , intent(in   )                :: vonkarm   
+  real   , intent(in   )                :: grav
+  real   , intent(in   )                :: vonkarm
   real   , intent(in   )                :: error    ! = 1.e-04
   real   , intent(in   )                :: zeta_min ! = 1.e-06
   integer, intent(in   )                :: max_iter ! = 20
@@ -209,19 +210,19 @@ contains
   real                  :: us, bs, qs
   integer               :: i
 
-  r_crit = 0.95*rich_crit  ! convergence can get slow if one is 
+  r_crit = 0.95*rich_crit  ! convergence can get slow if one is
                            ! close to rich_crit
   sqrt_drag_min = 0.0
   if(drag_min.ne.0.0) sqrt_drag_min = sqrt(drag_min)
 
-  mask = .true. 
+  mask = .true.
 !  if(lavail) mask = avail
 
-  where(mask) 
+  where(mask)
      delta_b = grav*(pt0 - pt)/pt0
      rich    = - z*delta_b/(speed*speed + small)
      zz      = max(z,z0,zt,zq)
-  elsewhere 
+  elsewhere
      rich = 0.0
   end where
 
@@ -326,7 +327,7 @@ end subroutine monin_obukhov_drag_1d
   ! initial guess
 
   zeta = 0.0
-  where(mask_1) 
+  where(mask_1)
      zeta = rich*ln_z_z0*ln_z_z0/ln_z_zt
   end where
 
@@ -336,7 +337,7 @@ end subroutine monin_obukhov_drag_1d
 
   iter_loop: do iter = 1, max_iter
 
-     where (mask_1 .and. abs(zeta).lt.zeta_min) 
+     where (mask_1 .and. abs(zeta).lt.zeta_min)
         zeta = 0.0
         f_m = ln_z_z0
         f_t = ln_z_zt
@@ -344,7 +345,7 @@ end subroutine monin_obukhov_drag_1d
         mask_1 = .false.  ! don't do any more calculations at these pts
      end where
 
-     
+
      zeta_0 = 0.0
      zeta_t = 0.0
      zeta_q = 0.0
@@ -373,9 +374,9 @@ end subroutine monin_obukhov_drag_1d
         df_m  = (phi_m - phi_m_0)*rzeta
         df_t  = (phi_t - phi_t_0)*rzeta
         rich_1 = zeta*f_t/(f_m*f_m)
-        d_rich = rich_1*( rzeta +  df_t/f_t - 2.0 *df_m/f_m) 
-        correction = (rich - rich_1)/d_rich  
-        corr = min(abs(correction),abs(correction/zeta)) 
+        d_rich = rich_1*( rzeta +  df_t/f_t - 2.0 *df_m/f_m)
+        correction = (rich - rich_1)/d_rich
+        corr = min(abs(correction),abs(correction/zeta))
         ! the criterion corr < error seems to work ok, but is a bit arbitrary
         !  when zeta is small the tolerance is reduced
      end where
@@ -383,9 +384,9 @@ end subroutine monin_obukhov_drag_1d
      max_cor= maxval(corr)
 
      if(max_cor > error) then
-        mask_1 = mask_1 .and. (corr > error)  
+        mask_1 = mask_1 .and. (corr > error)
         ! change the mask so computation proceeds only on non-converged points
-        where(mask_1) 
+        where(mask_1)
            zeta = zeta + correction
         end where
         cycle iter_loop
@@ -412,7 +413,7 @@ end subroutine monin_obukhov_solve_zeta
   integer, intent(in   )                :: n
   real   , intent(  out), dimension(n)  :: phi_t
   real   , intent(in   ), dimension(n)  :: zeta
-  logical, intent(in   ), dimension(n)  :: mask  
+  logical, intent(in   ), dimension(n)  :: mask
   integer, intent(  out)                :: ier
 
   logical, dimension(n) :: stable, unstable
@@ -424,13 +425,13 @@ end subroutine monin_obukhov_solve_zeta
   stable   = mask .and. zeta >= 0.0
   unstable = mask .and. zeta <  0.0
 
-  where (unstable) 
+  where (unstable)
      phi_t = (1 - 16.0*zeta)**(-0.5)
   end where
 
-  if(stable_option == 1) then 
+  if(stable_option == 1) then
 
-     where (stable) 
+     where (stable)
         phi_t = 1.0 + zeta*(5.0 + b_stab*zeta)/(1.0 + zeta)
      end where
 
@@ -475,14 +476,14 @@ end subroutine monin_obukhov_derivative_t
   stable   = mask .and. zeta >= 0.0
   unstable = mask .and. zeta <  0.0
 
-  where (unstable) 
+  where (unstable)
      x     = (1 - 16.0*zeta  )**(-0.5)
      phi_m = sqrt(x)  ! phi_m = (1 - 16.0*zeta)**(-0.25)
   end where
 
-  if(stable_option == 1) then 
+  if(stable_option == 1) then
 
-     where (stable) 
+     where (stable)
         phi_m = 1.0 + zeta  *(5.0 + b_stab*zeta)/(1.0 + zeta)
      end where
 
@@ -529,7 +530,7 @@ end subroutine monin_obukhov_derivative_m
   stable   = mask .and. zeta >= 0.0
   unstable = mask .and. zeta <  0.0
 
-  where(unstable) 
+  where(unstable)
 
      x     = sqrt(1 - 16.0*zeta)
      x_0   = sqrt(1 - 16.0*zeta_0)
@@ -549,9 +550,9 @@ end subroutine monin_obukhov_derivative_m
 
   if( stable_option == 1) then
 
-     where (stable) 
+     where (stable)
         psi_m = ln_z_z0 + (5.0 - b_stab)*log((1.0 + zeta)/(1.0 + zeta_0)) &
-             + b_stab*(zeta - zeta_0) 
+             + b_stab*(zeta - zeta_0)
      end where
 
   else if (stable_option == 2) then
@@ -562,7 +563,7 @@ end subroutine monin_obukhov_derivative_m
      strongly_stable = stable .and. zeta >  zeta_trans
 
      where (weakly_stable)
-        psi_m = ln_z_z0 + 5.0*(zeta - zeta_0) 
+        psi_m = ln_z_z0 + 5.0*(zeta - zeta_0)
      end where
 
      where(strongly_stable)
@@ -595,25 +596,25 @@ end subroutine monin_obukhov_integral_m
   real   , intent(in)   , dimension(n)  :: zeta, zeta_t, zeta_q, ln_z_zt, ln_z_zq
   logical, intent(in)   , dimension(n)  :: mask
   integer, intent(  out)                :: ier
-  
-  real, dimension(n)     :: x, x_t, x_q                              
+
+  real, dimension(n)     :: x, x_t, x_q
   logical, dimension(n)  :: stable, unstable, &
                                   weakly_stable, strongly_stable
   real                   :: b_stab, lambda
 
   ier = 0
-  
+
   b_stab     = 1.0/rich_crit
 
 stable   = mask .and. zeta >= 0.0
 unstable = mask .and. zeta <  0.0
 
-where(unstable) 
+where(unstable)
 
   x     = sqrt(1 - 16.0*zeta)
   x_t   = sqrt(1 - 16.0*zeta_t)
   x_q   = sqrt(1 - 16.0*zeta_q)
-  
+
   psi_t = ln_z_zt - 2.0*log( (1.0 + x)/(1.0 + x_t) )
   psi_q = ln_z_zq - 2.0*log( (1.0 + x)/(1.0 + x_q) )
 
@@ -621,15 +622,15 @@ end where
 
 if( stable_option == 1) then
 
-  where (stable) 
-  
+  where (stable)
+
     psi_t = ln_z_zt + (5.0 - b_stab)*log((1.0 + zeta)/(1.0 + zeta_t)) &
-       + b_stab*(zeta - zeta_t) 
+       + b_stab*(zeta - zeta_t)
     psi_q = ln_z_zq + (5.0 - b_stab)*log((1.0 + zeta)/(1.0 + zeta_q)) &
-       + b_stab*(zeta - zeta_q) 
-       
+       + b_stab*(zeta - zeta_q)
+
   end where
-  
+
 else if (stable_option == 2) then
 
    lambda = 1.0 + (5.0 - b_stab)*zeta_trans
@@ -638,28 +639,28 @@ else if (stable_option == 2) then
   strongly_stable = stable .and. zeta >  zeta_trans
 
   where (weakly_stable)
-    psi_t = ln_z_zt + 5.0*(zeta - zeta_t) 
-    psi_q = ln_z_zq + 5.0*(zeta - zeta_q) 
+    psi_t = ln_z_zt + 5.0*(zeta - zeta_t)
+    psi_q = ln_z_zq + 5.0*(zeta - zeta_q)
   end where
-  
+
   where(strongly_stable)
     x = (lambda - 1.0)*log(zeta/zeta_trans) + b_stab*(zeta - zeta_trans)
   endwhere
-  
+
   where (strongly_stable .and. zeta_t <= zeta_trans)
     psi_t = ln_z_zt + x + 5.0*(zeta_trans - zeta_t)
   end where
   where (strongly_stable .and. zeta_t > zeta_trans)
     psi_t = lambda*ln_z_zt + b_stab*(zeta  - zeta_t)
   endwhere
-  
+
   where (strongly_stable .and. zeta_q <= zeta_trans)
     psi_q = ln_z_zq + x + 5.0*(zeta_trans - zeta_q)
   end where
   where (strongly_stable .and. zeta_q > zeta_trans)
     psi_q = lambda*ln_z_zq + b_stab*(zeta  - zeta_q)
   endwhere
-  
+
 end if
 
 end subroutine monin_obukhov_integral_tq

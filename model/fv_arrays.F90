@@ -1,22 +1,24 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
 module fv_arrays_mod
 #include <fms_platform.h>
   use mpp_domains_mod,       only: domain2d
@@ -105,6 +107,12 @@ module fv_arrays_mod
      integer :: id_liq_wat_dt_phys, id_ice_wat_dt_phys
      integer :: id_intqv, id_intql, id_intqi, id_intqr, id_intqs, id_intqg
 
+! ESM/CM 3-D diagostics
+     integer :: id_uq, id_vq, id_wq, id_iuq, id_ivq, id_iwq,   & ! moisture flux & vertical integral
+                id_ut, id_vt, id_wt, id_iut, id_ivt, id_iwt,   & ! heat flux
+                id_uu, id_uv, id_vv, id_ww,                    & ! momentum flux
+                id_iuu, id_iuv, id_iuw, id_ivv, id_ivw, id_iww   ! vertically integral of momentum flux
+
      integer :: id_uw, id_vw, id_hw, id_qvw, id_qlw, id_qiw, id_o3w
 
      logical :: initialized = .false.
@@ -130,7 +138,7 @@ module fv_arrays_mod
 
      real, allocatable, dimension(:,:,:) :: grid, agrid
      real, allocatable, dimension(:,:) :: area, area_c
-     real, allocatable, dimension(:,:) :: rarea, rarea_c     
+     real, allocatable, dimension(:,:) :: rarea, rarea_c
 
      real, allocatable, dimension(:,:) :: sina, cosa
      real, allocatable, dimension(:,:,:) :: e1,e2
@@ -211,9 +219,9 @@ module fv_arrays_mod
      real, allocatable :: fC(:,:), f0(:,:)
 
      integer, dimension(:,:,:), allocatable :: iinta, jinta, iintb, jintb
-  
+
      !Scalar data
-     
+
      integer :: npx_g, npy_g, ntiles_g ! global domain
 
      real(kind=R_GRID) :: global_area
@@ -224,7 +232,7 @@ module fv_arrays_mod
 
      real  :: acapN, acapS
      real  :: globalarea  ! total Global Area
-     
+
      logical :: latlon = .false.
      logical :: cubed_sphere = .false.
      logical :: have_south_pole = .false.
@@ -238,8 +246,8 @@ module fv_arrays_mod
 
      integer, pointer :: grid_type !< Which type of grid to use. If 0, the equidistant gnomonic
                                    !< cubed-sphere will be used. If 4, a doubly-periodic
-                                   !< f-plane cartesian grid will be used. If -1, the grid is read 
-                                   !< from INPUT/grid_spec.nc. Values 2, 3, 5, 6, and 7 are not 
+                                   !< f-plane cartesian grid will be used. If -1, the grid is read
+                                   !< from INPUT/grid_spec.nc. Values 2, 3, 5, 6, and 7 are not
                                    !< supported and will likely not run. The default value is 0.
 
      logical, pointer :: nested   !< Whether this is a nested grid. .false. by default.
@@ -277,12 +285,12 @@ module fv_arrays_mod
 !  -> moved to grid_tools
 
 ! Momentum (or KE) options:
-   integer :: hord_mt = 9    ! the best option for Gnomonic grids  
+   integer :: hord_mt = 9    ! the best option for Gnomonic grids
    integer :: kord_mt = 8    ! vertical mapping option for (u,v)
    integer :: kord_wz = 8    ! vertical mapping option for w
 
 ! Vorticity & w transport options:
-   integer :: hord_vt = 9    ! 10 not recommended (noisy case-5) 
+   integer :: hord_vt = 9    ! 10 not recommended (noisy case-5)
 
 ! Heat & air mass (delp) transport options:
    integer :: hord_tm = 9    ! virtual potential temperature
@@ -290,11 +298,11 @@ module fv_arrays_mod
    integer :: kord_tm =-8    !
 
 ! Tracer transport options:
-   integer :: hord_tr = 12   !11: PPM mono constraint (Lin 2004); fast 
+   integer :: hord_tr = 12   !11: PPM mono constraint (Lin 2004); fast
                              !12: Huynh 2nd constraint (Lin 2004) +
                              !    positive definite (Lin & Rood 1996); slower
                              !>12: positive definite only (Lin & Rood 1996); fastest
-   integer :: kord_tr = 8    ! 
+   integer :: kord_tr = 8    !
    real    :: scale_z = 0.   ! diff_z = scale_z**2 * 0.25 (only used for Riemann solver)
    real    :: w_max = 75.    ! max w (m/s) threshold for hydostatiic adjustment  (not used)
    real    :: z_min = 0.05   ! min ratio of dz_nonhydrostatic/dz_hydrostatic (not used?)
@@ -324,28 +332,28 @@ module fv_arrays_mod
 
    logical :: RF_fast =.false.      !  Fast inline Rayleigh Friction
    logical :: consv_am  = .false.   ! Apply Angular Momentum Correction (to zonal wind component)
-   logical :: do_sat_adj= .false.   ! 
+   logical :: do_sat_adj= .false.   !
    logical :: do_inline_mp = .false. ! inline cloud microphysics
    logical :: do_fsbm = .false.     ! fast spectral-bin microphysics
    logical :: do_f3d    = .false.   ! 
    logical :: no_dycore = .false.   ! skip the dycore
-   logical :: convert_ke = .false. 
-   logical :: do_vort_damp = .false. 
-   logical :: use_old_omega = .true. 
+   logical :: convert_ke = .false.
+   logical :: do_vort_damp = .false.
+   logical :: use_old_omega = .true.
 ! PG off centering:
    real    :: beta  = 0.0    ! 0.5 is "neutral" but it may not be stable
 #ifdef SW_DYNAMICS
    integer :: n_sponge = 0   ! Number of sponge layers at the top of the atmosphere
-   real    :: d_ext = 0.    
+   real    :: d_ext = 0.
    integer :: nwat  = 0      ! Number of water species
-   logical :: warm_start = .false. 
+   logical :: warm_start = .false.
    logical :: inline_q = .true.
    logical :: adiabatic = .true.     ! Run without physics (full or idealized).
 #else
    integer :: n_sponge = 1   ! Number of sponge layers at the top of the atmosphere
    real    :: d_ext = 0.02   ! External model damping (was 0.02)
    integer :: nwat  = 3      ! Number of water species
-   logical :: warm_start = .true. 
+   logical :: warm_start = .true.
                              ! Set to .F. if cold_start is desired (including terrain generation)
    logical :: inline_q = .false.
    logical :: adiabatic = .false.     ! Run without physics (full or idealized).
@@ -355,11 +363,11 @@ module fv_arrays_mod
 !-----------------------------------------------------------
    real :: shift_fac   =  18.   ! shift west by 180/shift_fac = 10 degrees
 ! Defaults for Schmidt/cube transformation:
-   logical :: do_schmidt = .false. 
-   logical :: do_cube_transform = .false. 
+   logical :: do_schmidt = .false.
+   logical :: do_cube_transform = .false.
    real(kind=R_GRID) :: stretch_fac =   1.   ! No stretching
-   real(kind=R_GRID) :: target_lat  = -90.   ! -90: no grid rotation 
-   real(kind=R_GRID) :: target_lon  =   0.   ! 
+   real(kind=R_GRID) :: target_lat  = -90.   ! -90: no grid rotation
+   real(kind=R_GRID) :: target_lon  =   0.   !
 
 !-----------------------------------------------------------------------------------------------
 ! Example #1a: US regional climate simulation, center located over Oklahoma city: (262.4, 35.4)
@@ -371,7 +379,7 @@ module fv_arrays_mod
 !              stretching factor: 5-10
 !-----------------------------------------------------------------------------------------------
 
-   logical :: reset_eta = .false. 
+   logical :: reset_eta = .false.
    real    :: p_fac  = 0.05
    real    :: a_imp  = 0.75  ! Off center parameter for the implicit solver [0.5,1.0]
    integer :: n_split = 0    ! Number of time splits for the lagrangian dynamics
@@ -392,9 +400,9 @@ module fv_arrays_mod
             ! C2000:   ~5         90         18 (5 s)    2
             !===================================================
 ! The nonhydrostatic algorithm is described in Lin 2006, QJ, (submitted)
-! C2000 should easily scale to at least 6 * 100 * 100 = 60,000 CPUs  
+! C2000 should easily scale to at least 6 * 100 * 100 = 60,000 CPUs
 ! For a 1024 system: try 6 x 13 * 13 = 1014 CPUs
-  
+
    integer :: q_split = 0    ! Number of time splits for tracer transport
 
    integer :: print_freq = 0 ! Print max/min of selected fields
@@ -421,7 +429,7 @@ module fv_arrays_mod
    integer :: pnats = 0               ! Number of non-advected consituents
    integer :: dnats = 0               ! Number of non-advected consituents (as seen by dynamics)
    integer :: dnrts = -1               ! Number of non-remapped consituents. Only makes sense for dnrts <= dnats
-   integer :: ntiles = 1                 ! Number or tiles that make up the Grid 
+   integer :: ntiles = 1                 ! Number or tiles that make up the Grid
    integer :: ndims = 2     ! Lat-Lon Dims for Grid in Radians
    integer :: nf_omega  = 1           ! Filter omega "nf_omega" times
    integer :: fv_sg_adj = -1          ! Perform grid-scale dry adjustment if > 0
@@ -484,9 +492,9 @@ module fv_arrays_mod
 !--------------------------------------------------------------------------------------
    logical :: nudge = .false.         ! Perform nudging
    logical :: nudge_ic = .false.      ! Perform nudging on IC
-   logical :: ncep_ic = .false.       ! use NCEP ICs 
-   logical :: nggps_ic = .false.      ! use NGGPS ICs 
-   logical :: ecmwf_ic = .false.      ! use ECMWF ICs 
+   logical :: ncep_ic = .false.       ! use NCEP ICs
+   logical :: nggps_ic = .false.      ! use NGGPS ICs
+   logical :: ecmwf_ic = .false.      ! use ECMWF ICs
    logical :: gfs_phil = .false.      ! if .T., compute geopotential inside of GFS physics (not used?)
    logical :: agrid_vel_rst = .false. ! if .T., include ua/va (agrid winds) in the restarts
    logical :: use_new_ncep = .false.  ! use the NCEP ICs created after 2014/10/22, if want to read CWAT (not used??)
@@ -495,7 +503,7 @@ module fv_arrays_mod
    logical :: external_ic = .false.   ! use ICs from external sources; e.g. lat-lon FV core
                                       ! or NCEP re-analysis; both vertical remapping & horizontal
                                       ! (lat-lon to cubed sphere) interpolation will be done
-   logical :: external_eta = .false.  ! allow the use of externally defined ak/bk values and not 
+   logical :: external_eta = .false.  ! allow the use of externally defined ak/bk values and not
                                       ! require coefficients to be defined vi set_eta
    logical :: read_increment = .false.   ! read in analysis increment and add to restart
 ! Default restart files from the "Memphis" latlon FV core:
@@ -511,7 +519,7 @@ module fv_arrays_mod
    logical :: use_hydro_pressure = .false. !  GFS control
    logical :: do_uni_zfull = .false.       ! compute zfull as a simply average of two zhalf
    logical :: hybrid_z    = .false.        ! use hybrid_z for remapping
-   logical :: Make_NH     = .false.        ! Initialize (w, delz) from hydro restart file 
+   logical :: Make_NH     = .false.        ! Initialize (w, delz) from hydro restart file
    logical :: make_hybrid_z  = .false.     ! transform hydrostatic eta-coord IC into non-hydrostatic hybrid_z
    logical :: nudge_qv  = .false.          ! Nudge the water vapor (during na_init) above 30 mb towards HALOE climatology
    real    :: add_noise = -1.              !Amplitude of random noise added upon model startup; <=0 means no noise added
@@ -571,7 +579,7 @@ module fv_arrays_mod
 
   end type fv_nest_BC_type_4D
 
-  type nest_level_type 
+  type nest_level_type
      !Interpolation arrays for grid nesting
      logical                                :: on_level ! indicate if current processor on this level.
      logical                                :: do_remap_BC
@@ -585,12 +593,12 @@ module fv_arrays_mod
 
      integer :: refinement = 3  !Refinement wrt parent
 
-     integer :: parent_tile = 1     !Tile (of cubed sphere) in which nested grid lies 
+     integer :: parent_tile = 1     !Tile (of cubed sphere) in which nested grid lies
      logical :: nested = .false.
      integer :: nestbctype = 1
      integer :: nsponge = 0
-     integer :: nestupdate = 0       
-     logical :: twowaynest = .false. 
+     integer :: nestupdate = 0
+     logical :: twowaynest = .false.
      integer :: ioffset, joffset !Position of nest within parent grid
      integer :: nlevel = 0 ! levels down from top-most domain
 
@@ -601,7 +609,7 @@ module fv_arrays_mod
      integer :: refinement_of_global = 1
      integer :: npx_global
      integer :: upoff = 1 ! currently the same for all variables
-     integer :: isu = -999, ieu = -1000, jsu = -999, jeu = -1000 ! limits of update regions on coarse grid 
+     integer :: isu = -999, ieu = -1000, jsu = -999, jeu = -1000 ! limits of update regions on coarse grid
      real    :: update_blend = 1. ! option for controlling how much "blending" is done during two-way update
      logical, allocatable :: do_remap_BC(:)
 
@@ -622,7 +630,7 @@ module fv_arrays_mod
 
      logical :: parent_proc, child_proc
      logical :: parent_of_twoway = .false.
-   
+
      !These are for time-extrapolated BCs
      type(fv_nest_BC_type_3D) :: delp_BC, u_BC, v_BC, uc_BC, vc_BC, divg_BC
      type(fv_nest_BC_type_3D), allocatable, dimension(:) :: q_BC
@@ -751,7 +759,7 @@ module fv_arrays_mod
      integer :: is_north_uvs ,ie_north_uvs ,js_north_uvs ,je_north_uvs &
                ,is_south_uvs ,ie_south_uvs ,js_south_uvs ,je_south_uvs &
                ,is_east_uvs  ,ie_east_uvs  ,js_east_uvs  ,je_east_uvs  &
-               ,is_west_uvs  ,ie_west_uvs  ,js_west_uvs  ,je_west_uvs   
+               ,is_west_uvs  ,ie_west_uvs  ,js_west_uvs  ,je_west_uvs
 
      integer :: is_north_uvw ,ie_north_uvw ,js_north_uvw ,je_north_uvw &
                ,is_south_uvw ,ie_south_uvw ,js_south_uvw ,je_south_uvw &
@@ -825,7 +833,7 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: sgh(:,:)      _NULL  ! Terrain standard deviation
     real, _ALLOCATABLE :: oro(:,:)      _NULL  ! land fraction (1: all land; 0: all water)
     real, _ALLOCATABLE :: ts(:,:)       _NULL  ! skin temperature (sst) from NCEP/GFS (K) -- tile
- 
+
 !-----------------------------------------------------------------------
 ! Others:
 !-----------------------------------------------------------------------
@@ -849,7 +857,7 @@ module fv_arrays_mod
     real, _ALLOCATABLE ::  cy(:,:,:)  _NULL
 
     type(fv_flags_type) :: flagstruct
-    
+
     !! Convenience pointers
     integer, pointer :: npx, npy, npz, ncnst, ng
 
@@ -870,7 +878,7 @@ module fv_arrays_mod
 #endif
      !These do not actually belong to the grid, but to the process
      !integer :: masterproc
-     !integer :: gid 
+     !integer :: gid
 
 !!!!!!!!!!!!!!!!
 ! From fv_grid_tools
@@ -880,7 +888,7 @@ module fv_arrays_mod
      real    :: ptop
 
   type(fv_grid_type) :: gridstruct
-  
+
 
 !!!!!!!!!!!!!!!!
 !fv_diagnostics!
@@ -931,67 +939,67 @@ contains
     if (Atm%allocated) return
 
     if (dummy) then
-       isd     =  0   
-       ied=   -1   
-       jsd=   0   
-       jed=   -1   
-       is=   0    
-       ie=   -1    
-       js=   0    
-       je=   -1    
-       npx=   1   
-       npy=   1   
-       npz=   1   
-       ndims=   1 
-       ncnst=   1 
+       isd     =  0
+       ied=   -1
+       jsd=   0
+       jed=   -1
+       is=   0
+       ie=   -1
+       js=   0
+       je=   -1
+       npx=   1
+       npy=   1
+       npz=   1
+       ndims=   1
+       ncnst=   1
        nq=   1
     else
-       isd     =  isd_in   
-       ied=   ied_in   
-       jsd=   jsd_in   
-       jed=   jed_in   
-       is=   is_in    
-       ie=   ie_in    
-       js=   js_in    
-       je=   je_in    
-       npx=   npx_in   
-       npy=   npy_in   
-       npz=   npz_in   
-       ndims=   ndims_in 
-       ncnst=   ncnst_in 
+       isd     =  isd_in
+       ied=   ied_in
+       jsd=   jsd_in
+       jed=   jed_in
+       is=   is_in
+       ie=   ie_in
+       js=   js_in
+       je=   je_in
+       npx=   npx_in
+       npy=   npy_in
+       npz=   npz_in
+       ndims=   ndims_in
+       ncnst=   ncnst_in
        nq=   nq_in
     endif
 
     if ((.not. dummy) .or. alloc_2d) then
-       isd_2d     =  isd_in   
-       ied_2d=   ied_in   
-       jsd_2d=   jsd_in   
-       jed_2d=   jed_in   
-       is_2d=   is_in    
-       ie_2d=   ie_in    
-       js_2d=   js_in    
-       je_2d=   je_in    
-       npx_2d=   npx_in   
-       npy_2d=   npy_in   
-       npz_2d=   npz_in   
-       ndims_2d=   ndims_in 
-       ncnst_2d=   ncnst_in 
-       nq_2d=   nq_in 
+       isd_2d     =  isd_in
+       ied_2d=   ied_in
+       jsd_2d=   jsd_in
+       jed_2d=   jed_in
+       is_2d=   is_in
+       ie_2d=   ie_in
+       js_2d=   js_in
+       je_2d=   je_in
+       npx_2d=   npx_in
+       npy_2d=   npy_in
+       npz_2d=   npz_in
+       ndims_2d=   ndims_in
+       ncnst_2d=   ncnst_in
+       nq_2d=   nq_in
     else
-       isd_2d     =  0   
-       ied_2d=   -1   
-       jsd_2d=   0   
-       jed_2d=   -1   
-       is_2d=   0    
-       ie_2d=   -1    
-       js_2d=   0    
-       je_2d=   -1    
-       npx_2d=   1   
-       npy_2d=   1   
+       isd_2d     =  0
+       ied_2d=   -1
+       jsd_2d=   0
+       jed_2d=   -1
+       is_2d=   0
+       ie_2d=   -1
+       js_2d=   0
+       je_2d=   -1
+       npx_2d=   1
+       npy_2d=   1
        npz_2d=   npz_in !for ak, bk, which are 1D arrays and thus OK to allocate
-       ndims_2d=   1 
-       ncnst_2d=   1 
-       nq_2d=   1 
+       ndims_2d=   1
+       ncnst_2d=   1
+       nq_2d=   1
     endif
 
 !This should be set up in fv_mp_mod
@@ -1042,7 +1050,7 @@ contains
     allocate (   Atm%ps(isd:ied  ,jsd:jed) )
     allocate (   Atm%pe(is-1:ie+1, npz+1,js-1:je+1) )
     allocate (   Atm%pk(is:ie    ,js:je  , npz+1) )
-    allocate ( Atm%peln(is:ie,npz+1,js:je) ) 
+    allocate ( Atm%peln(is:ie,npz+1,js:je) )
     allocate (  Atm%pkz(is:ie,js:je,npz) )
 
     allocate ( Atm%u_srf(is:ie,js:je) )
@@ -1169,32 +1177,32 @@ contains
     allocate ( Atm%gridstruct% area(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )   ! Cell Centered
     allocate ( Atm%gridstruct% area_64(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) ) ! Cell Centered
     allocate ( Atm%gridstruct%rarea(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )   ! Cell Centered
-    
+
     allocate ( Atm%gridstruct% area_c(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! Cell Corners
     allocate ( Atm%gridstruct% area_c_64(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )! Cell Corners
     allocate ( Atm%gridstruct%rarea_c(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! Cell Corners
-    
+
     allocate ( Atm%gridstruct% dx(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct% dx_64(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct%rdx(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct% dy(isd_2d:ied_2d+1,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct% dy_64(isd_2d:ied_2d+1,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct%rdy(isd_2d:ied_2d+1,jsd_2d:jed_2d  ) )
-    
+
     allocate ( Atm%gridstruct% dxc(isd_2d:ied_2d+1,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct% dxc_64(isd_2d:ied_2d+1,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct%rdxc(isd_2d:ied_2d+1,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct% dyc(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct% dyc_64(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct%rdyc(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
-    
+
     allocate ( Atm%gridstruct% dxa(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct% dxa_64(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct%rdxa(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct% dya(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct% dya_64(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )
     allocate ( Atm%gridstruct%rdya(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )
-    
+
     allocate ( Atm%gridstruct%grid (isd_2d:ied_2d+1,jsd_2d:jed_2d+1,1:ndims_2d) )
     allocate ( Atm%gridstruct%grid_64 (isd_2d:ied_2d+1,jsd_2d:jed_2d+1,1:ndims_2d) )
     allocate ( Atm%gridstruct%agrid(isd_2d:ied_2d  ,jsd_2d:jed_2d  ,1:ndims_2d) )
@@ -1204,7 +1212,7 @@ contains
     allocate ( Atm%gridstruct%rsina(is_2d:ie_2d+1,js_2d:je_2d+1) )      ! Why is the size different?
     allocate ( Atm%gridstruct% cosa(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! COS(angle of intersection)
     allocate ( Atm%gridstruct% cosa_64(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! COS(angle of intersection)
-    
+
     allocate ( Atm%gridstruct%  e1(3,isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct%  e2(3,isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )
 
@@ -1425,30 +1433,30 @@ contains
 
     deallocate ( Atm%gridstruct% area )   ! Cell Centered
     deallocate ( Atm%gridstruct%rarea )   ! Cell Centered
-    
+
     deallocate ( Atm%gridstruct% area_c )  ! Cell Corners
     deallocate ( Atm%gridstruct%rarea_c )  ! Cell Corners
-    
+
     deallocate ( Atm%gridstruct% dx )
     deallocate ( Atm%gridstruct%rdx )
     deallocate ( Atm%gridstruct% dy )
     deallocate ( Atm%gridstruct%rdy )
-    
+
     deallocate ( Atm%gridstruct% dxc )
     deallocate ( Atm%gridstruct%rdxc )
     deallocate ( Atm%gridstruct% dyc )
     deallocate ( Atm%gridstruct%rdyc )
-    
+
     deallocate ( Atm%gridstruct% dxa )
     deallocate ( Atm%gridstruct%rdxa )
     deallocate ( Atm%gridstruct% dya )
     deallocate ( Atm%gridstruct%rdya )
-    
+
     deallocate ( Atm%gridstruct%grid  )
     deallocate ( Atm%gridstruct%agrid )
     deallocate ( Atm%gridstruct%sina )   ! SIN(angle of intersection)
     deallocate ( Atm%gridstruct%cosa )   ! COS(angle of intersection)
-    
+
     deallocate ( Atm%gridstruct%  e1 )
     deallocate ( Atm%gridstruct%  e2 )
 

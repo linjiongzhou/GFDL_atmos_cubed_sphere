@@ -1,21 +1,22 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
 
 module fv_phys_mod
@@ -258,7 +259,7 @@ contains
      allocate ( q_dt(is:ie,js:je,npz,nq) )
 
 ! Place the memory in the optimal shared mem space!
-!$OMP parallel do default(none) shared(isd,ied,jsd,jed,npz,is,ie,js,je,nq,u_dt,v_dt,t_dt,q_dt) 
+!$OMP parallel do default(none) shared(isd,ied,jsd,jed,npz,is,ie,js,je,nq,u_dt,v_dt,t_dt,q_dt)
      do k=1, npz
         do j=jsd, jed
            do i=isd, ied
@@ -337,7 +338,7 @@ contains
           enddo
           enddo   ! n-loop
 
-          do k=2,npz+1                                                                             
+          do k=2,npz+1
              do i=is,ie
                 pe(i,k,j) = pe(i,k-1,j) + delp(i,j,k-1)
               peln(i,k,j) = log( pe(i,k,j) )
@@ -508,7 +509,7 @@ contains
           !call prt_maxmin(' W', w, is, ie, js, je, ng,  npz, 1.)
        endif
        if (do_reed_cond .and. id_rain > 0) then
-            used = send_data(id_rain, rain, time)          
+            used = send_data(id_rain, rain, time)
             if (print_diag) call prt_maxmin(' Reed rain rate (mm/d): ', rain,  &
                     is,ie,js,je,0,1,1.)
        endif
@@ -721,8 +722,8 @@ contains
             u3(i,j,k) = ua(i,j,k) + pdt*u_dt(i,j,k)
             v3(i,j,k) = va(i,j,k) + pdt*v_dt(i,j,k)
             t3(i,j,k) = pt(i,j,k) + pdt*t_dt(i,j,k)
-         enddo 
-      enddo 
+         enddo
+      enddo
    enddo
 
    do j=js,je
@@ -731,7 +732,7 @@ contains
           rho(i,j) = -delm(i,j)/dz(i,j,km)
       enddo
    enddo
-   
+
 !----------
 ! Setup SST:
 !----------
@@ -776,8 +777,8 @@ contains
        do k=1, km
           do i=is,ie
              den(i,k) = -delp(i,j,k)/(grav*dz(i,j,k))
-          enddo 
-       enddo 
+          enddo
+       enddo
        call gray_radiation(seconds, is, ie, km, agrid(is:ie,j,1), agrid(is,j,2), clouds(is,j), &
                            sst(is,j), t3(is:ie,j,1:km), ps(is,j), pe(is:ie,1:km+1,j), &
                            dz(is:ie,j,1:km), den, t_dt_rad,              &
@@ -785,8 +786,8 @@ contains
        do k=1, km
           do i=is,ie
              t_dt(i,j,k) = t_dt(i,j,k) + t_dt_rad(i,k)
-          enddo 
-       enddo 
+          enddo
+       enddo
     enddo
     if ( print_diag ) then
          if ( gray_rad ) then
@@ -826,8 +827,8 @@ contains
                     t_dt(i,j,k) = t_dt(i,j,k) + (t_strat - t3(i,j,k))*rate_t
                endif
             endif
-         enddo 
-      enddo 
+         enddo
+      enddo
    enddo      ! k-loop
   endif
 
@@ -843,9 +844,9 @@ contains
                if ( p3(i,j,k) < 100.E2 ) then
                   t_dt(i,j,k) = t_dt(i,j,k) + heating*(100.E2-p3(i,j,k))/100.E2
                endif
-            enddo 
-         enddo 
-      enddo 
+            enddo
+         enddo
+      enddo
  endif
 
 
@@ -853,8 +854,8 @@ contains
     do j=js,je
        do i=is,ie
           t3(i,j,k) = pt(i,j,k) + pdt*t_dt(i,j,k)
-       enddo 
-    enddo 
+       enddo
+    enddo
  enddo
 
 
@@ -912,7 +913,7 @@ endif
 !!$endif
 !!$if (id_flux_q > 0) then
 !!$    used=send_data(id_flux_q, 2.5e6*flux_q(:,:), Time)
-!!$                                                                                                    
+!!$
 !!$endif
 !!$
 !!$if (id_drag_t > 0) then
@@ -932,7 +933,7 @@ if ( zero_winds ) then
     vtmp(k) = g0_sum(v3(is,js,k), is, ie, js, je, 0, gridstruct%area(is:ie,js:je), 1)
 #ifdef PRINT_W
     if ( master ) then
-        if( sqrt(utmp(k)**2+vtmp(k)**2) > 1. ) then 
+        if( sqrt(utmp(k)**2+vtmp(k)**2) > 1. ) then
             write(*,*) k, 'Domain avg winds', trim(gn), '=', utmp, vtmp
         endif
     endif
@@ -946,8 +947,8 @@ if ( zero_winds ) then
        do i=is,ie
           u_dt(i,j,k) = u_dt(i,j,k) - utmp(k) * rate_w
           v_dt(i,j,k) = v_dt(i,j,k) - vtmp(k) * rate_w
-       enddo 
-    enddo 
+       enddo
+    enddo
  enddo
 
 endif
@@ -1041,7 +1042,7 @@ endif
            rflux(i,j) = c_liq*precip*(sst(i,j)-t3(i,j,km))
 #endif
            qflux(i,j) = hlv*flux_q(i,j)
-        enddo 
+        enddo
      enddo
 
    if ( gray_rad ) then
@@ -1049,7 +1050,7 @@ endif
         do i=is, ie
            sst(i,j) = sst(i,j)+pdt*(sw_surf(i,j) + lwd(i,j) - rflux(i,j)  &
                      - flux_t(i,j) - qflux(i,j) - lwu(i,j))/c0
-        enddo 
+        enddo
      enddo
      if ( print_diag ) then
         net_rad = sw_surf + lwd - lwu
@@ -1063,7 +1064,7 @@ endif
      do j=js, je
         do i=is, ie
            sst(i,j) = sst(i,j) - pdt*(rflux(i,j) + flux_t(i,j) + qflux(i,j))/c0
-        enddo 
+        enddo
      enddo
    endif
    if ( sst_restore_timescale > 1.e-7 ) then
@@ -1071,7 +1072,7 @@ endif
      do j=js, je
         do i=is, ie
            sst(i,j) = (sst(i,j)+rate_t*ts0(i,j)) / (1.+rate_t)
-        enddo 
+        enddo
      enddo
    endif
 
@@ -1079,7 +1080,7 @@ endif
         do j=js, je
            do i=is, ie
               wet_t(i,j) = t3(i,j,km) - wet_t(i,j)
-           enddo 
+           enddo
         enddo
         call prt_maxmin('WETB_DT:', wet_t, is, ie, js, je, 0,  1, 1.0)
         call prt_maxmin('Mixed-layer SST:', sst, is, ie, js, je, 0,  1, 1.0)
@@ -1198,7 +1199,7 @@ endif
        do i=is,ie
           gz(i,k) = grav*(gh(i,k+1) - 0.5*dz(i,j,k))
              tmp  = gz(i,k) + 0.5*(ua(i,j,k)**2+va(i,j,k)**2+w(i,j,k)**2)
-             tvm  = ta(i,j,k)*(1.+zvir*q(i,j,k,sphum)) 
+             tvm  = ta(i,j,k)*(1.+zvir*q(i,j,k,sphum))
           hd(i,k) = cp_air*tvm + tmp
           te(i,k) =     cv*tvm + tmp
        enddo
@@ -1322,7 +1323,7 @@ endif
 ! top: k=1
   do i=i1,i2
      bet(i) = -(v(i,1) + a(i,1))
-     q(i,1) = r(i,1) / bet(i)   
+     q(i,1) = r(i,1) / bet(i)
   enddo
 
   do k=2,km
@@ -1331,15 +1332,15 @@ endif
           bet(i) = -( a(i,k-1)+v(i,k)+a(i,k) + a(i,k-1)*gam(i,k))
 ! a(i,km) = 0
           q(i,k) = ( r(i,k) - a(i,k-1)*q(i,k-1) ) / bet(i)
-     enddo   
-  enddo       
-               
+     enddo
+  enddo
+
   do k=km-1,1,-1
-     do i=i1,i2  
+     do i=i1,i2
         q(i,k) = q(i,k) - gam(i,k+1)*q(i,k+1)
-     enddo                                                                                              
-  enddo                                                                                                 
-                                                                                                        
+     enddo
+  enddo
+
  end subroutine trid_dif2
 
 
@@ -1368,7 +1369,7 @@ endif
              do k=1,npz
                 do j=js,je+1
                    do i=is,ie
-                      u0(i,j,k) = u(i,j,k) 
+                      u0(i,j,k) = u(i,j,k)
                    enddo
                 enddo
                 do j=js,je
@@ -1488,7 +1489,7 @@ endif
 ! Earth cross section/total_area = 0.25; 0.3 = Net cloud reflection and atm abs
 
       if ( diurnal_cycle ) then
-           sw_rad = solar_constant*(1. - sw_abs) 
+           sw_rad = solar_constant*(1. - sw_abs)
            do i=is, ie
                solar_ang = 2*pi*real(sec)/86400. + lon(i)
               sw_surf(i) = sw_rad*(1.-clouds(i))*cos(lat(i))*max(0.,cos(solar_ang))
@@ -1505,7 +1506,7 @@ endif
          do i=is, ie
 #ifndef STRAT_OFF
 ! Dargan version:
-                 sig = phalf(i,k)/ps(i) 
+                 sig = phalf(i,k)/ps(i)
             tau(i,k) = tau0(i)*( sig*fl + (1.-fl)*sig**4 )
 #else
 ! SJL: less cooling for the stratosphere
@@ -1526,7 +1527,7 @@ endif
       enddo
       do k=1, km
          do i=is, ie
-            dr(i,k+1) = (dr(i,k)+delt(i,k)*(b(i,k)-0.5*dr(i,k)))/(1.+0.5*delt(i,k)) 
+            dr(i,k+1) = (dr(i,k)+delt(i,k)*(b(i,k)-0.5*dr(i,k)))/(1.+0.5*delt(i,k))
          enddo
       enddo
 ! Bottom up
@@ -1536,7 +1537,7 @@ endif
       enddo
       do k=km, 1, -1
          do i=is, ie
-            ur(i,k) = (ur(i,k+1)+delt(i,k)*(b(i,k)-0.5*ur(i,k+1)))/(1.+0.5*delt(i,k)) 
+            ur(i,k) = (ur(i,k+1)+delt(i,k)*(b(i,k)-0.5*ur(i,k+1)))/(1.+0.5*delt(i,k))
          enddo
       enddo
 
@@ -1563,7 +1564,7 @@ endif
 
  subroutine get_low_clouds( is,ie, js,je, km, ql, qi, qa, clouds )
  integer, intent(in):: is,ie, js,je, km
- real, intent(in), dimension(is:ie,js:je,km):: ql, qi, qa 
+ real, intent(in), dimension(is:ie,js:je,km):: ql, qi, qa
  real, intent(out), dimension(is:ie,js:je):: clouds
  integer:: i, j, k
 
@@ -1780,10 +1781,10 @@ endif
           dm(k) = dp(i,j,k) !Pa = kg * (g/dA)
 ! Tracer mass:
           qa(k) = q(i,j,k,sphum) !kg/kg
-          qb(k) = q(i,j,k,liq_wat) 
+          qb(k) = q(i,j,k,liq_wat)
           qc(k) = q(i,j,k,rainwat)
           q1(k) = qa(k) * dm(k) !kg * (g/dA)
-          q2(k) = qb(k) * dm(k) 
+          q2(k) = qb(k) * dm(k)
           q3(k) = qc(k) * dm(k)
 !-------------------------------------------
           qcon = q2(k) + q3(k)
@@ -1803,7 +1804,7 @@ endif
           !dz(k) = -delz(i,j,k) !invalid for hydrostatic; not used unless EXP_MP enabled
 ! Dry air density
 ! Convert to dry mixing ratios:
-          qa(k) = q1(k) / drym(k) ! kg/kg 
+          qa(k) = q1(k) / drym(k) ! kg/kg
           qb(k) = q2(k) / drym(k)
           qc(k) = q3(k) / drym(k)
 ! Make the fields large enough to prevent problems in the k-scheme:
@@ -1811,10 +1812,10 @@ endif
           q2(k) = max(qb(k), qc_min)
           q3(k) = max(qc(k), qc_min)
 ! Differences (to be added back to conserve mass)
-          qa(k) = q1(k) - qa(k) ! kg/kg 
+          qa(k) = q1(k) - qa(k) ! kg/kg
           qb(k) = q2(k) - qb(k)
           qc(k) = q3(k) - qc(k)
-!----    
+!----
           t1(k) = pt(i,j,k)
           u1(k) = u(i,j,k)
           v1(k) = v(i,j,k)
@@ -1924,9 +1925,9 @@ endif
           q(i,j,k,rainwat) = q3(k) / dp(i,j,k)
        enddo
   enddo   ! i-loop
- 
+
 ! Adjust pressure fields:
-    do k=2,km+1                                                                             
+    do k=2,km+1
        do i=is,ie
           pe(i,k,j) = pe(i,k-1,j) + dp(i,j,k-1)
           peln(i,k,j) = log( pe(i,k,j) )
@@ -2038,7 +2039,7 @@ endif
    real, parameter:: F2X = 17.27
    real, parameter:: F5 = 237.3*F2X*2.5E6/1003.
    real, parameter:: XK = .2875
-   real, parameter:: cvd = 717.56 
+   real, parameter:: cvd = 717.56
    REAL RHALF(NZ), SED(NZ), pc(NZ)
    REAL ERN, QRPROD, PROD, QVS, cvm
    INTEGER K
@@ -2129,13 +2130,13 @@ endif
 
  subroutine reed_sim_physics (pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel, rpdel, ps, zint, test,   &
                               do_reed_cond, reed_cond_only, reed_alt_mxg, precl, dudt, dvdt, dtdt, dqdt)
-                                
-!----------------------------------------------------------------------- 
-! 
+
+!-----------------------------------------------------------------------
+!
 ! Purpose: Simple Physics Package
 !
 ! Author: K. A. Reed (University of Michigan, kareed@umich.edu)
-!         version 5 
+!         version 5
 !         July/8/2012
 !
 !  Change log:
@@ -2148,7 +2149,7 @@ endif
 !  v5: addition of the latitude array 'lat' and the flag 'test' in the parameter list
 !      if test = 0: constant SST is used, correct setting for the tropical cyclone test case 5-1
 !      if test = 1: newly added latitude-dependent SST is used, correct setting for the moist baroclinic wave test with simple-physics (test 4-3)
-! 
+!
 ! Description: Includes large-scale precipitation, surface fluxes and
 !              boundary-leyer mixing. The processes are time-split
 !              in that order. A partially implicit formulation is
@@ -2172,8 +2173,8 @@ endif
 !            2 = Moist baroclinic instability test (test 4-2) with NO surface fluxes
 !
 !
-! Reference: Reed, K. A. and C. Jablonowski (2012), Idealized tropical cyclone 
-!            simulations of intermediate complexity: A test case for AGCMs, 
+! Reference: Reed, K. A. and C. Jablonowski (2012), Idealized tropical cyclone
+!            simulations of intermediate complexity: A test case for AGCMs,
 !            J. Adv. Model. Earth Syst., Vol. 4, M04001, doi:10.1029/2011MS000099
 !-----------------------------------------------------------------------
   ! use physics_types     , only: physics_dme_adjust   ! This is for CESM/CAM
@@ -2186,15 +2187,15 @@ endif
 !
 ! Input arguments - MODEL DEPENDENT
 !
-   integer, intent(in)  :: pcols        ! Set number of atmospheric columns       
+   integer, intent(in)  :: pcols        ! Set number of atmospheric columns
    integer, intent(in)  :: pver         ! Set number of model levels
    real, intent(in) :: dtime        ! Set model physics timestep
-   real, intent(in) :: lat(pcols)   ! Latitude 
+   real, intent(in) :: lat(pcols)   ! Latitude
    integer, intent(in) :: test         ! Test number
    logical, intent(IN) :: do_reed_cond, reed_cond_only, reed_alt_mxg
-   
+
 !
-! Input/Output arguments 
+! Input/Output arguments
 !
 !  pcols is the maximum number of vertical columns per 'chunk' of atmosphere
 !
@@ -2209,8 +2210,8 @@ endif
    real, intent(in) :: ps(pcols)          ! Surface Pressue (Pa)
    real, intent(in) :: zint(pcols,pver+1) ! Height at interfaces
 !
-! Output arguments 
-  real, intent(out):: dtdt(pcols,pver)       ! Temperature tendency 
+! Output arguments
+  real, intent(out):: dtdt(pcols,pver)       ! Temperature tendency
   real, intent(out):: dqdt(pcols,pver)       ! Specific humidity tendency
   real, intent(out):: dudt(pcols,pver)       ! Zonal wind tendency
   real, intent(out):: dvdt(pcols,pver)       ! Meridional wind tendency
@@ -2228,7 +2229,7 @@ endif
 
    real gravit                      ! Gravity
    real rair                        ! Gas constant for dry air
-   real cpair                       ! Specific heat of dry air 
+   real cpair                       ! Specific heat of dry air
    real latvap                      ! Latent heat of vaporization
    real rh2o                        ! Gas constant for water vapor
    real epsilo                      ! Ratio of gas constant for dry air to that for vapor
@@ -2239,9 +2240,9 @@ endif
    real pi                          ! pi
 #endif
 
-! Simple Physics Specific Constants 
+! Simple Physics Specific Constants
 
-!++++++++                     
+!++++++++
    real Tsurf(pcols)                ! Sea Surface Temperature (constant for tropical cyclone)
 !++++++++                                 Tsurf needs to be dependent on latitude for the
                                         ! moist baroclinic wave test 4-3 with simple-physics, adjust
@@ -2273,16 +2274,16 @@ endif
 
    real wind(pcols)                 ! Magnitude of Wind
    real Cd(pcols)                   ! Drag coefficient for momentum
-   real Km(pcols,pver+1)            ! Eddy diffusivity for boundary layer calculations 
+   real Km(pcols,pver+1)            ! Eddy diffusivity for boundary layer calculations
    real Ke(pcols,pver+1)            ! Eddy diffusivity for boundary layer calculations
    real rho                         ! Density at lower/upper interface
    real za(pcols)                   ! Heights at midpoints of first model level
    real dlnpint                     ! Used for calculation of heights
    real pbltop                      ! Top of boundary layer
    real pbltopz                     ! Top of boundary layer (m)
-   real pblconst                    ! Constant for the calculation of the decay of diffusivity 
-   real CA(pcols,pver)              ! Matrix Coefficents for PBL Scheme 
-   real CC(pcols,pver)              ! Matrix Coefficents for PBL Scheme 
+   real pblconst                    ! Constant for the calculation of the decay of diffusivity
+   real CA(pcols,pver)              ! Matrix Coefficents for PBL Scheme
+   real CC(pcols,pver)              ! Matrix Coefficents for PBL Scheme
    real CE(pcols,pver+1)            ! Matrix Coefficents for PBL Scheme
    real CAm(pcols,pver)             ! Matrix Coefficents for PBL Scheme
    real CCm(pcols,pver)             ! Matrix Coefficents for PBL Scheme
@@ -2298,7 +2299,7 @@ endif
 
 !===============================================================================
 !
-! Physical Constants - MAY BE MODEL DEPENDENT 
+! Physical Constants - MAY BE MODEL DEPENDENT
 !
 !===============================================================================
   if ( test .eq. 2 ) return
@@ -2332,7 +2333,7 @@ endif
       sqC      = sqrt(0.0011_r8)! From Smith and Vogl 2008
       SST_tc   = 302.15_r8      ! Constant Value for SST for tropical cyclone test
       T0       = 273.16_r8      ! control temp for calculation of qsat
-      rhow     = 1000.0_r8      ! Density of Liquid Water 
+      rhow     = 1000.0_r8      ! Density of Liquid Water
       Cd0      = 0.0007_r8      ! Constant for Cd calc. Smith and Vogl 2008
       Cd1      = 0.000065_r8    ! Constant for Cd calc. Smith and Vogl 2008
       Cm       = 0.002_r8       ! Constant for Cd calc. Smith and Vogl 2008
@@ -2356,7 +2357,7 @@ endif
 !
 ! Calculate hydrostatic height za of the lowest model level
 !
-     do i=1,pcols 
+     do i=1,pcols
         dlnpint = log(ps(i)) - log(pint(i,pver))                 ! ps(i) is identical to pint(i,pver+1), note: this is the correct sign (corrects typo in JAMES paper)
         za(i) = rair/gravit*t(i,pver)*(1._r8+zvir*q(i,pver))*0.5_r8*dlnpint
      end do
@@ -2364,7 +2365,7 @@ endif
 !--------------------------------------------------------------
 ! Set Sea Surface Temperature (constant for tropical cyclone)
 ! Tsurf needs to be dependent on latitude for the
-! moist baroclinic wave test 4-3 with simple-physics 
+! moist baroclinic wave test 4-3 with simple-physics
 !--------------------------------------------------------------
      if (test .eq. 1) then     ! moist baroclinic wave with simple-physics
         do i=1,pcols
@@ -2436,7 +2437,7 @@ endif
 ! Turbulent mixing coefficients for the PBL mixing of horizontal momentum,
 ! sensible heat and latent heat
 !
-! We are using Simplified Ekman theory to compute the diffusion coefficients 
+! We are using Simplified Ekman theory to compute the diffusion coefficients
 ! Kx for the boundary-layer mixing. The Kx values are calculated at each time step
 ! and in each column.
 !
@@ -2446,18 +2447,18 @@ endif
 ! they depend on the conditions at the lowest model level and stay constant
 ! up to the 850 hPa level. Above this level the coefficients are decreased
 ! and tapered to zero. At the 700 hPa level the strength of the K coefficients
-! is about 10% of the maximum strength. 
+! is about 10% of the maximum strength.
 !
-      
+
       do i=1,pcols
          wind(i) = sqrt(u(i,pver)**2+v(i,pver)**2)    ! wind magnitude at the lowest level
       end do
-      
+
       if (reed_alt_mxg) then
 
          do i=1,pcols
             if( wind(i) .lt. v20) then
-               Cd(i) = Cd0+Cd1*wind(i) 
+               Cd(i) = Cd0+Cd1*wind(i)
             else
                Cd(i) = Cm
             endif
@@ -2474,13 +2475,13 @@ endif
                end if
             end do
          end do
-         
+
       else
 
          do i=1,pcols
             Ke(i,pver+1) = C*wind(i)*za(i)
             if( wind(i) .lt. v20) then
-               Cd(i) = Cd0+Cd1*wind(i) 
+               Cd(i) = Cd0+Cd1*wind(i)
                Km(i,pver+1) = Cd(i)*wind(i)*za(i)
             else
                Cd(i) = Cm
@@ -2522,9 +2523,9 @@ endif
         u(i,pver)   = u(i,pver)/(1._r8+Cd(i)*wind(i)*dtime/za(i))
         v(i,pver)   = v(i,pver)/(1._r8+Cd(i)*wind(i)*dtime/za(i))
         dtdt(i,pver) = dtdt(i,pver) +((t(i,pver)+C*wind(i)*Tsurf(i)*dtime/za(i)) &
-                            /(1._r8+C*wind(i)*dtime/za(i))-t(i,pver))/dtime 
+                            /(1._r8+C*wind(i)*dtime/za(i))-t(i,pver))/dtime
         t(i,pver)   = (t(i,pver)+C*wind(i)*Tsurf(i)*dtime/za(i)) &
-                            /(1._r8+C*wind(i)*dtime/za(i))  
+                            /(1._r8+C*wind(i)*dtime/za(i))
         dqdt(i,pver) = dqdt(i,pver) +((q(i,pver)+C*wind(i)*qsats*dtime/za(i)) &
                             /(1._r8+C*wind(i)*dtime/za(i))-q(i,pver))/dtime
         q(i,pver) = (q(i,pver)+C*wind(i)*qsats*dtime/za(i))/(1._r8+C*wind(i)*dtime/za(i))
@@ -2542,7 +2543,7 @@ endif
          do i=1,pcols
             rho = (pint(i,k+1)/(rair*(t(i,k+1)+t(i,k))/2.0_r8))
             CAm(i,k)   = rpdel(i,k)*dtime*gravit*gravit*Km(i,k+1)*rho*rho   &
-                         /(pmid(i,k+1)-pmid(i,k))    
+                         /(pmid(i,k+1)-pmid(i,k))
             CCm(i,k+1) = rpdel(i,k+1)*dtime*gravit*gravit*Km(i,k+1)*rho*rho &
                          /(pmid(i,k+1)-pmid(i,k))
             CA(i,k)    = rpdel(i,k)*dtime*gravit*gravit*Ke(i,k+1)*rho*rho   &
@@ -2561,18 +2562,18 @@ endif
          CFu(i,pver+1) = 0._r8
          CFv(i,pver+1) = 0._r8
          CFt(i,pver+1) = 0._r8
-         CFq(i,pver+1) = 0._r8 
+         CFq(i,pver+1) = 0._r8
       end do
       do i=1,pcols
          do k=pver,1,-1
-            CE(i,k)  = CC(i,k)/(1._r8+CA(i,k)+CC(i,k)-CA(i,k)*CE(i,k+1)) 
+            CE(i,k)  = CC(i,k)/(1._r8+CA(i,k)+CC(i,k)-CA(i,k)*CE(i,k+1))
             CEm(i,k) = CCm(i,k)/(1._r8+CAm(i,k)+CCm(i,k)-CAm(i,k)*CEm(i,k+1))
             CFu(i,k) = (u(i,k)+CAm(i,k)*CFu(i,k+1)) &
                        /(1._r8+CAm(i,k)+CCm(i,k)-CAm(i,k)*CEm(i,k+1))
             CFv(i,k) = (v(i,k)+CAm(i,k)*CFv(i,k+1)) &
                        /(1._r8+CAm(i,k)+CCm(i,k)-CAm(i,k)*CEm(i,k+1))
             CFt(i,k) = ((p0/pmid(i,k))**(rair/cpair)*t(i,k)+CA(i,k)*CFt(i,k+1)) &
-                       /(1._r8+CA(i,k)+CC(i,k)-CA(i,k)*CE(i,k+1)) 
+                       /(1._r8+CA(i,k)+CC(i,k)-CA(i,k)*CE(i,k+1))
             CFq(i,k) = (q(i,k)+CA(i,k)*CFq(i,k+1)) &
                        /(1._r8+CA(i,k)+CC(i,k)-CA(i,k)*CE(i,k+1))
         end do
@@ -2600,11 +2601,11 @@ endif
          do k=2,pver
             dudt(i,k)  = dudt(i,k)+(CEm(i,k)*u(i,k-1)+CFu(i,k)-u(i,k))/dtime
             dvdt(i,k)  = dvdt(i,k)+(CEm(i,k)*v(i,k-1)+CFv(i,k)-v(i,k))/dtime
-            u(i,k)    = CEm(i,k)*u(i,k-1)+CFu(i,k) 
+            u(i,k)    = CEm(i,k)*u(i,k-1)+CFu(i,k)
             v(i,k)    = CEm(i,k)*v(i,k-1)+CFv(i,k)
             dtdt(i,k)  = dtdt(i,k)+((CE(i,k)*t(i,k-1) &
                               *(p0/pmid(i,k-1))**(rair/cpair)+CFt(i,k)) &
-                              *(pmid(i,k)/p0)**(rair/cpair)-t(i,k))/dtime 
+                              *(pmid(i,k)/p0)**(rair/cpair)-t(i,k))/dtime
             t(i,k)    = (CE(i,k)*t(i,k-1)*(p0/pmid(i,k-1))**(rair/cpair)+CFt(i,k)) &
                               *(pmid(i,k)/p0)**(rair/cpair)
             dqdt(i,k)  = dqdt(i,k)+(CE(i,k)*q(i,k-1)+CFq(i,k)-q(i,k))/dtime
@@ -2612,7 +2613,7 @@ endif
          end do
       end do
 
- end subroutine reed_sim_physics 
+ end subroutine reed_sim_physics
 
  subroutine DCMIP2016_terminator_advance(i0, i1, j0, j1, ifirst, ilast, jfirst, jlast,  &
        km, q, delp, ncnst, lon, lat, pdt)
@@ -2665,7 +2666,7 @@ endif
   do j=jfirst,jlast
   do i=ifirst,ilast
 
-     qCl  = q(i,j,k,Cl) 
+     qCl  = q(i,j,k,Cl)
      qCl2 = q(i,j,k,Cl2)
 
      k1 = max(0., sin(lat(i,j))*sinthc + cos(lat(i,j))*costhc*cos(lon(i,j) - lc))
@@ -2673,15 +2674,15 @@ endif
      qcly = qCl + 2.*qCl2
      D = sqrt(r*r + 2.*r*qcly)
      expdt = exp( -4.*k2*D*pdt)
-     
+
      if ( abs(D * k2 * pdt) .gt. 1e-16 ) then
         el = (1. - expdt) /D *rdt
      else
         el = 4.*k2
      endif
-     
+
      cl_f  = -el * (qCl - D + r)*(qCl + D + r) / (1. + expdt + pdt*el*(qCl + r))
-  
+
      q(i,j,k,Cl)  = qCl   + cl_f*pdt
      q(i,j,k,Cl2) = qCl2  - cl_f*0.5*pdt
 

@@ -1,22 +1,24 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
 module tp_core_mod
 !BOP
 !
@@ -137,7 +139,7 @@ contains
 
    do j=js,je+1
       do i=isd,ied
-         fyy(i,j) = yfx(i,j) * fy2(i,j) 
+         fyy(i,j) = yfx(i,j) * fy2(i,j)
       enddo
    enddo
    do j=js,je
@@ -291,7 +293,7 @@ contains
     endif
 
  endif
-      
+
  end subroutine copy_corners
 
  subroutine xppm(flux, q, c, iord, is,ie,isd,ied, jfirst,jlast,jsd,jed, npx, npy, dxa, bounded_domain, grid_type, lim_fac)
@@ -337,7 +339,7 @@ contains
 
  if ( iord < 7 ) then
 ! ord = 2: perfectly linear ppm scheme
-! Diffusivity: ord2 < ord5 < ord3 < ord4 < ord6 
+! Diffusivity: ord2 < ord5 < ord3 < ord4 < ord6
 
    do i=is1, ie3
       al(i) = p1*(q1(i-1)+q1(i)) + p2*(q1(i-2)+q1(i+1))
@@ -380,7 +382,7 @@ contains
              fx1(i) = (1.+c(i,j))*(bl(i) + c(i,j)*b0(i))
              flux(i,j) = q1(i)
          endif
-         if (smt5(i-1).or.smt5(i)) flux(i,j) = flux(i,j) + fx1(i) 
+         if (smt5(i-1).or.smt5(i)) flux(i,j) = flux(i,j) + fx1(i)
       enddo
 
    elseif ( mord==2 ) then  ! perfectly linear scheme
@@ -390,10 +392,10 @@ contains
          xt = c(i,j)
          if ( xt > 0. ) then
               qtmp = q1(i-1)
-              flux(i,j) = qtmp + (1.-xt)*(al(i)-qtmp-xt*(al(i-1)+al(i)-(qtmp+qtmp)))  
+              flux(i,j) = qtmp + (1.-xt)*(al(i)-qtmp-xt*(al(i-1)+al(i)-(qtmp+qtmp)))
          else
               qtmp = q1(i)
-              flux(i,j) = qtmp + (1.+xt)*(al(i)-qtmp+xt*(al(i)+al(i+1)-(qtmp+qtmp)))  
+              flux(i,j) = qtmp + (1.+xt)*(al(i)-qtmp+xt*(al(i)+al(i+1)-(qtmp+qtmp)))
          endif
 !        x0 = sign(dim(xt, 0.), 1.)
 !        x1 = sign(dim(0., xt), 1.)
@@ -456,7 +458,7 @@ contains
                fx1(i) = (1.+xt1(i))*(bl(i) + xt1(i)*b0(i))
                flux(i,j) = q1(i)
            endif
-           if ( hi5(i) ) flux(i,j) = flux(i,j) + fx1(i) 
+           if ( hi5(i) ) flux(i,j) = flux(i,j) + fx1(i)
         enddo
 
    else
@@ -512,7 +514,7 @@ contains
               fx1(i) = (1.+c(i,j))*(bl(i) + c(i,j)*b0(i))
               flux(i,j) = q1(i)
          endif
-         if (smt5(i-1).or.smt5(i)) flux(i,j) = flux(i,j) + fx1(i) 
+         if (smt5(i-1).or.smt5(i)) flux(i,j) = flux(i,j) + fx1(i)
       enddo
 
    endif
@@ -653,7 +655,7 @@ contains
               fx1(i) = (1.+c(i,j))*(bl(i) + c(i,j)*b0(i))
               flux(i,j) = q1(i)
          endif
-         if ( smt5(i-1).or.smt5(i) ) flux(i,j) = flux(i,j) + fx1(i) 
+         if ( smt5(i-1).or.smt5(i) ) flux(i,j) = flux(i,j) + fx1(i)
       enddo
   else
       do i=is,ie+1
@@ -759,7 +761,7 @@ if ( jord < 7 ) then
                   fx1(i) = (1.+c(i,j))*(bl(i,j) + c(i,j)*b0(i,j))
                   flux(i,j) = q(i,j)
              endif
-             if (smt5(i,j-1).or.smt5(i,j)) flux(i,j) = flux(i,j) + fx1(i) 
+             if (smt5(i,j-1).or.smt5(i,j)) flux(i,j) = flux(i,j) + fx1(i)
           enddo
        enddo
 
@@ -787,7 +789,7 @@ if ( jord < 7 ) then
               bl(i,j) = al(i,j  ) - q(i,j)
               br(i,j) = al(i,j+1) - q(i,j)
               b0(i,j) = bl(i,j) + br(i,j)
-                   x0 = abs(b0(i,j)) 
+                   x0 = abs(b0(i,j))
                    xt = abs(bl(i,j)-br(i,j))
               smt5(i,j) =    x0 < xt
               smt6(i,j) = 3.*x0 < xt
@@ -821,7 +823,7 @@ if ( jord < 7 ) then
               bl(i,j) = al(i,j  ) - q(i,j)
               br(i,j) = al(i,j+1) - q(i,j)
               b0(i,j) = bl(i,j) + br(i,j)
-                   x0 = abs(b0(i,j)) 
+                   x0 = abs(b0(i,j))
                    xt = abs(bl(i,j)-br(i,j))
               smt5(i,j) =    x0 < xt
               smt6(i,j) = 3.*x0 < xt
@@ -843,7 +845,7 @@ if ( jord < 7 ) then
                      fx1(i) = (1.+xt1(i))*(bl(i,j) + xt1(i)*b0(i,j))
                      flux(i,j) = q(i,j)
                 endif
-                if ( hi5(i) ) flux(i,j) = flux(i,j) + fx1(i) 
+                if ( hi5(i) ) flux(i,j) = flux(i,j) + fx1(i)
            enddo
         enddo
 
@@ -906,7 +908,7 @@ if ( jord < 7 ) then
                   fx1(i) = (1.+c(i,j))*(bl(i,j) + c(i,j)*b0(i,j))
                   flux(i,j) = q(i,j)
              endif
-             if (smt5(i,j-1).or.smt5(i,j)) flux(i,j) = flux(i,j) + fx1(i) 
+             if (smt5(i,j-1).or.smt5(i,j)) flux(i,j) = flux(i,j) + fx1(i)
           enddo
        enddo
 
@@ -917,7 +919,7 @@ else
 ! Monotonic constraints:
 ! ord = 8: PPM with Lin's PPM fast monotone constraint
 ! ord > 8: PPM with Lin's modification of Huynh 2nd constraint
- 
+
   do j=js-2,je+2
      do i=ifirst,ilast
              xt = 0.25*(q(i,j+1) - q(i,j-1))
@@ -956,7 +958,7 @@ else
                   pmp_2 = dq(i,j-1)
                   lac_2 = pmp_2 - 0.75*dq(i,j-2)
                   br(i,j) = min(max(0.,pmp_2,lac_2), max(br(i,j), min(0.,pmp_2,lac_2)))
-                  pmp_1 = -dq(i,j) 
+                  pmp_1 = -dq(i,j)
                   lac_1 = pmp_1 + 0.75*dq(i,j+1)
                   bl(i,j) = min(max(0.,pmp_1,lac_1), max(bl(i,j), min(0.,pmp_1,lac_1)))
              endif
@@ -1073,7 +1075,7 @@ endif
                  fx1(i) = (1.+c(i,j))*(bl(i,j) + c(i,j)*b0(i,j))
                  flux(i,j) = q(i,j)
             endif
-            if ( smt5(i,j-1).or.smt5(i,j) ) flux(i,j) = flux(i,j) + fx1(i) 
+            if ( smt5(i,j-1).or.smt5(i,j) ) flux(i,j) = flux(i,j) + fx1(i)
          enddo
       enddo
   else
@@ -1109,7 +1111,7 @@ endif
 !
 ! !DESCRIPTION:
 !
-!     Ghost 4d east/west 
+!     Ghost 4d east/west
 !
 ! !REVISION HISTORY:
 !    2005.08.22   Putman
@@ -1229,11 +1231,11 @@ endif
 #ifdef USE_SG
    real, pointer, dimension(:,:)   :: dx, dy, rdxc, rdyc
    real, pointer, dimension(:,:,:) :: sin_sg
-   dx       => gridstruct%dx     
-   dy       => gridstruct%dy     
-   rdxc     => gridstruct%rdxc   
-   rdyc     => gridstruct%rdyc   
-   sin_sg   => gridstruct%sin_sg 
+   dx       => gridstruct%dx
+   dy       => gridstruct%dy
+   rdxc     => gridstruct%rdxc
+   rdyc     => gridstruct%rdyc
+   sin_sg   => gridstruct%sin_sg
 #endif
 
    i1 = is-1-nord;    i2 = ie+1+nord

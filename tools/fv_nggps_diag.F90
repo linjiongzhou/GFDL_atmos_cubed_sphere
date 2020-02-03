@@ -1,22 +1,24 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
 module fv_nggps_diags_mod
 
  use mpp_mod,            only: mpp_pe, mpp_root_pe
@@ -34,7 +36,7 @@ module fv_nggps_diags_mod
 
  real, parameter:: missing_value = -1.e10
  logical master
- integer :: id_ua, id_va, id_pt, id_delp, id_pfhy, id_pfnh, id_w, id_delz 
+ integer :: id_ua, id_va, id_pt, id_delp, id_pfhy, id_pfnh, id_w, id_delz
  integer, allocatable :: id_tracer(:)
 
  logical :: module_is_initialized=.false.
@@ -92,7 +94,7 @@ contains
        id_va = register_diag_field ( trim(field), 'vcomp', axes(1:3), Time,        &
             'meridional wind', 'm/sec', missing_value=missing_value, range=vrange)
 
-       if( Atm(n)%flagstruct%hydrostatic ) then 
+       if( Atm(n)%flagstruct%hydrostatic ) then
           id_pfhy = register_diag_field ( trim(field), 'pfhy', axes(1:3), Time,        &
                'hydrostatic pressure', 'pa', missing_value=missing_value )
        else
@@ -195,7 +197,7 @@ contains
     if( Atm(n)%flagstruct%hydrostatic .and. id_pfhy > 0 ) then
        do k=1,npz
          do j=jsc,jec
-           do i=isc,iec         
+           do i=isc,iec
              wk(i,j,k) = 0.5 *(Atm(n)%pe(i,k,j)+Atm(n)%pe(i,k+1,j))
            enddo
          enddo
@@ -208,7 +210,7 @@ contains
     if(id_delp > 0 .or. ((.not. Atm(n)%flagstruct%hydrostatic) .and. id_pfnh > 0)) then
        do k=1,npz
          do j=jsc,jec
-           do i=isc,iec         
+           do i=isc,iec
              wk(i,j,k) = Atm(n)%delp(i,j,k)*(1.-sum(Atm(n)%q(i,j,k,2:Atm(n)%flagstruct%nwat)))
            enddo
          enddo
@@ -220,9 +222,9 @@ contains
     if( (.not. Atm(n)%flagstruct%hydrostatic) .and. id_pfnh > 0) then
        do k=1,npz
          do j=jsc,jec
-           do i=isc,iec         
+           do i=isc,iec
              wk(i,j,k) = -wk(i,j,k)/(Atm(n)%delz(i,j,k)*grav)*rdgas*          &
-                         Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))     
+                         Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))
            enddo
          enddo
        enddo

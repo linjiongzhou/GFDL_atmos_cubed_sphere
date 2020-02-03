@@ -1,21 +1,22 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
 
 module ocean_rough_mod
@@ -37,7 +38,7 @@ public :: compute_ocean_roughness, fixed_ocean_roughness
   real    :: roughness_init = 0.00044   ! not used in this version
   real    :: roughness_min  = 1.e-6
   real    :: charnock       = 0.032
-  
+
   real    :: roughness_mom   = 5.8e-5
   real    :: roughness_heat  = 5.8e-5   ! was 4.00e-4
   real    :: roughness_moist = 5.8e-5
@@ -132,7 +133,7 @@ contains
    else if (trim(rough_scheme) == 'beljaars' .or. &
             trim(rough_scheme) == 'charnock') then
 
-          ustar2(:,:) = max(gnu*gnu, u_star(:,:)*u_star(:,:))          
+          ustar2(:,:) = max(gnu*gnu, u_star(:,:)*u_star(:,:))
           xx1(:,:) = gnu / sqrt(ustar2(:,:))
           xx2(:,:) = ustar2(:,:) / grav
 
@@ -152,7 +153,7 @@ contains
 ! SJL mods: cap the growth of z0 with w10 up to 40 m/s
 ! z0 (w10=40) = 2.82E-3
                            if(do_cap40) rough_mom(i,j) = min( rough_mom(i,j), 2.82E-3)
-                      else    
+                      else
                            rough_mom(i,j) = 0.0185/grav*u_star(i,j)**2  ! (8a) Moon et al.
                       endif
 ! Ramp up the coefficient:
