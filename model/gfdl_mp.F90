@@ -157,7 +157,7 @@ module gfdl_mp_mod
     
     real, allocatable :: table (:), table2 (:), table3 (:), tablew (:)
     real, allocatable :: des (:), des2 (:), des3 (:), desw (:)
-    
+
     logical :: tables_are_initialized = .false.
     
     real, parameter :: dt_fr = 8. ! homogeneous freezing of all cloud water at t_wfr - dt_fr
@@ -246,7 +246,7 @@ module gfdl_mp_mod
 
     real :: ql0_max = 2.0e-3 ! max cloud water value (auto converted to rain)
     real :: qi0_max = 1.0e-4 ! max cloud ice value (by other sources)
-    
+
     real :: qi0_crt = 1.0e-4 ! cloud ice to snow autoconversion threshold (was 1.e-4)
     ! qi0_crt if negative, its magnitude is used as the mixing ration threshold; otherwise, used as density
     real :: qr0_crt = 1.0e-4 ! rain to snow or graupel / hail threshold
@@ -544,7 +544,7 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
                 tz (k) = pt (i, k)
             endif
         enddo
-        
+
         ! -----------------------------------------------------------------------
         ! total energy checker
         ! -----------------------------------------------------------------------
@@ -650,7 +650,7 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
             te_b_beg (i) = (dte (i) - li00 * c_air * (ice (i) + snow (i) + graupel (i)) * dt_in / 86400) * gsize (i) ** 2.0
             tw_b_beg (i) = (rain (i) + ice (i) + snow (i) + graupel (i)) * dt_in / 86400 * gsize (i) ** 2.0
         endif
-        
+
         ! -----------------------------------------------------------------------
         ! calculate cloud condensation nuclei (ccn)
         ! the following is based on klein eq. 15
@@ -1131,7 +1131,7 @@ subroutine warm_rain (dt, ks, ke, dp, dz, tz, qv, ql, qr, qi, qs, qg, &
             enddo
             dte = dte + sum (te1) - sum (te2)
         endif
-        
+
         ! -----------------------------------------------------------------------
         ! vertical velocity transportation during sedimentation
         ! -----------------------------------------------------------------------
@@ -1914,7 +1914,7 @@ subroutine subgrid_z_proc (ks, ke, p1, den, denfac, dts, rh_adj, tz, qv, &
     else
         dt_evap = dts
     endif
-    
+
     ! -----------------------------------------------------------------------
     ! define conversion scalar / factor
     ! -----------------------------------------------------------------------
@@ -2056,7 +2056,7 @@ subroutine subgrid_z_proc (ks, ke, p1, den, denfac, dts, rh_adj, tz, qv, &
                 tz (k) = (te8 (k) - lv00 * qv (k) + li00 * q_sol (k)) / cvm (k)
             endif ! significant ql existed
         endif
-        
+
         ! -----------------------------------------------------------------------
         ! update capacity heat and latend heat coefficient
         ! -----------------------------------------------------------------------
@@ -2152,7 +2152,7 @@ subroutine subgrid_z_proc (ks, ke, p1, den, denfac, dts, rh_adj, tz, qv, &
         ! sublimation / deposition of graupel
         ! this process happens for all temp rage
         ! -----------------------------------------------------------------------
-        
+
         if (qg (k) > qrmin) then
             qsi = iqs2 (tz (k), den (k), dqsdt)
             qden = qg (k) * den (k)
@@ -2280,7 +2280,6 @@ subroutine subgrid_z_proc (ks, ke, p1, den, denfac, dts, rh_adj, tz, qv, &
         ! binary cloud scheme
         ! -----------------------------------------------------------------------
 
-
         ! -----------------------------------------------------------------------
         ! partial cloudiness by pdf:
         ! assuming subgrid linear distribution in horizontal; this is effectively a smoother for the
@@ -2383,30 +2382,30 @@ end subroutine subgrid_z_proc
 ! =======================================================================
 
 subroutine revap_rac1 (hydrostatic, is, ie, dt, tz, qv, ql, qr, qi, qs, qg, den, hvar)
-    
+
     implicit none
-    
+
     logical, intent (in) :: hydrostatic
-    
+
     integer, intent (in) :: is, ie
-    
+
     real, intent (in) :: dt ! time step (s)
-    
+
     real, intent (in), dimension (is:ie) :: den, hvar, qi, qs, qg
-    
+
     real, intent (inout), dimension (is:ie) :: tz, qv, qr, ql
-    
+
     real, dimension (is:ie) :: lcp2, denfac, q_liq, q_sol, cvm, lhl
-    
+
     real :: dqv, qsat, dqsdt, evap, qden, q_plus, q_minus, sink
     real :: tin, t2, qpz, dq, dqh
-    
+
     integer :: i
-    
+
     ! -----------------------------------------------------------------------
     ! define latend heat coefficient
     ! -----------------------------------------------------------------------
-    
+
     do i = is, ie
         lhl (i) = lv00 + d0_vap * tz (i)
         q_liq (i) = ql (i) + qr (i)
@@ -2415,7 +2414,7 @@ subroutine revap_rac1 (hydrostatic, is, ie, dt, tz, qv, ql, qr, qi, qs, qg, den,
         lcp2 (i) = lhl (i) / cvm (i)
         ! denfac (i) = sqrt (sfcrho / den (i))
     enddo
-    
+
     do i = is, ie
         if (qr (i) > qrmin .and. tz (i) > t_wfr) then
             qpz = qv (i) + ql (i)
@@ -2425,16 +2424,16 @@ subroutine revap_rac1 (hydrostatic, is, ie, dt, tz, qv, ql, qr, qi, qs, qg, den,
             dqv = qsat - qv (i)
             q_minus = qpz - dqh
             q_plus = qpz + dqh
-            
+
             ! -----------------------------------------------------------------------
             ! qsat must be > q_minus to activate evaporation
             ! qsat must be < q_plus to activate accretion
             ! -----------------------------------------------------------------------
-            
+
             ! -----------------------------------------------------------------------
             ! rain evaporation
             ! -----------------------------------------------------------------------
-            
+
             if (dqv > qvmin .and. qsat > q_minus) then
                 if (qsat > q_plus) then
                     dq = qsat - qpz
@@ -2454,11 +2453,11 @@ subroutine revap_rac1 (hydrostatic, is, ie, dt, tz, qv, ql, qr, qi, qs, qg, den,
                 cvm (i) = c_air + qv (i) * c_vap + q_liq (i) * c_liq + q_sol (i) * c_ice
                 tz (i) = tz (i) - evap * lhl (i) / cvm (i)
             endif
-            
+
             ! -----------------------------------------------------------------------
             ! accretion: pracc
             ! -----------------------------------------------------------------------
-            
+
             if (qr (i) > qrmin .and. ql (i) > 1.e-8 .and. qsat < q_plus) then
                 denfac (i) = sqrt (sfcrho / den (i))
                 sink = dt * denfac (i) * cracw * exp (0.95 * log (qr (i) * den (i)))
@@ -2468,7 +2467,7 @@ subroutine revap_rac1 (hydrostatic, is, ie, dt, tz, qv, ql, qr, qi, qs, qg, den,
             endif
         endif
     enddo
-    
+
 end subroutine revap_rac1
 
 ! =======================================================================
@@ -2498,10 +2497,10 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
     real (kind = r_grid), dimension (ks:ke) :: te1, te2
     real :: zs = 0.
     real :: fac_imlt
-    
+
     integer :: k, k0, m
     logical :: no_fall
-    
+
     dt5 = 0.5 * dtm
     fac_imlt = 1. - exp (- dt5 / tau_imlt)
 
@@ -2648,7 +2647,7 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
             enddo
             dte = dte + sum (te1) - sum (te2)
         endif
-        
+
         if (do_sedi_w) then
             w1 (ks) = w1 (ks) + m1_sol (ks) * vti (ks) / dm (ks)
             do k = ks + 1, ke
@@ -3906,17 +3905,17 @@ end function iqs2
 ! =======================================================================
 
 real function qs1d_moist (ta, qv, pa, dqdt)
-    
+
     implicit none
-    
+
     real, intent (in) :: ta, pa, qv
-    
+
     real, intent (out) :: dqdt
-    
+
     real :: es, ap1, tmin, eps10
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     eps10 = 10. * eps
     ap1 = 10. * dim (ta, tmin) + 1.
@@ -3926,7 +3925,7 @@ real function qs1d_moist (ta, qv, pa, dqdt)
     qs1d_moist = eps * es * (1. + zvir * qv) / pa
     it = ap1 - 0.5
     dqdt = eps10 * (des2 (it) + (ap1 - it) * (des2 (it + 1) - des2 (it))) * (1. + zvir * qv) / pa
-    
+
 end function qs1d_moist
 
 ! =======================================================================
@@ -3934,17 +3933,17 @@ end function qs1d_moist
 ! =======================================================================
 
 real function wqsat2_moist (ta, qv, pa, dqdt)
-    
+
     implicit none
-    
+
     real, intent (in) :: ta, pa, qv
-    
+
     real, intent (out) :: dqdt
-    
+
     real :: es, ap1, tmin, eps10
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     eps10 = 10. * eps
     ap1 = 10. * dim (ta, tmin) + 1.
@@ -3954,7 +3953,7 @@ real function wqsat2_moist (ta, qv, pa, dqdt)
     wqsat2_moist = eps * es * (1. + zvir * qv) / pa
     it = ap1 - 0.5
     dqdt = eps10 * (desw (it) + (ap1 - it) * (desw (it + 1) - desw (it))) * (1. + zvir * qv) / pa
-    
+
 end function wqsat2_moist
 
 ! =======================================================================
@@ -3962,22 +3961,22 @@ end function wqsat2_moist
 ! =======================================================================
 
 real function wqsat_moist (ta, qv, pa)
-    
+
     implicit none
-    
+
     real, intent (in) :: ta, pa, qv
-    
+
     real :: es, ap1, tmin
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     ap1 = 10. * dim (ta, tmin) + 1.
     ap1 = min (2621., ap1)
     it = ap1
     es = tablew (it) + (ap1 - it) * desw (it)
     wqsat_moist = eps * es * (1. + zvir * qv) / pa
-    
+
 end function wqsat_moist
 
 ! =======================================================================
@@ -3985,22 +3984,22 @@ end function wqsat_moist
 ! =======================================================================
 
 real function qs1d_m (ta, qv, pa)
-    
+
     implicit none
-    
+
     real, intent (in) :: ta, pa, qv
-    
+
     real :: es, ap1, tmin
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     ap1 = 10. * dim (ta, tmin) + 1.
     ap1 = min (2621., ap1)
     it = ap1
     es = table2 (it) + (ap1 - it) * des2 (it)
     qs1d_m = eps * es * (1. + zvir * qv) / pa
-    
+
 end function qs1d_m
 
 ! =======================================================================
@@ -4008,15 +4007,15 @@ end function qs1d_m
 ! =======================================================================
 
 real function d_sat (ta, den)
-    
+
     implicit none
-    
+
     real, intent (in) :: ta, den
-    
+
     real :: es_w, es_i, ap1, tmin
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     ap1 = 10. * dim (ta, tmin) + 1.
     ap1 = min (2621., ap1)
@@ -4024,7 +4023,7 @@ real function d_sat (ta, den)
     es_w = tablew (it) + (ap1 - it) * desw (it)
     es_i = table2 (it) + (ap1 - it) * des2 (it)
     d_sat = dim (es_w, es_i) / (rvgas * ta * den) ! take positive difference
-    
+
 end function d_sat
 
 ! =======================================================================
@@ -4032,21 +4031,21 @@ end function d_sat
 ! =======================================================================
 
 real function esw_table (ta)
-    
+
     implicit none
-    
+
     real, intent (in) :: ta
-    
+
     real :: ap1, tmin
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     ap1 = 10. * dim (ta, tmin) + 1.
     ap1 = min (2621., ap1)
     it = ap1
     esw_table = tablew (it) + (ap1 - it) * desw (it)
-    
+
 end function esw_table
 
 ! =======================================================================
@@ -4054,21 +4053,21 @@ end function esw_table
 ! =======================================================================
 
 real function es2_table (ta)
-    
+
     implicit none
-    
+
     real, intent (in) :: ta
-    
+
     real :: ap1, tmin
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     ap1 = 10. * dim (ta, tmin) + 1.
     ap1 = min (2621., ap1)
     it = ap1
     es2_table = table2 (it) + (ap1 - it) * des2 (it)
-    
+
 end function es2_table
 
 ! =======================================================================
@@ -4076,28 +4075,28 @@ end function es2_table
 ! =======================================================================
 
 subroutine esw_table1d (ta, es, n)
-    
+
     implicit none
-    
+
     integer, intent (in) :: n
-    
+
     real, intent (in) :: ta (n)
-    
+
     real, intent (out) :: es (n)
-    
+
     real :: ap1, tmin
-    
+
     integer :: i, it
-    
+
     tmin = table_ice - 160.
-    
+
     do i = 1, n
         ap1 = 10. * dim (ta (i), tmin) + 1.
         ap1 = min (2621., ap1)
         it = ap1
         es (i) = tablew (it) + (ap1 - it) * desw (it)
     enddo
-    
+
 end subroutine esw_table1d
 
 ! =======================================================================
@@ -4105,28 +4104,28 @@ end subroutine esw_table1d
 ! =======================================================================
 
 subroutine es2_table1d (ta, es, n)
-    
+
     implicit none
-    
+
     integer, intent (in) :: n
-    
+
     real, intent (in) :: ta (n)
-    
+
     real, intent (out) :: es (n)
-    
+
     real :: ap1, tmin
-    
+
     integer :: i, it
-    
+
     tmin = table_ice - 160.
-    
+
     do i = 1, n
         ap1 = 10. * dim (ta (i), tmin) + 1.
         ap1 = min (2621., ap1)
         it = ap1
         es (i) = table2 (it) + (ap1 - it) * des2 (it)
     enddo
-    
+
 end subroutine es2_table1d
 
 ! =======================================================================
@@ -4134,28 +4133,28 @@ end subroutine es2_table1d
 ! =======================================================================
 
 subroutine es3_table1d (ta, es, n)
-    
+
     implicit none
-    
+
     integer, intent (in) :: n
-    
+
     real, intent (in) :: ta (n)
-    
+
     real, intent (out) :: es (n)
-    
+
     real :: ap1, tmin
-    
+
     integer :: i, it
-    
+
     tmin = table_ice - 160.
-    
+
     do i = 1, n
         ap1 = 10. * dim (ta (i), tmin) + 1.
         ap1 = min (2621., ap1)
         it = ap1
         es (i) = table3 (it) + (ap1 - it) * des3 (it)
     enddo
-    
+
 end subroutine es3_table1d
 
 ! =======================================================================
@@ -4308,22 +4307,22 @@ end subroutine qs_table3
 ! =======================================================================
 
 real function qs_blend (t, p, q)
-    
+
     implicit none
-    
+
     real, intent (in) :: t, p, q
-    
+
     real :: es, ap1, tmin
-    
+
     integer :: it
-    
+
     tmin = table_ice - 160.
     ap1 = 10. * dim (t, tmin) + 1.
     ap1 = min (2621., ap1)
     it = ap1
     es = table (it) + (ap1 - it) * des (it)
     qs_blend = eps * es * (1. + zvir * q) / p
-    
+
 end function qs_blend
 
 ! =======================================================================
@@ -4394,30 +4393,30 @@ end subroutine qs_table
 ! =======================================================================
 
 subroutine qsmith (im, km, ks, t, p, q, qs, dqdt)
-    
+
     implicit none
-    
+
     integer, intent (in) :: im, km, ks
-    
+
     real, intent (in), dimension (im, km) :: t, p, q
-    
+
     real, intent (out), dimension (im, km) :: qs
-    
+
     real, intent (out), dimension (im, km), optional :: dqdt
-    
+
     real :: eps10, ap1, tmin
-    
+
     real, dimension (im, km) :: es
-    
+
     integer :: i, k, it
-    
+
     tmin = table_ice - 160.
     eps10 = 10. * eps
-    
+
     if (.not. tables_are_initialized) then
         call qsmith_init
     endif
-    
+
     do k = ks, km
         do i = 1, im
             ap1 = 10. * dim (t (i, k), tmin) + 1.
@@ -4427,7 +4426,7 @@ subroutine qsmith (im, km, ks, t, p, q, qs, dqdt)
             qs (i, k) = eps * es (i, k) * (1. + zvir * q (i, k)) / p (i, k)
         enddo
     enddo
-    
+
     if (present (dqdt)) then
         do k = ks, km
             do i = 1, im
@@ -4438,7 +4437,7 @@ subroutine qsmith (im, km, ks, t, p, q, qs, dqdt)
             enddo
         enddo
     endif
-    
+
 end subroutine qsmith
 
 ! =======================================================================
@@ -4493,7 +4492,7 @@ subroutine neg_adj (ks, ke, pt, dp, qv, ql, qr, qi, qs, qg)
             pt (k) = pt (k) - qg (k) * icpk (k) ! heating
             qg (k) = 0.
         endif
-        
+
         ! -----------------------------------------------------------------------
         ! liquid phase:
         ! -----------------------------------------------------------------------
@@ -4509,9 +4508,9 @@ subroutine neg_adj (ks, ke, pt, dp, qv, ql, qr, qi, qs, qg)
             pt (k) = pt (k) - ql (k) * lcpk (k) ! heating
             ql (k) = 0.
         endif
-        
+
     enddo
-    
+
     ! -----------------------------------------------------------------------
     ! fix water vapor; borrow from below
     ! -----------------------------------------------------------------------
@@ -4522,7 +4521,7 @@ subroutine neg_adj (ks, ke, pt, dp, qv, ql, qr, qi, qs, qg)
             qv (k) = 0.
         endif
     enddo
-    
+
     ! -----------------------------------------------------------------------
     ! bottom layer; borrow from above
     ! -----------------------------------------------------------------------
@@ -4532,7 +4531,7 @@ subroutine neg_adj (ks, ke, pt, dp, qv, ql, qr, qi, qs, qg)
         qv (ke - 1) = qv (ke - 1) - dq / dp (ke - 1)
         qv (ke) = qv (ke) + dq / dp (ke)
     endif
-    
+
 end subroutine neg_adj
 
 end module gfdl_mp_mod
