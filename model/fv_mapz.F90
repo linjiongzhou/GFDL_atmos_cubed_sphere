@@ -75,10 +75,12 @@ contains
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, do_omega, adiabatic, do_adiabatic_init, &
                       do_inline_mp, do_fsbm, inline_mp, c2l_ord, bd, fv_debug, &
-                      moist_phys, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start)
+                      moist_phys, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start, &
+                      do_aerosol)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
   logical, intent(in):: warm_start
+  logical, intent(in):: do_aerosol
   real,    intent(in):: mdt                   ! remap time step
   real,    intent(in):: pdt                   ! phys time step
   integer, intent(in):: npx, npy
@@ -181,7 +183,7 @@ contains
   logical :: diagflag = .false.
   integer :: n_chem, num_sbmradar, itimestep
   real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
-  real :: dqv, dql, dqr, dqi, dqs, dqg, ps_dt
+  real :: dqv, dql, dqr, dqi, dqs, dqg, ps_dt, nl
   real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
   real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
   real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
@@ -1045,7 +1047,7 @@ endif        ! end last_step check
 !$OMP                                  chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
 !$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,ccn_ind,a_step, &
-!$OMP                                  fsbm_bin,r_vir,warm_start,itimestep) &
+!$OMP                                  fsbm_bin,r_vir,warm_start,itimestep,do_aerosol) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -1055,13 +1057,23 @@ endif        ! end last_step check
                     xland(i,j) = 0
                 endif
                 do k = 1, km
+                    ! Boucher and Lohmann (1995)
+                    if (do_aerosol) then
+                        nl = xland(i,j) * &
+                            (10. ** 2.24 * (0.7273 * q(i,j,km+1-k,aerosol) * rho_phy(i,k,j) * 1.e9) ** 0.257) + &
+                            (1. - xland(i,j)) * &
+                            (10. ** 2.06 * (0.7273 * q(i,j,km+1-k,aerosol) * rho_phy(i,k,j) * 1.e9) ** 0.48)
+                        nl = max (10.0, nl) * 1.e6 / rho_phy(i,k,j)
+                    else
+                        nl = 1.e8 / rho_phy(i,k,j)
+                    endif
                     do n = 1, fsbm_bin
                         if (.not. warm_start .and. a_step .eq. 1) then
                             itimestep = 1
                             chem_new(i,k,j,fsbm_bin*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
                             chem_new(i,k,j,fsbm_bin*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
                             chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,graupel) * f(n)
-                            chem_new(i,k,j,fsbm_bin*3+n) = 1.e8 / rho_phy(i,k,j) * f(n)
+                            chem_new(i,k,j,fsbm_bin*3+n) = nl * f(n)
                         else
                             itimestep = 2
                             chem_new(i,k,j,fsbm_bin*0+n) = q(i,j,km+1-k,qlr_ind(n))
