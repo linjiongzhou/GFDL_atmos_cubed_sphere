@@ -1047,7 +1047,7 @@ endif        ! end last_step check
 !$OMP                                  chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
 !$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,ccn_ind,a_step, &
-!$OMP                                  fsbm_bin,r_vir,warm_start,itimestep,do_aerosol) &
+!$OMP                                  fsbm_bin,r_vir,warm_start,itimestep,do_aerosol,aerosol,nl) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
