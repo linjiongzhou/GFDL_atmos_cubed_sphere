@@ -566,7 +566,9 @@ contains
 
      if (Atm(n)%flagstruct%do_aerosol) then
        aero_id = get_tracer_index(MODEL_ATMOS, 'aerosol')
-       Atm(n)%q(isc:iec,jsc:jec,:,aero_id) = 0.0
+       if (aero_id .gt. 0) then
+         Atm(n)%q(isc:iec,jsc:jec,:,aero_id) = 0.0
+       endif
      endif
 
      if (Atm(n)%flagstruct%add_noise > 0.) then

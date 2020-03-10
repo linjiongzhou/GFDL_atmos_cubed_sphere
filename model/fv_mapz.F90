@@ -790,7 +790,11 @@ endif        ! end last_step check
               do j=js,je
                  do i=is,ie
                     dpln(i,j) = peln(i,k+1,j) - peln(i,k,j)
-                    qnl(i,j,k) = q(isd,jsd,k,aerosol)
+                    if (aerosol .gt. 0) then
+                       qnl(i,j,k) = q(isd,jsd,k,aerosol)
+                    else
+                       qnl(i,j,k) = 0.0
+                    endif
                     qni(i,j,k) = 0.0
                  enddo
               enddo
@@ -849,7 +853,7 @@ endif        ! end last_step check
 
         gsize(is:ie) = sqrt(gridstruct%area_64(is:ie,j))
 
-        if (ccn_cm3 .gt. 0) then
+        if (aerosol .gt. 0) then
           q2(is:ie,:) = q(is:ie,j,:,aerosol)
         else
           q2(is:ie,:) = 0.0
