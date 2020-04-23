@@ -72,8 +72,8 @@ INTEGER,PARAMETER :: 		JBreak_Spontanous = 28, &
               					I_Break_Method = 1
 DOUBLE PRECISION,PARAMETER :: COL = 0.23105
 ! ... Snow-BreakUp
-INTEGER,PARAMETER :: KR_SNOW_MAX = 36 !33 !34 	!30
-INTEGER,PARAMETER :: KR_SNOW_MIN = 35 !30 !31 	!27
+INTEGER,PARAMETER :: KR_SNOW_MAX = 35     !LJ the change is only here
+INTEGER,PARAMETER :: KR_SNOW_MIN = 34     !LJ the change is only here
 ! ... Snow breakup probability
 DOUBLE PRECISION,PARAMETER :: BREAK_SNOW_KRMAX_0 = 0.02D0
 DOUBLE PRECISION,PARAMETER :: BREAK_SNOW_KRMAX_1 = 0.012D0
@@ -597,7 +597,7 @@ enddo
 				        if(fly(kp).gt.1.0001d0) print*, &
 					           'stop 2022: in sub. coll_xyy_lwf, fly(kp) > 1.0001'
 
-                     call mpp_error (NOTE, "in coal_bott coll_xyy_lwf, model stop")
+                     call mpp_error (FATAL, "in coal_bott coll_xyy_lwf, model stop")
 ! in case fly(k).gt.1.0001d0.or.fly(kp).gt.1.0001d0
 !        .or.fly(k).lt.0.0d0.or.fly(kp).lt.0.0d0
           endif
@@ -776,7 +776,7 @@ enddo
 
               if(fl(kp).gt.1.0001d0) print*, &
                  'stop 2022: in sub. coll_xxx_lwf, fl(kp) > 1.0001'
-                    call mpp_error (NOTE, "in coal_bott sub. coll_xxx_lwf, model stop")
+                    call mpp_error (FATAL, "in coal_bott sub. coll_xxx_lwf, model stop")
               endif
 2021     continue
        enddo
@@ -978,7 +978,7 @@ enddo
 
         				if(flx(kp).gt.1.0001d0) print*, &
         					   'stop 2022: in sub. coll_xyx_lwf, flx(kp) > 1.0001'
-                  call mpp_error (NOTE, "fatal error in module_mp_fast_sbm in coll_xyx_lwf (stop 2022), model stop")
+                  call mpp_error (FATAL, "fatal error in module_mp_fast_sbm in coll_xyx_lwf (stop 2022), model stop")
                   stop 2022
                endif
  2021         continue
@@ -1185,7 +1185,7 @@ enddo
 
             if(flz(kp).gt.1.0001d0) print*, &
                'stop 2022: in sub. coll_xyz_lwf, flz(kp) > 1.0001'
-              call mpp_error (NOTE, "fatal error: in sub. coll_xyz_lwf,model stop")
+              call mpp_error (FATAL, "fatal error: in sub. coll_xyz_lwf,model stop")
             endif
 2021         continue
          enddo
@@ -1500,7 +1500,7 @@ enddo
       print*,xt
       print*,"-"
       print*,gt
-      call mpp_error (NOTE, " inside coll_breakup, NaN, model stop")
+      call mpp_error (FATAL, " inside coll_breakup, NaN, model stop")
     endif
   enddo
 
@@ -2109,7 +2109,7 @@ enddo
             PRINT*,   'DEL1,DEL2'
             PRINT 202, DEL1,DEL2
 	          PRINT*,   'STOP 1905:A < 0'
-	          call mpp_error (NOTE, "fatal error: STOP 1905:A < 0, model stop")
+	          call mpp_error (FATAL, "fatal error: STOP 1905:A < 0, model stop")
        ENDIF
 ! water and ice                                               (start)
        ALFA=DSQRT((RW-PI)*(RW-PI)+4.0D0*PW*RI)
@@ -2372,7 +2372,7 @@ enddo
 					ENDIF
 		  		IF(PSI2R(KR)<0.0D0) THEN
 					  PRINT*,    'STOP 1506 : PSI2R(KR)<0.0D0, in JERDFUN_KS'
-						call mpp_error (NOTE, "fatal error in PSI2R(KR)<0.0D0, in JERDFUN_KS, model stop")
+						call mpp_error (FATAL, "fatal error in PSI2R(KR)<0.0D0, in JERDFUN_KS, model stop")
 			  	ENDIF
     	  	PSI2(KR) = PSI2R(KR)
    	 ENDDO
@@ -2694,7 +2694,7 @@ enddo
 					PRINT*,    'K,RR(K),RN(K),FI(K),PSI(K),K=1,NRX'
 					PRINT 304, (K,RR(K),RN(K),FI(K),PSI(K),K=1,NRX)
 					PRINT*,		IDROP,Ihydro,Iin,Jin,Kin,Itimestep
-          call mpp_error (NOTE, "fatal error in SUBROUTINE JERNEWF PSI(KR)<0, < min, model stop")
+          call mpp_error (FATAL, "fatal error in SUBROUTINE JERNEWF PSI(KR)<0, < min, model stop")
 			ENDIF
 		ENDDO
 
@@ -3495,7 +3495,7 @@ end module module_mp_SBM_Auxiliary
    if (nn == -1) then
     print*,"PR, Wbase [cm/s], C3",PR,wbase,C3
     print*,"PL",PL
-    CALL mpp_error (NOTE, 'NN is not defined in cloud base routine, model stop' )
+    CALL mpp_error (FATAL, 'NN is not defined in cloud base routine, model stop' )
    endif
 
 	! linear interpolation- finding radius criti of aerosol between
@@ -4819,7 +4819,7 @@ end module module_mp_SBM_Auxiliary
                      IF (DEL2NR.EQ.0)print*,'ikl = ',ikl
                      IF (DEL2NR.EQ.0)print*,'div1,div2 = ',div1,div2
                      IF (DEL2NR.EQ.0)print*,'i,j,k = ',i,j,k
-                     IF (DEL2NR.EQ.0)call mpp_error (NOTE, "fatal error in module_mp_fast_sbm (DEL2NR.EQ.0) , model stop ")
+                     IF (DEL2NR.EQ.0)call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (DEL2NR.EQ.0) , model stop ")
                      DEL12R=DEL1NR/DEL2NR
                      DEL12RD=DEL12R**DEL_BBR
                      EW1PN=AA1_MY*100.*DIV1*DEL12RD/100.
@@ -5681,7 +5681,7 @@ end module module_mp_SBM_Auxiliary
     call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
  	IF ( hujisbm_unit1 < 0 ) THEN
-     	CALL mpp_error (NOTE,  'module_mp_FAST-SBM: Table-1 -- FAST_SBM_INIT: '// 			&
+     	CALL mpp_error (FATAL,  'module_mp_FAST-SBM: Table-1 -- FAST_SBM_INIT: '// 			&
  							              'Can not find unused fortran unit to read in lookup table, model stop' )
  	ENDIF
 
@@ -5729,7 +5729,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL mpp_error (NOTE,  'module_mp_FAST-SBM: Table-2 -- FAST_SBM_INIT: '// 			&
+         CALL mpp_error (FATAL,  'module_mp_FAST-SBM: Table-2 -- FAST_SBM_INIT: '// 			&
                                'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
@@ -5775,7 +5775,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL mpp_error (NOTE,  'module_mp_FAST_SBM: Table-3 -- FAST_SBM_INIT: '// 		&
+         CALL mpp_error (FATAL,  'module_mp_FAST_SBM: Table-3 -- FAST_SBM_INIT: '// 		&
                               'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
@@ -5821,7 +5821,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL mpp_error (NOTE,  'module_mp_FAST_SBM: Table-4 -- FAST_SBM_INIT: '// 										&
+         CALL mpp_error (FATAL,  'module_mp_FAST_SBM: Table-4 -- FAST_SBM_INIT: '// 										&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
@@ -5868,7 +5868,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL mpp_error (NOTE, 'module_mp_FAST_SBM: Table-5 -- FAST_SBM_INIT: '// 										&
+         CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-5 -- FAST_SBM_INIT: '// 										&
                                 'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
 
@@ -5912,7 +5912,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL mpp_error (NOTE, 'module_mp_FAST_SBM: Table-6 -- FAST_SBM_INIT: '// 			&
+         CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-6 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
@@ -6003,7 +6003,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
  IF ( hujisbm_unit1 < 0 ) THEN
- 	CALL mpp_error (NOTE, 'module_mp_FAST_SBM: Table-7 -- FAST_SBM_INIT: '// 			&
+ 	CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-7 -- FAST_SBM_INIT: '// 			&
  											'Can not find unused fortran unit to read in lookup table,model stop' )
  ENDIF
  ! ... KERNELS DEPENDING ON PRESSURE :
@@ -6194,7 +6194,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-         CALL mpp_error (NOTE, 'module_mp_FAST_SBM: Table-8 -- FAST_SBM_INIT: '// 			&
+         CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-8 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
@@ -6235,7 +6235,7 @@ end module module_mp_SBM_Auxiliary
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-      CALL mpp_error (NOTE, 'module_mp_FAST_SBM: Table-9 -- FAST_SBM_INIT: '// 			&
+      CALL mpp_error (FATAL, 'module_mp_FAST_SBM: Table-9 -- FAST_SBM_INIT: '// 			&
                                  'Can not find unused fortran unit to read in lookup table,model stop' )
      ENDIF
      IF ( mpp_root_pe() == mpp_pe() ) THEN
@@ -6438,7 +6438,7 @@ end module module_mp_SBM_Auxiliary
       WRITE( errmess , '(A,I4)' )                                          &
                  'module_mp_FAST_SBM_INIT: error opening hujisbm_DATA on unit,model stop ' &
                  &, hujisbm_unit1
-      CALL mpp_error (NOTE,errmess)
+      CALL mpp_error (FATAL,errmess)
 
   END SUBROUTINE FAST_HUCMINIT
  ! -----------------------------------------------------------------+
@@ -7148,7 +7148,7 @@ end module module_mp_SBM_Auxiliary
 
  IF(RW.NE.RW .or. PW.NE.PW)THEN
     print*, 'NaN In ONECOND1'
-    call mpp_error (NOTE, "fatal error in ONECOND1 (RW or PW are NaN), model stop")
+    call mpp_error (FATAL, "fatal error in ONECOND1 (RW or PW are NaN), model stop")
  ENDIF
 
  KCOND=10
@@ -7161,7 +7161,7 @@ end module module_mp_SBM_Auxiliary
       TIMENEW = TIMENEW + DTNEWL
       DTT = DTNEWL
 
-   	  IF (DTT < 0.0) call mpp_error (NOTE, "fatal error in ONECOND1-DEL1N>0:(DTT<0), model stop")
+   	  IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND1-DEL1N>0:(DTT<0), model stop")
 
      	DEL1_d = DEL1
      	DEL2_d = DEL2
@@ -7191,7 +7191,7 @@ end module module_mp_SBM_Auxiliary
 
      	IF((DEL1.GT.0.AND.DEL1N.LT.0) &
        		&.AND.ABS(DEL1N).GT.EPSDEL) THEN
-             		call mpp_error (NOTE, "fatal error in ONECOND1-1 (DEL1.GT.0.AND.DEL1N.LT.0), model stop")
+             		call mpp_error (FATAL, "fatal error in ONECOND1-1 (DEL1.GT.0.AND.DEL1N.LT.0), model stop")
      	ENDIF
 
     ! IN CASE : KCOND.EQ.11
@@ -7205,7 +7205,7 @@ end module module_mp_SBM_Auxiliary
       TIMENEW = TIMENEW + DTNEWL
       DTT = DTNEWL
 
- 	    IF (DTT < 0.0) call mpp_error (NOTE, "fatal error in ONECOND1-DEL1N<0:(DTT<0), model stop")
+ 	    IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND1-DEL1N<0:(DTT<0), model stop")
 
  	    DEL1_d = DEL1
  	    DEL2_d = DEL2
@@ -7235,7 +7235,7 @@ end module module_mp_SBM_Auxiliary
 
       IF((DEL1.LT.0.AND.DEL1N.GT.0) &
         .AND.ABS(DEL1N).GT.EPSDEL) THEN
-         call mpp_error (NOTE, "fatal error in ONECOND1-2 (DEL1.LT.0.AND.DEL1N.GT.0), model stop")
+         call mpp_error (FATAL, "fatal error in ONECOND1-2 (DEL1.LT.0.AND.DEL1N.GT.0), model stop")
       ENDIF
 
     ENDIF
@@ -7277,7 +7277,7 @@ end module module_mp_SBM_Auxiliary
  	print*,"TPS",TPS,"QPS",QPS
 	print*,'FI1 before',FI1,'PSI1 after',PSI1
  	print*,"ONECOND1-in(end)"
- 	call mpp_error (NOTE, "fatal error in ONECOND1-in (ABS(DAL1*DELMASSL1) > 3.0), model stop")
+ 	call mpp_error (FATAL, "fatal error in ONECOND1-in (ABS(DAL1*DELMASSL1) > 3.0), model stop")
  ENDIF
 
  ! ... SUPERSATURATION (ONLY WATER)
@@ -7361,7 +7361,7 @@ end module module_mp_SBM_Auxiliary
  	print*,"PSI1",PSI1
  	print*,"ONECOND1-out (end)"
  	IF(ABS(DAL1*DELMASSL1) > 5.0 )THEN
- 		call mpp_error (NOTE, "fatal error in ONECOND1-out (ABS(DAL1*DELMASSL1) > 5.0), model stop")
+ 		call mpp_error (FATAL, "fatal error in ONECOND1-out (ABS(DAL1*DELMASSL1) > 5.0), model stop")
  	ENDIF
  ENDIF
 
@@ -7374,7 +7374,7 @@ end module module_mp_SBM_Auxiliary
  IF(ES1N == 0.0D0)THEN
   	DEL1N=0.5
   	DIV1=1.5
- 	call mpp_error (NOTE, "fatal error in ONECOND1 (ES1N.EQ.0), model stop")
+ 	call mpp_error (FATAL, "fatal error in ONECOND1 (ES1N.EQ.0), model stop")
  ELSE
     DIV1=EW1N/ES1N
     DEL1N=EW1N/ES1N-1.
@@ -7382,7 +7382,7 @@ end module module_mp_SBM_Auxiliary
  IF(ES2N.EQ.0)THEN
     DEL2N=0.5
     DIV2=1.5
-   call mpp_error (NOTE, "fatal error in ONECOND1 (ES2N.EQ.0), model stop")
+   call mpp_error (FATAL, "fatal error in ONECOND1 (ES2N.EQ.0), model stop")
  ELSE
     DEL2N=EW1N/ES2N-1.
     DIV2=EW1N/ES2N
@@ -7693,7 +7693,7 @@ end module module_mp_SBM_Auxiliary
 
    	IF(RW.NE.RW .or. PW.NE.PW)THEN
  	    print*, 'NaN In ONECOND2'
- 	    call mpp_error (NOTE, "fatal error in ONECOND2 (RW or PW are NaN), model stop")
+ 	    call mpp_error (FATAL, "fatal error in ONECOND2 (RW or PW are NaN), model stop")
    	ENDIF
 
  ! ... (ONLY ICE)
@@ -7704,7 +7704,7 @@ end module module_mp_SBM_Auxiliary
        TIMENEW = TIMENEW + DTNEWL
        DTT = DTNEWL
 
- 			IF (DTT < 0.0) call mpp_error (NOTE, "fatal error in ONECOND2-DEL2N>0:(DTT<0), model stop")
+ 			IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND2-DEL2N>0:(DTT<0), model stop")
 
  			DEL1_d = DEL1
  			DEL2_d = DEL2
@@ -7776,7 +7776,7 @@ end module module_mp_SBM_Auxiliary
 
  			IF((DEL2.GT.0.AND.DEL2N.LT.0) &
           		.AND.ABS(DEL2N).GT.EPSDEL) THEN
-                 call mpp_error (NOTE, "fatal error in module_mp_fast_sbm (DEL2.GT.0.AND.DEL2N.LT.0), model stop")
+                 call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (DEL2.GT.0.AND.DEL2N.LT.0), model stop")
  			ENDIF
 
  	  ELSE
@@ -7787,7 +7787,7 @@ end module module_mp_SBM_Auxiliary
         TIMENEW = TIMENEW + DTNEWL
         DTT = DTNEWL
 
- 			  IF (DTT < 0.0) call mpp_error (NOTE, "fatal error in ONECOND2-DEL2N<0:(DTT<0), model stop")
+ 			  IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND2-DEL2N<0:(DTT<0), model stop")
 
    			DEL1_d = DEL1
    			DEL2_d = DEL2
@@ -7862,7 +7862,7 @@ end module module_mp_SBM_Auxiliary
 
        IF((DEL2.LT.0.AND.DEL2N.GT.0) &
             .AND.ABS(DEL2N).GT.EPSDEL) THEN
-             call mpp_error (NOTE, "fatal error in module_mp_fast_sbm (DEL2.LT.0.AND.DEL2N.GT.0), model stop")
+             call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (DEL2.LT.0.AND.DEL2N.GT.0), model stop")
        ENDIF
 
  		 ! IN CASE : KCOND.NE.21
@@ -7948,7 +7948,7 @@ end module module_mp_SBM_Auxiliary
       print*,"PSI5",PSI5
       print*,"ONECOND2-out (end)"
       IF(ABS(DAL2*DELMASSI1) > 5.0 )THEN
-      call mpp_error (NOTE, "fatal error in ONECOND2-out (ABS(DAL2*DELMASSI1) > 5.0), model stop")
+      call mpp_error (FATAL, "fatal error in ONECOND2-out (ABS(DAL2*DELMASSI1) > 5.0), model stop")
  		ENDIF
  	  ENDIF
 
@@ -7961,7 +7961,7 @@ end module module_mp_SBM_Auxiliary
  	  IF(ES1N == 0.0)THEN
  	   DEL1N=0.5
  	   DIV1=1.5
- 	   call mpp_error (NOTE, "fatal error in ONECOND2 (ES1N.EQ.0), model stop")
+ 	   call mpp_error (FATAL, "fatal error in ONECOND2 (ES1N.EQ.0), model stop")
  	  ELSE
  	   DIV1=EW1N/ES1N
  	   DEL1N=EW1N/ES1N-1.
@@ -7969,7 +7969,7 @@ end module module_mp_SBM_Auxiliary
  	  IF(ES2N == 0.0)THEN
  	   DEL2N=0.5
  	   DIV2=1.5
- 	   call mpp_error (NOTE, "fatal error in ONECOND2 (ES2N.EQ.0), model stop")
+ 	   call mpp_error (FATAL, "fatal error in ONECOND2 (ES2N.EQ.0), model stop")
  	  ELSE
  	   DEL2N=EW1N/ES2N-1.
  	   DIV2=EW1N/ES2N
@@ -8270,7 +8270,7 @@ end module module_mp_SBM_Auxiliary
 
  	IF(RW.NE.RW .or. PW.NE.PW)THEN
  	  print*, 'NaN In ONECOND3'
- 	  call mpp_error (NOTE, "fatal error in ONECOND3 (RW or PW are NaN), model stop")
+ 	  call mpp_error (FATAL, "fatal error in ONECOND3 (RW or PW are NaN), model stop")
  	ENDIF
 
  	! DEL1 > 0, DEL2 < 0    (ANTIBERGERON MIXED PHASE - KCOND=50)
@@ -8326,7 +8326,7 @@ end module module_mp_SBM_Auxiliary
  	! IN CASE : KCOND = 32
  	ENDIF
 
-   IF (DTT < 0.0) call mpp_error (NOTE, "fatal error in ONECOND3:(DTT<0), model stop")
+   IF (DTT < 0.0) call mpp_error (FATAL, "fatal error in ONECOND3:(DTT<0), model stop")
 
  	DEL1_d = DEL1
  	DEL2_d = DEL2
@@ -8518,7 +8518,7 @@ end module module_mp_SBM_Auxiliary
  		print*,"R5D",R5D,"R5ND",R5ND
  		print*,"ONECOND3-out (end)"
  		IF(ABS(DAL1*DELMASSL1+DAL2*DELMASSI1) > 5.0 )THEN
- 			call mpp_error (NOTE, "fatal error in ONECOND3-out (ABS(DAL1*DELMASSL1+DAL2*DELMASSI1) > 5.0), model stop")
+ 			call mpp_error (FATAL, "fatal error in ONECOND3-out (ABS(DAL1*DELMASSL1+DAL2*DELMASSI1) > 5.0), model stop")
  		ENDIF
  	ENDIF
 
@@ -8532,7 +8532,7 @@ end module module_mp_SBM_Auxiliary
  	 DEL1N=0.5
  	 DIV1=1.5
  	 print*,'es1n onecond3 = 0'
- 	 call mpp_error (NOTE, "fatal error in ONECOND3 (ES1N.EQ.0), model stop")
+ 	 call mpp_error (FATAL, "fatal error in ONECOND3 (ES1N.EQ.0), model stop")
  	ELSE
  	 DIV1=EW1N/ES1N
  	 DEL1N=EW1N/ES1N-1.
@@ -8541,7 +8541,7 @@ end module module_mp_SBM_Auxiliary
  	 DEL2N=0.5
  	 DIV2=1.5
  	 print*,'es2n onecond3 = 0'
- 	 call mpp_error (NOTE, "fatal error in ONECOND3 (ES2N.EQ.0), model stop")
+ 	 call mpp_error (FATAL, "fatal error in ONECOND3 (ES2N.EQ.0), model stop")
  	ELSE
  	 DEL2N=EW1N/ES2N-1.
  	 DIV2=EW1N/ES2N
@@ -8684,39 +8684,44 @@ end module module_mp_SBM_Auxiliary
   if(icol_drop_brk == 1)then
     ndiv = 1
     10     	continue
-    do it = 1,ndiv
-      if (ndiv > 1024)print*,'ndiv in coal_bott_new = ',ndiv
-      if (ndiv > 1024) go to 11
-      dtbreakup = dt_coll/ndiv
-      if (it == 1)then
-        do kr=1,JMAX
-          gdumb(kr)= g1(kr)*1.D-3
-          gdumb_bf_breakup(kr) =  g1(kr)*1.D-3
-          xl_dumb(kr)=xl_mg(KR)*1.D-3
-        end do
-        break_drop_bef=0.d0
-        do kr=1,JMAX
-          break_drop_bef = break_drop_bef+g1(kr)*1.D-3
-        end do
-      end if
+	do it = 1,ndiv
+		!if (ndiv > 1024)print*,'ndiv in coal_bott_new = ',ndiv
+		!if (ndiv > 1024) go to 11
+		dtbreakup = dt_coll/ndiv
+		if (it == 1)then
+			do kr=1,JMAX
+			  gdumb(kr)= g1(kr)*1.D-3
+			  gdumb_bf_breakup(kr) =  g1(kr)*1.D-3
+			  xl_dumb(kr)=xl_mg(KR)*1.D-3
+			end do
+			break_drop_bef=0.d0
+			do kr=1,JMAX
+			  break_drop_bef = break_drop_bef+g1(kr)*1.D-3
+			end do
+		end if
 
-      call coll_breakup_KS(gdumb, xl_dumb, JMAX, dtbreakup, JBREAK, PKIJ, QKJ, NKR, NKR)
-
-      do KR=1,NKR
-        FF1R(KR) = (1.0d3*GDUMB(KR))/(3.*XL(KR)*XL(KR)*1.E3)
-        if(GDUMB(KR) < 0.0)then
-          go to 11
-          !call mpp_error (NOTE, "in coal_bott af-coll_breakup - FF1R/GDUMB < 0.0")
-        endif
-        if(GDUMB(kr) .ne. GDUMB(kr)) then
-          print*,kr,GDUMB(kr),GDUMB_BF_BREAKUP(kr),XL(kr)
-          print*,IT,NDIV, DTBREAKUP
-          print*,GDUMB
-          print*,GDUMB_BF_BREAKUP
-          call mpp_error (NOTE, "in coal_bott af-coll_breakup - FF1R NaN, model stop")
-        endif
-      enddo
-    end do
+		call coll_breakup_KS(gdumb, xl_dumb, JMAX, dtbreakup, JBREAK, PKIJ, QKJ, NKR, NKR)
+	enddo
+	
+      	do KR=1,NKR
+        	FF1R(KR) = (1.0d3*GDUMB(KR))/(3.*XL(KR)*XL(KR)*1.E3)
+		if(GDUMB(KR) < 0.0)then
+		  if(ndiv < 4)then
+		    ndiv = 2*ndiv
+		    go to 10
+		  endif
+		else
+		  go to 11
+		  !call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R/GDUMB < 0.0")
+		endif
+		if(GDUMB(kr) .ne. GDUMB(kr)) then
+		  print*,kr,GDUMB(kr),GDUMB_BF_BREAKUP(kr),XL(kr)
+		  print*,IT,NDIV, DTBREAKUP
+		  print*,GDUMB
+		  print*,GDUMB_BF_BREAKUP
+		  call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R NaN, model stop")
+		endif
+      	enddo
 
     break_drop_aft=0.0d0
     do kr=1,JMAX
@@ -8742,38 +8747,32 @@ end if
  ! +---------------------------------------------------------+
  	if(tt <= 273.15 .and. ICEPROCS == 1)then
  		if(icol_drop == 1)then
- 			! ... interactions between drops and snow
+	    ! ... interactions between drops and snow
             !       drop - snow = graupel
             !       snow - drop = snow
             !     snow - drop = graupel
             if (icol_snow == 1)then
-                if(alwc < alcr) then
-                    rf1 = 1.0 ; rf3 = 0.0
-                    call coll_xyx_lwf(g3,g1,rf3,rf1,cwsl,xs_mg,xl_mg, &
-                                       chucm,ima,1.0d0,nkr,1,dm_rime)
-                    rf1 = 1.0 ; rf3 = 0.0
-                    call coll_xyy_lwf(g1,g3,rf1,rf3,cwls,xl_mg,xs_mg, &
-                                      chucm,ima,1.0d0,nkr,0)
+		rf1 = 1.0;rf5 = 0.0;rf4 = 0.0
+                if(hail_opt == 1)then
+                        call coll_xyz_lwf(g1,g3,g5,rf1,rf3,rf5,cwls,xl_mg,xs_mg, &
+                                 	chucm,ima,prdkrn1,nkr,0)
                 else
-                  if(hail_opt == 1)then
-                    rf1 = 1.0 ; rf3 = 0.0 ; rf5 = 0.0
-                    call coll_xyz_lwf(g1,g3,g5,rf1,rf3,rf5,cwls,xl_mg,xs_mg, &
-                                        chucm,ima,1.0d0,nkr,0)
-                  else
-                    rf1 = 1.0 ; rf3 = 0.0 ; rf4 = 0.0
-                    call coll_xyz_lwf(g1,g3,g4,rf1,rf3,rf4,cwls,xl_mg,xs_mg, &
-                                        chucm,ima,1.0d0,nkr,0)
-                  endif
-                  if(hail_opt == 1)then
-                      rf1 = 1.0 ; rf3 = 0.0 ; rf5 = 0.0
-                      call coll_xyz_lwf(g3,g1,g5,rf3,rf1,rf5,cwsl,xs_mg,xl_mg, &
-                                        chucm,ima,1.0d0,nkr,1)
-                  else
-                      rf1 = 1.0 ; rf3 = 0.0 ; rf4 = 0.0
-                      call coll_xyz_lwf(g3,g1,g4,rf3,rf1,rf4,cwsl,xs_mg,xl_mg, &
-                                        chucm,ima,1.0d0,nkr,1)
-                  endif
+                        call coll_xyz_lwf(g1,g3,g4,rf1,rf3,rf4,cwls,xl_mg,xs_mg, &
+                                  	chucm,ima,prdkrn1,nkr,0)
                 endif
+                rf1 = 1.0;rf5 = 0.0;rf4 = 0.0
+		if(alwc < alcr) then
+			call coll_xyx_lwf(g3,g1,rf3,rf1,cwsl,xs_mg,xl_mg, &
+			      		chucm,ima,prdkrn1,nkr,1,dm_rime)
+		else
+			if(hail_opt == 1)then
+			        call coll_xyz_lwf(g3,g1,g5,rf3,rf1,rf5,cwsl,xs_mg,xl_mg, &
+	                                           chucm,ima,prdkrn1,nkr,1)
+			else
+			        call coll_xyz_lwf(g3,g1,g4,rf3,rf1,rf4,cwsl,xs_mg,xl_mg, &
+                                                 chucm,ima,prdkrn1,nkr,1)
+			endif
+		endif
             ! in case : icolxz_snow.ne.0
             end if
 
@@ -8901,7 +8900,7 @@ end if
        else
   	     ! if deldrop < 0
          if(abs(deldrop).gt.cont_init_drop*0.05) then
-           call mpp_error (NOTE, "fatal error in module_mp_fast_sbm (abs(deldrop).gt.cont_init_drop), model stop")
+           call mpp_error (FATAL, "fatal error in module_mp_fast_sbm (abs(deldrop).gt.cont_init_drop), model stop")
          endif
        endif
       endif
@@ -8912,21 +8911,21 @@ end if
         FF1R(KR)=G1(KR)/(3.*XL(KR)*XL(KR)*1.E3)
         if((FF1R(kr) .ne. FF1R(kr)) .or. FF1R(kr) < 0.0)then
 	 	       print*,"G1",G1
- 		 	     call mpp_error (NOTE, "stop at end coal_bott - FF1R NaN or FF1R < 0.0, model stop")
+ 		 	     call mpp_error (FATAL, "stop at end coal_bott - FF1R NaN or FF1R < 0.0, model stop")
 	      endif
         FF3R(KR)=G3(KR)/(3.*xs(kr)*xs(kr)*1.e3)
           if((FF3R(kr) .ne. FF3R(kr)) .or. FF3R(kr) < 0.0)then
-           call mpp_error (NOTE, "stop at end coal_bott - FF3R NaN or FF3R < 0.0, model stop")
+           call mpp_error (FATAL, "stop at end coal_bott - FF3R NaN or FF3R < 0.0, model stop")
           endif
  		   if(hail_opt == 0)then
  		 	   FF4R(KR)=G4(KR)/(3.*xg(kr)*xg(kr)*1.e3)
       	 if((FF4R(kr) .ne. FF4R(kr)) .or. FF4R(kr) < 0.0) then
-          call mpp_error (NOTE, "stop at end coal_bott - FF4R NaN or FF4R < 0.0, model stop")
+          call mpp_error (FATAL, "stop at end coal_bott - FF4R NaN or FF4R < 0.0, model stop")
          end if
       else
  		 	   FF5R(KR)=G5(KR)/(3.*xh(kr)*xh(kr)*1.e3)
 		     if((FF5R(kr) .ne. FF5R(kr)) .or. FF5R(kr) < 0.0) then
-           call mpp_error (NOTE, "stop at end coal_bott - FF5R NaN or FF5R < 0.0, model stop")
+           call mpp_error (FATAL, "stop at end coal_bott - FF5R NaN or FF5R < 0.0, model stop")
          endif
  		 endif
  		END DO
@@ -8938,7 +8937,7 @@ end if
  	FRIMFR_S(:) = rf3(:)
 
  	if (abs(tt-t_new).gt.5.0) then
- 		call mpp_error (NOTE, "fatal error in module_mp_FAST_sbm Del_T 5 K, model stop")
+ 		call mpp_error (FATAL, "fatal error in module_mp_FAST_sbm Del_T 5 K, model stop")
  	endif
 
     tt = t_new
@@ -9013,7 +9012,7 @@ end if
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-       CALL mpp_error (NOTE,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
+       CALL mpp_error (FATAL,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
      ENDIF
 
      IF ( mpp_root_pe() == mpp_pe() ) THEN
@@ -9051,7 +9050,7 @@ end if
      call mpp_broadcast(hujisbm_unit1, mpp_root_pe())
 
      IF ( hujisbm_unit1 < 0 ) THEN
-       CALL mpp_error (NOTE,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
+       CALL mpp_error (FATAL,  'Can not find unused fortran unit to read in BREAKINIT_KS lookup table, model stop' )
      ENDIF
 
      IF ( mpp_root_pe() == mpp_pe() ) THEN
@@ -9087,7 +9086,7 @@ end if
        WRITE( errmess , '(A,I4)' )                                          &
         'module_FAST_SBM: error opening hujisbm_DATA on unit, model stop'  &
         , hujisbm_unit1
-       CALL mpp_error (NOTE, errmess)
+       CALL mpp_error (FATAL, errmess)
        END SUBROUTINE BREAKINIT_KS
 
  !coalescence efficiency as function of masses
