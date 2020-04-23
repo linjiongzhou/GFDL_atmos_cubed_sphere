@@ -103,6 +103,7 @@
       real(kind=R_GRID), parameter :: one = 1.d0
       integer :: test_case = 11
       logical :: bubble_do = .false.
+      logical :: no_wind = .false.
       real    :: alpha = 0.0
       integer :: Nsolitons = 1
       real    :: soliton_size = 750.e3, soliton_Umax = 50.
@@ -6697,6 +6698,101 @@ end subroutine terminator_tracers
 	    enddo
 	 endif
 
+      case ( 19 )
+!---------------------------
+! Revised Doubly periodic SuperCell, straight wind (v==0)
+! Linjiong Zhou
+!--------------------------
+        zvir = rvgas/rdgas - 1.
+        p00 = 1000.E2
+          ps(:,:) = p00
+        phis(:,:) = 0.
+        do j=js,je
+           do i=is,ie
+                pk(i,j,1) = ptop**kappa
+                pe(i,1,j) = ptop
+              peln(i,1,j) = log(ptop)
+           enddo
+        enddo
+
+        do k=1,npz
+           do j=js,je
+              do i=is,ie
+                 delp(i,j,k) = ak(k+1)-ak(k) + ps(i,j)*(bk(k+1)-bk(k))
+                 pe(i,k+1,j) = ak(k+1) + ps(i,j)*bk(k+1)
+                 peln(i,k+1,j) = log(pe(i,k+1,j))
+                   pk(i,j,k+1) = exp( kappa*peln(i,k+1,j) )
+              enddo
+           enddo
+        enddo
+
+        i = is
+        j = js
+        do k=1,npz
+           pk1(k) = (pk(i,j,k+1)-pk(i,j,k))/(kappa*(peln(i,k+1,j)-peln(i,k,j)))
+        enddo
+
+        call SuperCell_Sounding(npz, p00, pk1, ts1, qs1)
+
+        v(:,:,:) = 0.
+        w(:,:,:) = 0.
+        q(:,:,:,:) = 0.
+
+        do k=1,npz
+           do j=js,je
+              do i=is,ie
+                 pt(i,j,k)   = ts1(k)
+                  q(i,j,k,1) = qs1(k)
+                 delz(i,j,k) = rdgas/grav*ts1(k)*(1.+zvir*qs1(k))*(peln(i,k,j)-peln(i,k+1,j))
+                enddo
+             enddo
+          enddo
+
+        ze1(npz+1) = 0.
+        do k=npz,1,-1
+           ze1(k) = ze1(k+1) - delz(is,js,k)
+        enddo
+
+        do k=1,npz
+             zm = 0.5*(ze1(k)+ze1(k+1))
+           if (no_wind) then
+              us0 = 0.0
+           else
+              us0 = 14.
+           endif
+           utmp = us0*tanh(zm/1.2E4)
+           do j=js,je+1
+              do i=is,ie
+                 u(i,j,k) = utmp
+              enddo
+           enddo
+        enddo
+
+        call p_var(npz, is, ie, js, je, ptop, ptop_min, delp, delz, pt, ps,   &
+                   pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., .false., &
+                   .true., hydrostatic, nwat, domain, flagstruct%adiabatic)
+
+! *** Add Initial perturbation ***
+        pturb = 2.1
+        r0 = 10.e3
+        zc = 1.4e3         ! center of bubble  from surface
+        icenter = (npx-1)/2 + 1
+        jcenter = (npy-1)/2 + 1
+        do k=1, npz
+           zm = 0.5*(ze1(k)+ze1(k+1))
+           ptmp = ( (zm-zc)/zc ) **2
+           if ( ptmp < 1. ) then
+              do j=js,je
+                 do i=is,ie
+                   dist = ptmp+((i-icenter)*dx_const/r0)**2+((j-jcenter)*dy_const/r0)**2
+                   if ( dist < 1. ) then
+                        pt(i,j,k) = pt(i,j,k) + pturb*(1.-sqrt(dist))
+                   endif
+                 enddo
+              enddo
+           endif
+        enddo
+
         case ( 101 )
 
 ! IC for LES
@@ -6848,7 +6944,7 @@ end subroutine terminator_tracers
         alpha = 0.
         bubble_do = .false.
         test_case = 11   ! (USGS terrain)
-        namelist /test_case_nml/test_case, bubble_do, alpha, nsolitons, soliton_Umax, soliton_size
+        namelist /test_case_nml/test_case, bubble_do, alpha, nsolitons, soliton_Umax, soliton_size, no_wind
 
 #ifdef INTERNAL_FILE_NML
         ! Read Test_Case namelist
@@ -7214,11 +7310,11 @@ end subroutine terminator_tracers
  real:: dz0, zvir, fac_z, pk0, temp1, p2
  integer:: k, n, kk
 
-#ifdef GFS_PHYS
-
- call mpp_error(FATAL, 'SuperCell sounding cannot perform with GFS Physics.')
-
-#else
+!#ifdef GFS_PHYS
+!
+! call mpp_error(FATAL, 'SuperCell sounding cannot perform with GFS Physics.')
+!
+!#else
 
  zvir = rvgas/rdgas - 1.
  pk0 = p00**kappa
@@ -7318,7 +7414,7 @@ end subroutine terminator_tracers
     tp(k) = max(Tmin, tp(k))
  enddo
 
-#endif
+!#endif
 
  end subroutine SuperCell_Sounding
 

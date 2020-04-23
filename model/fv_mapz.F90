@@ -874,16 +874,17 @@ endif        ! end last_step check
         dp2(is:ie,:) = q(is:ie,j,:,sphum)
         t0(is:ie,:) = pt(is:ie,j,:)
 
-
-        if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(is:ie,j,:) = q(is:ie,j,:,liq_wat) + q(is:ie,j,:,rainwat) 
-        if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt(is:ie,j,:) = &
-             q(is:ie,j,:,ice_wat) + q(is:ie,j,:,snowwat) + q(is:ie,j,:,graupel)
-        
-        if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt(is:ie,j,:) = q(is:ie,j,:,liq_wat)
-        if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt(is:ie,j,:) = q(is:ie,j,:,rainwat)
-        if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt(is:ie,j,:) = q(is:ie,j,:,ice_wat)
-        if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(is:ie,j,:) = q(is:ie,j,:,graupel)
-        if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(is:ie,j,:) = q(is:ie,j,:,snowwat)
+        if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt(is:ie,j,:) = inline_mp%liq_wat_dt(is:ie,j,:) - q(is:ie,j,:,liq_wat)
+        if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt(is:ie,j,:) = inline_mp%ice_wat_dt(is:ie,j,:) - q(is:ie,j,:,ice_wat)
+        if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt(is:ie,j,:) = inline_mp%qv_dt(is:ie,j,:) - q(is:ie,j,:,sphum)
+        if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(is:ie,j,:) = inline_mp%ql_dt(is:ie,j,:) - (q(is:ie,j,:,liq_wat) + q(is:ie,j,:,rainwat))
+        if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt(is:ie,j,:) = inline_mp%qi_dt(is:ie,j,:) - (q(is:ie,j,:,ice_wat) + q(is:ie,j,:,snowwat) + q(is:ie,j,:,graupel))
+        if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt(is:ie,j,:) = inline_mp%qr_dt(is:ie,j,:) - q(is:ie,j,:,rainwat)
+        if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(is:ie,j,:) = inline_mp%qs_dt(is:ie,j,:) - q(is:ie,j,:,snowwat)
+        if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(is:ie,j,:) = inline_mp%qg_dt(is:ie,j,:) - q(is:ie,j,:,graupel)
+        if (allocated(inline_mp%t_dt)) inline_mp%t_dt(is:ie,j,:) = inline_mp%t_dt(is:ie,j,:) - pt(is:ie,j,:)
+        if (allocated(inline_mp%u_dt)) inline_mp%u_dt(is:ie,j,:) = inline_mp%u_dt(is:ie,j,:) - ua(is:ie,j,:)
+        if (allocated(inline_mp%v_dt)) inline_mp%v_dt(is:ie,j,:) = inline_mp%v_dt(is:ie,j,:) - va(is:ie,j,:)
 
 #ifndef DYCORE_SOLO
         call gfdl_mp_driver(q(is:ie,j,:,sphum), q(is:ie,j,:,liq_wat), &
@@ -902,22 +903,17 @@ endif        ! end last_step check
         u_dt(is:ie,j,:) = (ua(is:ie,j,:) - u_dt(is:ie,j,:)) / abs(mdt)
         v_dt(is:ie,j,:) = (va(is:ie,j,:) - v_dt(is:ie,j,:)) / abs(mdt)
 
-        if (.not. do_adiabatic_init) then
-           if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt(is:ie,j,:) = (q(is:ie,j,:,sphum) - dp2(is:ie,:)) / abs(mdt)
-           if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(is:ie,j,:) = &
-                (q(is:ie,j,:,liq_wat) + q(is:ie,j,:,rainwat) - inline_mp%ql_dt(is:ie,j,:)) / abs(mdt)
-           if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt(is:ie,j,:) = &
-                (q(is:ie,j,:,ice_wat) + q(is:ie,j,:,snowwat) + q(is:ie,j,:,graupel) - inline_mp%qi_dt(is:ie,j,:)) / abs(mdt)
-
-           if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt(is:ie,j,:) = (q(is:ie,j,:,liq_wat) - inline_mp%liq_wat_dt(is:ie,j,:)) / abs(mdt)
-           if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt(is:ie,j,:) = (q(is:ie,j,:,rainwat) - inline_mp%qr_dt(is:ie,j,:)) / abs(mdt)
-           if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt(is:ie,j,:) = (q(is:ie,j,:,ice_wat) - inline_mp%ice_wat_dt(is:ie,j,:)) / abs(mdt)
-           if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(is:ie,j,:) = (q(is:ie,j,:,graupel) - inline_mp%qg_dt(is:ie,j,:)) / abs(mdt)
-           if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(is:ie,j,:) = (q(is:ie,j,:,snowwat) - inline_mp%qs_dt(is:ie,j,:)) / abs(mdt)
-           if (allocated(inline_mp%t_dt))  inline_mp%t_dt(is:ie,j,:)  = (pt(is:ie,j,:)      -  t0(is:ie,:)) / abs(mdt)
-           if (allocated(inline_mp%u_dt)) inline_mp%u_dt(is:ie,j,:) = u_dt(is:ie,j,:)
-           if (allocated(inline_mp%v_dt)) inline_mp%v_dt(is:ie,j,:) = v_dt(is:ie,j,:)
-        endif
+        if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt(is:ie,j,:) = inline_mp%liq_wat_dt(is:ie,j,:) + q(is:ie,j,:,liq_wat)
+        if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt(is:ie,j,:) = inline_mp%ice_wat_dt(is:ie,j,:) + q(is:ie,j,:,ice_wat)
+        if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt(is:ie,j,:) = inline_mp%qv_dt(is:ie,j,:) + q(is:ie,j,:,sphum)
+        if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(is:ie,j,:) = inline_mp%ql_dt(is:ie,j,:) + (q(is:ie,j,:,liq_wat) + q(is:ie,j,:,rainwat))
+        if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt(is:ie,j,:) = inline_mp%qi_dt(is:ie,j,:) + (q(is:ie,j,:,ice_wat) + q(is:ie,j,:,snowwat) + q(is:ie,j,:,graupel))
+        if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt(is:ie,j,:) = inline_mp%qr_dt(is:ie,j,:) + q(is:ie,j,:,rainwat)
+        if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(is:ie,j,:) = inline_mp%qs_dt(is:ie,j,:) + q(is:ie,j,:,snowwat)
+        if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(is:ie,j,:) = inline_mp%qg_dt(is:ie,j,:) + q(is:ie,j,:,graupel)
+        if (allocated(inline_mp%t_dt)) inline_mp%t_dt(is:ie,j,:) = inline_mp%t_dt(is:ie,j,:) + pt(is:ie,j,:)
+        if (allocated(inline_mp%u_dt)) inline_mp%u_dt(is:ie,j,:) = inline_mp%u_dt(is:ie,j,:) + ua(is:ie,j,:)
+        if (allocated(inline_mp%v_dt)) inline_mp%v_dt(is:ie,j,:) = inline_mp%v_dt(is:ie,j,:) + va(is:ie,j,:)
 
         ! update pe, peln, pk, ps
         do k=2,km+1
