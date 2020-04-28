@@ -178,11 +178,11 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
         
         if (prog_ccn) then
             do i = is, ie
-                ! Boucher and Lohmann (1995)
+                ! boucher and lohmann (1995)
                 nl = min (1., abs (hs (i, j)) / (10. * grav)) * &
-                    (10. ** 2.24 * (0.7273 * qnl (i, j) * den (i) * 1.e9) ** 0.257) + &
-                    (1. - min (1., abs (hs (i, j)) / (10. * grav))) * &
-                    (10. ** 2.06 * (0.7273 * qnl (i, j) * den (i) * 1.e9) ** 0.48)
+                     (10. ** 2.24 * (0.7273 * qnl (i, j) * den (i) * 1.e9) ** 0.257) + &
+                     (1. - min (1., abs (hs (i, j)) / (10. * grav))) * &
+                     (10. ** 2.06 * (0.7273 * qnl (i, j) * den (i) * 1.e9) ** 0.48)
                 ni = qni (i, j)
                 ccn (i) = max (10.0, nl) * 1.e6
                 cin (i) = max (10.0, ni) * 1.e6

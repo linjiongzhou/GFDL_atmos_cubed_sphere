@@ -661,11 +661,11 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
         
         if (prog_ccn) then
             do k = ks, ke
-                ! Boucher and Lohmann (1995)
+                ! boucher and lohmann (1995)
                 nl = min (1., abs (hs (i)) / (10. * grav)) * &
-                    (10. ** 2.24 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.257) + &
-                    (1. - min (1., abs (hs (i)) / (10. * grav))) * &
-                    (10. ** 2.06 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.48)
+                     (10. ** 2.24 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.257) + &
+                     (1. - min (1., abs (hs (i)) / (10. * grav))) * &
+                     (10. ** 2.06 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.48)
                 ni = qni (i, k)
                 ! convert # / cm^3 to # / m^3
                 ccn (k) = max (10.0, nl) * 1.e6
