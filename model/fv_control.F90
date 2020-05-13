@@ -650,6 +650,10 @@ module fv_control_mod
 !!$     Atm(this_grid)%inline_mp%prei = too_big
 !!$     Atm(this_grid)%inline_mp%pres = too_big
 !!$     Atm(this_grid)%inline_mp%preg = too_big
+!!$     Atm(this_grid)%inline_mp%cond = too_big
+!!$     Atm(this_grid)%inline_mp%dep = too_big
+!!$     Atm(this_grid)%inline_mp%reevap = too_big
+!!$     Atm(this_grid)%inline_mp%sub = too_big
 
      !Initialize restart
      call fv_restart_init()

@@ -97,7 +97,7 @@ module fv_arrays_mod
      real, allocatable :: zxg(:,:)
      real, allocatable :: pt1(:)
 
-     integer :: id_prer, id_prei, id_pres, id_preg
+     integer :: id_prer, id_prei, id_pres, id_preg, id_cond, id_dep, id_reevap, id_sub
      integer :: id_qv_dt_gfdlmp, id_T_dt_gfdlmp, id_ql_dt_gfdlmp, id_qi_dt_gfdlmp
      integer :: id_qr_dt_gfdlmp, id_qg_dt_gfdlmp, id_qs_dt_gfdlmp
      integer :: id_liq_wat_dt_gfdlmp, id_ice_wat_dt_gfdlmp
@@ -659,6 +659,10 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: prei(:,:)     _NULL
     real, _ALLOCATABLE :: pres(:,:)     _NULL
     real, _ALLOCATABLE :: preg(:,:)     _NULL
+    real, _ALLOCATABLE :: cond(:,:)     _NULL
+    real, _ALLOCATABLE :: dep(:,:)     _NULL
+    real, _ALLOCATABLE :: reevap(:,:)     _NULL
+    real, _ALLOCATABLE :: sub(:,:)     _NULL
 
     real, _ALLOCATABLE :: qv_dt(:,:,:)
     real, _ALLOCATABLE :: ql_dt(:,:,:)
@@ -1084,6 +1088,10 @@ contains
     allocate ( Atm%inline_mp%prei(is:ie,js:je) )
     allocate ( Atm%inline_mp%pres(is:ie,js:je) )
     allocate ( Atm%inline_mp%preg(is:ie,js:je) )
+    allocate ( Atm%inline_mp%cond(is:ie,js:je) )
+    allocate ( Atm%inline_mp%dep(is:ie,js:je) )
+    allocate ( Atm%inline_mp%reevap(is:ie,js:je) )
+    allocate ( Atm%inline_mp%sub(is:ie,js:je) )
 
     !--------------------------
     ! Non-hydrostatic dynamics:
@@ -1168,6 +1176,10 @@ contains
            Atm%inline_mp%prei(i,j) = real_big
            Atm%inline_mp%pres(i,j) = real_big
            Atm%inline_mp%preg(i,j) = real_big
+           Atm%inline_mp%cond(i,j) = real_big
+           Atm%inline_mp%dep(i,j) = real_big
+           Atm%inline_mp%reevap(i,j) = real_big
+           Atm%inline_mp%sub(i,j) = real_big
 
            Atm%ts(i,j) = 300.
            Atm%phis(i,j) = real_big
@@ -1420,6 +1432,10 @@ contains
     deallocate ( Atm%inline_mp%prei )
     deallocate ( Atm%inline_mp%pres )
     deallocate ( Atm%inline_mp%preg )
+    deallocate ( Atm%inline_mp%cond )
+    deallocate ( Atm%inline_mp%dep )
+    deallocate ( Atm%inline_mp%reevap )
+    deallocate ( Atm%inline_mp%sub )
 
     deallocate ( Atm%u_srf )
     deallocate ( Atm%v_srf )

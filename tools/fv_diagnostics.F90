@@ -593,6 +593,14 @@ contains
             'snow precipitation', 'mm/day', missing_value=missing_value )
        idiag%id_preg = register_diag_field ( trim(field), 'preg', axes(1:2), Time,           &
             'graupel precipitation', 'mm/day', missing_value=missing_value )
+       idiag%id_cond = register_diag_field ( trim(field), 'cond', axes(1:2), Time,           &
+            'condensation', 'mm/day', missing_value=missing_value )
+       idiag%id_dep = register_diag_field ( trim(field), 'dep', axes(1:2), Time,           &
+            'deposition', 'mm/day', missing_value=missing_value )
+       idiag%id_reevap = register_diag_field ( trim(field), 'reevap', axes(1:2), Time,           &
+            'evaporation', 'mm/day', missing_value=missing_value )
+       idiag%id_sub = register_diag_field ( trim(field), 'sub', axes(1:2), Time,           &
+            'sublimation', 'mm/day', missing_value=missing_value )
 !-------------------
 !! 3D Tendency terms from GFDL MP and physics
 !-------------------
@@ -1715,6 +1723,10 @@ contains
        if(idiag%id_prei > 0) used=send_data(idiag%id_prei, Atm(n)%inline_mp%prei(isc:iec,jsc:jec), Time)
        if(idiag%id_pres > 0) used=send_data(idiag%id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
        if(idiag%id_preg > 0) used=send_data(idiag%id_preg, Atm(n)%inline_mp%preg(isc:iec,jsc:jec), Time)
+       if(idiag%id_cond > 0) used=send_data(idiag%id_cond, Atm(n)%inline_mp%cond(isc:iec,jsc:jec), Time)
+       if(idiag%id_dep > 0) used=send_data(idiag%id_dep, Atm(n)%inline_mp%dep(isc:iec,jsc:jec), Time)
+       if(idiag%id_reevap > 0) used=send_data(idiag%id_reevap, Atm(n)%inline_mp%reevap(isc:iec,jsc:jec), Time)
+       if(idiag%id_sub > 0) used=send_data(idiag%id_sub, Atm(n)%inline_mp%sub(isc:iec,jsc:jec), Time)
 
        if (idiag%id_qv_dt_gfdlmp > 0) used=send_data(idiag%id_qv_dt_gfdlmp, Atm(n)%inline_mp%qv_dt(isc:iec,jsc:jec,1:npz), Time)
        if (idiag%id_ql_dt_gfdlmp > 0) used=send_data(idiag%id_ql_dt_gfdlmp, Atm(n)%inline_mp%ql_dt(isc:iec,jsc:jec,1:npz), Time)
