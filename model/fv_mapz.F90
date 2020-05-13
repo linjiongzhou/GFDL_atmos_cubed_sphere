@@ -872,6 +872,7 @@ endif        ! end last_step check
         ! note: the unit of q2 or q3 is #/cm^3
         ! note: the unit of area is m^2
         ! note: the unit of prer, prei, pres, preg is mm/day
+        ! note: the unit of cond, dep, reevap, sub is mm/day
 
         ! save ua, va for wind tendency calculation
         u_dt(is:ie,j,:) = ua(is:ie,j,:)
@@ -903,7 +904,8 @@ endif        ! end last_step check
                        inline_mp%prei(is:ie,j), inline_mp%preg(is:ie,j), &
                        hydrostatic, &
                        is, ie, 1, km, q_con(is:ie,j,:), cappa(is:ie,j,:), consv>consv_min, &
-                       te(is:ie,j,:), last_step, do_inline_mp)
+                       te(is:ie,j,:), inline_mp%cond(is:ie,j), inline_mp%dep(is:ie,j), &
+                       inline_mp%reevap(is:ie,j), inline_mp%sub(is:ie,j), last_step, do_inline_mp)
 #endif
 
         ! compute wind tendency at A grid fori D grid wind update
