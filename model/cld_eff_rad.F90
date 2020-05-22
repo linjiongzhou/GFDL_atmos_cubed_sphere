@@ -26,7 +26,7 @@
 module cld_eff_rad_mod
     
     use gfdl_cld_mp_mod, only: rdgas, grav, pi, zvir, t_ice, ql0_max, &
-        ccn_o, ccn_l, rhow, rhor, rhos, rhog, prog_ccn
+        ccn_o, ccn_l, rhow, rhor, rhos, rhog
     
     implicit none
     
@@ -59,6 +59,7 @@ module cld_eff_rad_mod
     real :: betas = 1.0
     real :: betag = 1.0
     
+    logical :: prog_ccn = .false. ! do prognostic ccn (separated from gfdl_mp)
     logical :: liq_ice_combine = .true.
     logical :: snow_grauple_combine = .false.
     
@@ -76,7 +77,7 @@ module cld_eff_rad_mod
     namelist / cld_eff_rad_nml / &
         qi0_rei, qmin, beta, liq_ice_combine, rewflag, reiflag, rewmin, rewmax, reimin, &
         reimax, rermin, rermax, resmin, resmax, regmin, regmax, betaw, betai, betar, betas, &
-        betag
+        betag, prog_ccn
     
 contains
 
