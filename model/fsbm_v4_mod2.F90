@@ -3844,7 +3844,7 @@ end module module_mp_SBM_Auxiliary
         integer,parameter :: modemax = 3
         real(kind=r8size)  :: ccncon1, ccncon2, ccncon3, radius_mean1, radius_mean2, radius_mean3, &
                               sig1, sig2, sig3
-        real(kind=r8size)  :: CONCCCNIN, FMCCNR1, FMCCNR2, FCCNR_tmp(NKR), FCCNR(NKR), DEG01, X0DROP, &
+        real(kind=r8size)  :: CONCCCNIN, FMCCNR1, FMCCNR2, FCCNR_tmp(NKR), FCCNR_norm(NKR), FCCNR(NKR), DEG01, X0DROP, &
                               XOCCN, X0, R0, RCCN_MICRON, S_KR, S(NKR), X0CCN, ROCCN(NKR), &
                               RO_SOLUTE_Ammon, RO_SOLUTE_NaCl,dNbydlogR_norm1, dNbydlogR_norm2, &
                               dNbydlogR_norm3,arg11,arg12,arg13,arg21,arg22,arg23,arg31,arg32,arg33
@@ -3906,6 +3906,7 @@ end module module_mp_SBM_Auxiliary
     !FCCNR_mar = 0.0
     !FCCNR_con = 0.0
     FCCNR_tmp = 0.0
+    FCCNR_norm = 0.0
     CONCCCNIN = 0.0
 
     arg11 = ccncon1/(DSQRT(2.0D0*pi)*log(sig1))
@@ -3927,15 +3928,23 @@ end module module_mp_SBM_Auxiliary
             arg32 = (log(RCCN(KR)/radius_mean3))**2.0
             arg33 = 2.0D0*((log(sig3))**2.0)
             dNbydlogR_norm3 = dNbydlogR_norm2 + arg31*exp(-arg32/arg33)*(log(2.0)/3.0)
-            FCCNR_tmp(kr) = dNbydlogR_norm3/col
+            FCCNR_tmp(kr) = dNbydlogR_norm3
         endif
     enddo
 
-    CONCCCNIN = col*sum(FCCNR_tmp(:))
-    !print*,'CONCCCNIN',CONCCCNIN
+    ! Normalizing according to Scale_Fa
 
-     if(IType == 1) FCCNR_MAR = Scale_Fa*FCCNR_tmp
-     if(IType == 2) FCCNR_CON = Scale_Fa*FCCNR_tmp
+    do kr = 1,nkr
+        FCCNR_norm(kr) = (Scale_Fa/col)*FCCNR_tmp(kr)/sum(FCCNR_tmp)
+    enddo
+
+    CONCCCNIN = col*sum(FCCNR_norm(:))
+    print*,'CONCCCNIN',CONCCCNIN
+
+     !if(IType == 1) FCCNR_MAR = Scale_Fa*FCCNR_tmp
+     !if(IType == 2) FCCNR_CON = Scale_Fa*FCCNR_tmp
+     if(IType == 1) FCCNR_MAR = FCCNR_norm
+     if(IType == 2) FCCNR_CON = FCCNR_norm
 
     RETURN
     END SUBROUTINE LogNormal_modes_Aerosol
@@ -3991,7 +4000,7 @@ end module module_mp_SBM_Auxiliary
  INTEGER,PARAMETER :: hail_opt = 1
  INTEGER,PARAMETER :: ILogNormal_modes_Aerosol = 1, ILogNormal_modes_Aerosol_ACPC = 0, do_case_CLN = 1, do_case_POL = 0
 
- REAL,PARAMETER :: DX_BOUND = 999
+ REAL,PARAMETER :: DX_BOUND = 99
  REAL(kind=r8size), PARAMETER :: SCAL = 1.d0
  INTEGER,PARAMETER :: ICEPROCS = 1
  INTEGER,PARAMETER :: ICETURB = 0, LIQTURB = 0
@@ -4030,7 +4039,7 @@ end module module_mp_SBM_Auxiliary
 							,FF2R_D,XI_D,VR2_D,VTC_D,FLIQFR_ID,RO2BL_D
  REAL(kind=r8size) :: T_NEW_D,rhocgs_D,pcgs_D,DT_D,qv_old_D,qv_d
 
- REAL(kind=r4size),private :: C2,C3,C4
+ REAL(kind=r4size),private :: C2,C3,C4,Scale_CCN_Factor_m,Scale_CCN_Factor_c
  REAL(kind=r8size),private ::  &
  	            xl_mg(nkr),xs_mg(nkr),xg_mg(nkr),xh_mg(nkr) &
                 ,xi1_mg(nkr),xi2_mg(nkr),xi3_mg(nkr)
@@ -6310,11 +6319,12 @@ end module module_mp_SBM_Auxiliary
         ! ... Initializing the FCCNR_MAR and FCCNR_CON
         FCCNR_CON = 0.0
         FCCNR_MAR = 0.0
-        Scale_CCN_Factor = 1.0
+        Scale_CCN_Factor_m = 2000.0
+        Scale_CCN_Factor_c = 1800.0
         XCCN = 0.0
         RCCN = 0.0
-        CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,1)
-        CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor,2)
+        CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor_m,1)
+        CALL LogNormal_modes_Aerosol(FCCNR_CON,FCCNR_MAR,NKR_aerosol,COL,XL,XCCN,RCCN,RO_SOLUTE,Scale_CCN_Factor_c,2)
         if (mpp_root_pe() == mpp_pe()) then
         write(*,*) 'module_mp_WRFsbm : succesfull reading "LogNormal_modes_Aerosol" '
         endif
