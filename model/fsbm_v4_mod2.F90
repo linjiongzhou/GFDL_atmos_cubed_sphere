@@ -72,8 +72,8 @@ INTEGER,PARAMETER :: 		JBreak_Spontanous = 28, &
               					I_Break_Method = 1
 DOUBLE PRECISION,PARAMETER :: COL = 0.23105
 ! ... Snow-BreakUp
-INTEGER,PARAMETER :: KR_SNOW_MAX = 35     !LJ the change is only here
-INTEGER,PARAMETER :: KR_SNOW_MIN = 34     !LJ the change is only here
+INTEGER,PARAMETER :: KR_SNOW_MAX = 36 !33 !34 	!30
+INTEGER,PARAMETER :: KR_SNOW_MIN = 35 !30 !31 	!27
 ! ... Snow breakup probability
 DOUBLE PRECISION,PARAMETER :: BREAK_SNOW_KRMAX_0 = 0.02D0
 DOUBLE PRECISION,PARAMETER :: BREAK_SNOW_KRMAX_1 = 0.012D0
@@ -1608,7 +1608,7 @@ end module module_mp_SBM_Collision
 
  private
  public :: POLYSVP, JERRATE_KS, JERTIMESC_KS, JERSUPSAT_KS, &
- 		       JERDFUN_KS, JERDFUN_NEW_KS, Relaxation_Time
+ 		       JERDFUN_KS, JERDFUN_NEW_KS, Relaxation_Time,CCN_regeneration
 
  ! Kind paramater
  INTEGER, PARAMETER, PRIVATE:: R8SIZE = 8
@@ -2953,6 +2953,118 @@ enddo
 	RETURN
 	END SUBROUTINE Relaxation_Time
 ! +------------------------------+
+! +------------------------------------------------------------------------------------------+
+  subroutine CCN_regeneration(NKR,COL,Evap_tot,FCCN,FCCN_nucl,Del_CCNreg,Imethod,Iin,Jin,Kin)
+
+    use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
+
+    implicit none
+  
+    integer,intent(in) :: NKR,Imethod,Iin,Jin,Kin
+    real(kind=r4size),intent(in) :: COL,Evap_tot
+    real(kind=r4size),intent(inout) :: FCCN(:),FCCN_nucl(:),Del_CCNreg
+  
+    integer :: kr,kr_max,kr_min,Ifound,krr_max
+    real(kind=r4size) :: FCCN_diff(nkr),Norm_f,ret_conc,conc_bin_min,Evap_tot_tmp,ret_ccn
+  
+    select case (Imethod)
+    case(1)
+  
+      conc_bin_min = 1.0e-30/NKR
+      !FCCN_diff = 0.0
+      !do kr = 1,nkr
+      !    FCCN_diff(kr) = max(FCCN_passive(kr) - FCCN_nucl(kr),conc_bin_min)
+      !end do
+      ! This can be negative
+  
+      kr_min = -1
+      kr_max = -1
+      do kr = 1,nkr
+          if(FCCN_nucl(kr) > conc_bin_min)then
+              kr_min = kr
+              exit
+          endif
+      end do
+      do kr = nkr,1,-1
+          if(FCCN_nucl(kr) > conc_bin_min)then
+              kr_max = kr
+              exit
+          endif
+      end do
+      if(kr_max == -1 .and. kr_min == -1) return
+  
+      !FCCN_diff(1:nkr) = FCCN_nucl(1:nkr) - FCCN(1:nkr)
+      !Norm_f = Evap_tot / sum(FCCN_diff(kr_min:kr_max))*col ! in [#/cm3]
+      !if(Norm_f > 1.0) Norm_f = 1.0
+  
+      Del_CCNreg = 0.0
+      do kr = kr_min,kr_max
+          !if(FCCN_diff(kr) < 0.0) call mpp_error (FATAL, "fatal error in CCN_regenaration (FCCN_diff < 0.0), model stop")
+          !if(FCCN_diff(kr) < 0.0) stop "CCN_reg"
+          !FCCN(kr) = FCCN(kr) + Norm_f*max(FCCN_nucl(kr),0.0)
+          !FCCN_nucl(kr) = FCCN_nucl(kr) - Norm_f*max(FCCN_nucl(kr),0.0)
+          !FCCN(kr) = FCCN(kr) + Norm_f*FCCN_diff(kr)
+          ret_ccn = 0.0
+          if(sum(FCCN_nucl) > 1.0e-30) ret_ccn = (Evap_tot/col)*(FCCN_nucl(kr)/sum(FCCN_nucl))
+          !FCCN(kr) = FCCN(kr) + Evap_tot/col/(kr_max-kr_min+1)
+          FCCN(kr) = FCCN(kr) + ret_ccn ! in cm-3/bin
+          Del_CCNreg = Del_CCNreg + ret_ccn
+          !FCCN_nucl(kr) = FCCN_nucl(kr) - min(Evap_tot/col/(kr_max-kr_min+1),FCCN_diff(kr))
+      end do
+  
+    case(2)
+  
+      conc_bin_min = 1.0e-30/NKR
+      !FCCN_diff = 0.0
+      !do kr = 1,nkr
+      !    FCCN_diff(kr) = max(FCCN_passive(kr) - FCCN_nucl(kr),conc_bin_min)
+      !end do
+      ! This can be negative
+  
+      kr_min = -1
+      kr_max = -1
+      do kr = 1,nkr
+          if(FCCN_nucl(kr) > conc_bin_min)then
+              kr_min = kr
+              exit
+          endif
+      end do
+      do kr = nkr,1,-1
+          if(FCCN_nucl(kr) > conc_bin_min)then
+              kr_max = kr
+              exit
+          endif
+      end do
+      if(kr_max == -1 .and. kr_min == -1) return
+  
+      Evap_tot_tmp = Evap_tot
+      print*,'1 -','Evap_tot_tmp',Evap_tot_tmp
+      Del_CCNreg = 0.0
+      do kr = kr_min,kr_max
+          if( FCCN_nucl(kr) > 1.0e-30 .and. col*FCCN_nucl(kr) <= Evap_tot_tmp )then
+              print*,'2 -','col*FCCN(kr)',kr,col*FCCN(kr)
+              print*,'3 -','col*FCCN_nucl(kr)',kr,col*FCCN_nucl(kr)
+              FCCN(kr) = FCCN(kr) + FCCN_nucl(kr)
+              Del_CCNreg = Del_CCNreg + col*FCCN_nucl(kr)
+              Evap_tot_tmp = Evap_tot_tmp - col*FCCN_nucl(kr)
+              !FCCN_nucl(kr) = FCCN_nucl(kr) - min(FCCN_nucl(kr),FCCN_nucl(kr))
+              cycle
+          else if( FCCN_nucl(kr) > 1.0e-30 .and. col*FCCN_nucl(kr) > Evap_tot_tmp )then
+              print*,'4 -','col*FCCN_nucl(kr)',kr,col*FCCN_nucl(kr)
+              print*,'5 -','Evap_tot_tmp',kr,Evap_tot_tmp
+              FCCN(kr) = FCCN(kr) + Evap_tot_tmp/col
+              Del_CCNreg = Del_CCNreg + Evap_tot_tmp
+              !FCCN_nucl(kr) = FCCN_nucl(kr) - min(Evap_tot_tmp/col,FCCN_nucl(kr))
+              Evap_tot_tmp = 0.0
+              exit
+          endif
+      end do
+  
+    end select
+  
+    return
+    end subroutine CCN_regeneration
+  ! +-------------------------------+  
 end module module_mp_SBM_Auxiliary
 ! +-----------------------------------------------------------------------------+
 ! +-----------------------------------------------------------------------------+
@@ -2982,15 +3094,15 @@ end module module_mp_SBM_Auxiliary
 
  contains
 ! +-----------------------------------------------------------------------------+
- SUBROUTINE JERNUCL01_KS(PSI1_r, PSI2_r, FCCNR_r, 			        &
-                            XL_r, XI_r, TT, QQ, 			        &
-                            ROR_r, PP_r, 				            &
-                            SUP1, SUP2,      			  		    &
-			                COL_r, 							        &
-			                SUP2_OLD_r, DSUPICE_XYZ_r, 		        &
-			                RCCN_r, DROPRADII_r, NKR, NKR_aerosol, ICEMAX, ICEPROCS, &
-			                Win_r, Is_This_CloudBase, RO_SOLUTE, IONS, MWAERO,       &
-			                Iin, Jin, Kin, lh_homo, lh_ice_nucl)
+ SUBROUTINE JERNUCL01_KS(PSI1_r, PSI2_r, FCCNR_r, FCCNR_nucl_r,	&
+                        XL_r, XI_r, TT, QQ, 			              &
+                        ROR_r, PP_r, 				                    &
+                        SUP1, SUP2,      			  		            &
+                        COL_r, 							                    &
+                        SUP2_OLD_r, DSUPICE_XYZ_r, 		          &
+                        RCCN_r, DROPRADII_r, NKR, NKR_aerosol, ICEMAX, ICEPROCS, &
+                        Win_r, Is_This_CloudBase, RO_SOLUTE, IONS, MWAERO,       &
+                        Iin, Jin, Kin, lh_homo, lh_ice_nucl)
 
 
 	implicit none
@@ -2999,7 +3111,7 @@ end module module_mp_SBM_Auxiliary
  	real(kind=r4size),intent(in) :: XL_r(:), XI_r(:,:), ROR_r, PP_r, COL_r, Win_r, &
 							             SUP2_OLD_r, DSUPICE_XYZ_r, RCCN_r(:), DROPRADII_r(:)
     real(kind=r4size),intent(in) ::	 	   MWAERO, RO_SOLUTE
-    real(kind=r4size),intent(inout) :: 	 PSI1_r(:),PSI2_r(:,:),FCCNR_r(:), lh_homo, lh_ice_nucl
+    real(kind=r4size),intent(inout) :: 	 PSI1_r(:),PSI2_r(:,:),FCCNR_r(:),FCCNR_nucl_r(:),lh_homo,lh_ice_nucl
     real(kind=r8size),intent(inout) :: TT, QQ, SUP1,SUP2
 
  ! ... Locals
@@ -3008,7 +3120,7 @@ end module module_mp_SBM_Auxiliary
 						           SUM_ICE, DEL2N, FI2(NKR,ICEMAX), TFREEZ_OLD, DTFREEZXZ, RMASSIAA_NUCL, RMASSIBB_NUCL, &
 		                   FI2_K, xi_K, FI2R2, DELMASSICE_NUCL, ES1N, ES2N, EW1N
   real(kind=r8size),parameter :: AL2 = 2834.0D0
-  real(kind=r8size) :: PSI1(NKR),PSI2(NKR,ICEMAX),FCCNR(NKR_aerosol),ROR,XL(NKR),XI(NKR,ICEMAX),PP,COL, &
+  real(kind=r8size) :: PSI1(NKR),PSI2(NKR,ICEMAX),FCCNR(NKR_aerosol),FCCNR_nucl(NKR_aerosol),ROR,XL(NKR),XI(NKR,ICEMAX),PP,COL, &
 						           SUP2_OLD,DSUPICE_XYZ,Win, RCCN(NKR_aerosol),DROPRADII(NKR)
 	real(kind=r4size) :: TPNreal
  ! ... Locals
@@ -3018,7 +3130,8 @@ end module module_mp_SBM_Auxiliary
 	! ... Adjust the Imput
 	PSI1 = PSI1_r
 	PSI2 = PSI2_r
-	FCCNR = FCCNR_r
+  FCCNR = FCCNR_r
+  FCCNR_nucl = FCCNR_nucl_r
 	XL = XL_r
 	XI = XI_r
 	ROR = ROR_r
@@ -3042,7 +3155,7 @@ end module module_mp_SBM_Auxiliary
 	IF(SUP1>0.0D0 .AND. TPC>T_NUCL_DROP_MIN) THEN
 		if(sum(FCCNR) > 0.0)then
 			DROPCONCN = 0.0D0
-			CALL WATER_NUCLEATION (COL, NKR_aerosol, PSI1, FCCNR, xl, TT, QQ, ROR, SUP1, DROPCONCN, &
+			CALL WATER_NUCLEATION (COL, NKR_aerosol, PSI1, FCCNR, FCCNR_nucl, xl, TT, QQ, ROR, SUP1, DROPCONCN, &
 							 	   PP, Is_This_CloudBase, Win, RO_SOLUTE, RCCN, IONS,MWAERO)
 		endif
 		! ... Transfer drops to Ice-Crystals via direct homogenous nucleation
@@ -3136,12 +3249,13 @@ end module module_mp_SBM_Auxiliary
 	! ... Output
 	PSI1_r = PSI1
 	PSI2_r = PSI2
-	FCCNR_r = FCCNR
+  FCCNR_r = FCCNR
+  FCCNR_nucl_r = FCCNR_nucl
 
  RETURN
  END SUBROUTINE JERNUCL01_KS
 ! +-------------------------------------------------------------------------------------------------------------------------+
- SUBROUTINE WATER_NUCLEATION (COL, NKR, PSI1, FCCNR, xl, TT, QQ, ROR, SUP1,     &
+ SUBROUTINE WATER_NUCLEATION (COL, NKR, PSI1, FCCNR, FCCNR_nucl, xl, TT, QQ, ROR, SUP1,     &
                               DROPCONCN, PP, Is_This_CloudBase, Win, RO_SOLUTE, &
                               RCCN, IONS, MWAERO)
 
@@ -3160,7 +3274,7 @@ end module module_mp_SBM_Auxiliary
 
   integer,intent(in) :: 			Is_This_CloudBase, NKR, IONS
   real(kind=r8size),intent(in) :: 	xl(:), ROR, PP, Win, RCCN(:), COL
-  real(kind=r8size),intent(inout) :: FCCNR(:), PSI1(:), DROPCONCN(:), QQ, TT, SUP1
+  real(kind=r8size),intent(inout) :: FCCNR(:), FCCNR_nucl(:), PSI1(:), DROPCONCN(:), QQ, TT, SUP1
   real(kind=r4size),intent(in) :: 	 RO_SOLUTE, MWAERO
 
   ! ... Locals
@@ -3238,16 +3352,19 @@ end module module_mp_SBM_Auxiliary
             if (NCRITI>1) then
                DLN1=DLOG(RCRITI)-DLOG(RCCN(IMAX-1))
                DLN2=COL-DLN1
-	           CCNCONC(IMAX)=DLN2*FCCNR(IMAX)
+             CCNCONC(IMAX)=DLN2*FCCNR(IMAX)
+             FCCNR_nucl(IMAX) = FCCNR_nucl(IMAX) + FCCNR(IMAX)*(1.0 - DLN1/COL)
 	           FCCNR(IMAX)=FCCNR(IMAX)*DLN1/COL
             else ! NCRITI==1
                DLN1=DLOG(RCRITI)-DLOG(RCCN_MINIMUM)
                DLN2=DLOG(RCCN(1))-DLOG(RCRITI)
-	           CCNCONC(IMAX)=DLN2*FCCNR(IMAX)
+             CCNCONC(IMAX)=DLN2*FCCNR(IMAX)
+             FCCNR_nucl(IMAX) = FCCNR_nucl(IMAX) + FCCNR(IMAX)*(1.0 - (DLN1/(DLN1+DLN2)))
 	           FCCNR(IMAX)=FCCNR(IMAX)*DLN1/(DLN1+DLN2)
             endif
         else
              CCNCONC(IMAX) = COL*FCCNR(IMAX)
+             FCCNR_nucl(IMAX) = FCCNR_nucl(IMAX) + FCCNR(IMAX)
              FCCNR(IMAX)=0.0D0
         endif
 
@@ -3960,7 +4077,7 @@ end module module_mp_SBM_Auxiliary
   USE module_mp_SBM_BreakUp,ONLY:Spont_Rain_BreakUp,BreakUp_Snow,KR_SNOW_MIN,KR_SNOW_MAX
   USE module_mp_SBM_Nucleation,ONLY:JERNUCL01_KS, LogNormal_modes_Aerosol_ACPC,LogNormal_modes_Aerosol
   USE module_mp_SBM_Auxiliary,ONLY:JERRATE_KS,JERTIMESC_KS,JERSUPSAT_KS,  &
-                                   JERDFUN_KS,JERDFUN_NEW_KS,POLYSVP,Relaxation_Time
+                                   JERDFUN_KS,JERDFUN_NEW_KS,POLYSVP,Relaxation_Time,CCN_regeneration
   USE scatt_tables,ONLY:faf1,fbf1,fab1,fbb1,         &
                         faf3,fbf3,fab3,fbb3,         &
                         faf4,fbf4,fab4,fbb4,         &
@@ -3989,7 +4106,8 @@ end module module_mp_SBM_Auxiliary
                 r_p_ff3i06=19,r_p_ff4i01=20,r_p_ff4i06=25,r_p_ff5i01=26,r_p_ff5i06=31,r_p_ff6i01=32,r_p_ff6i06=37,&
                 r_p_ff7i01=38,r_p_ff7i06=43,r_p_ff8i01=44,r_p_ff8i06=49,r_p_ff9i01=50,r_p_ff9i06=55
  INTEGER, PRIVATE,PARAMETER :: p_ff1i01=1,p_ff1i33=33,p_ff5i01=34,p_ff5i33=66, &
-                               p_ff6i01=67,p_ff6i33=99,p_ff8i01=100,p_ff8i33=132
+                               p_ff6i01=67,p_ff6i33=99,p_ff8i01=100,p_ff8i33=132, &
+                               p_ff8in01=133,p_ff8in33=165
 
  INTEGER,PARAMETER :: IBREAKUP = 1
  INTEGER,PARAMETER :: Snow_BreakUp_On = 1
@@ -3999,7 +4117,8 @@ end module module_mp_SBM_Auxiliary
  LOGICAL,PARAMETER :: IPolar_HUCM = .TRUE.
  INTEGER,PARAMETER :: hail_opt = 1
  INTEGER,PARAMETER :: ILogNormal_modes_Aerosol = 1, ILogNormal_modes_Aerosol_ACPC = 0, do_case_CLN = 1, do_case_POL = 0
-
+ INTEGER,PARAMETER :: ICCN_reg = 1
+ 
  REAL,PARAMETER :: DX_BOUND = 99
  REAL(kind=r8size), PARAMETER :: SCAL = 1.d0
  INTEGER,PARAMETER :: ICEPROCS = 1
@@ -4092,7 +4211,7 @@ end module module_mp_SBM_Auxiliary
                                              cwih_1(:,:),cwih_2(:,:),cwih_3(:,:),        &
                                              cwsg(:,:),cwss(:,:)
          REAL(kind=r8size),ALLOCATABLE ::  FCCNR_ft(:),FCCNR_bl(:),FCCNR_MAR(:),FCCNR_CON(:)
-         REAL(kind=r4size),ALLOCATABLE :: Scale_CCN_Factor,XCCN(:),RCCN(:),FCCN(:)
+         REAL(kind=r4size),ALLOCATABLE :: Scale_CCN_Factor,XCCN(:),RCCN(:),FCCN(:),FCCN_nucl(:)
 
  ! ... WRFsbm_Init
  ! --------------------------------------------------------------------------------+
@@ -4108,7 +4227,7 @@ end module module_mp_SBM_Auxiliary
  !real(KIND=R4SIZE),parameter :: RO_SOLUTE = 2.16   	! sea salt
  real(kind=r4size),parameter ::  RO_SOLUTE = 1.79  	! ammonium-sulfate
  ! -------------------------------------------------------------------------
- REAL (KIND=R4SIZE) :: FR_LIM(NKR), FRH_LIM(NKR)
+ REAL (KIND=R4SIZE) :: FR_LIM(NKR), FRH_LIM(NKR), CCN_reg, Del_CCNreg
 
    CONTAINS
  !-----------------------------------------------------------------------
@@ -4118,15 +4237,15 @@ end module module_mp_SBM_Auxiliary
       &                      dz8w,rho_phy,p_phy,pi_phy,th_phy,           &
       &                      xland,                                      &
       &                      QV,QC,QR,QI,QS,QG,QV_OLD,                   &
-      &                      QNC,QNR,QNI,QNS,QNG,QNA,                    &
-      &                      ids,ide, jds,jde, kds,kde,		        	 &
-      &                      ims,ime, jms,jme, kms,kme,		        	 &
-      &                      its,ite, jts,jte, kts,kte,                  &
-      &                      diagflag,      	                         &
-      &                      sbmradar,num_sbmradar,                      &
+      &                      QNC,QNR,QNI,QNS,QNG,QNA,QNA_nucl,           &
+      &                      ids,ide, jds,jde, kds,kde,		        	      &
+      &                      ims,ime, jms,jme, kms,kme,		        	      &
+      &                      its,ite, jts,jte, kts,kte,                   &
+      &                      diagflag,      	                            &
+      &                      sbmradar,num_sbmradar,                       &
       &                      RAINNC,RAINNCV,SNOWNC,SNOWNCV,GRAUPELNC,GRAUPELNCV,       &
       &                      MA,LH_rate,CE_rate,DS_rate,Melt_rate,Frz_rate,CldNucl_rate, &
-      &                      IceNucl_rate)
+      &                      IceNucl_rate,n_reg_ccn)
 
  !---------------------------------------------------------------------------------
        IMPLICIT NONE
@@ -4149,24 +4268,24 @@ end module module_mp_SBM_Auxiliary
  	REAL    ,DIMENSION(ims:ime,kms:kme,jms:jme,num_sbmradar),INTENT(INOUT)   :: sbmradar
  	REAL,    DIMENSION( ims-1:ime+1 , kms:kme , jms-1:jme+1 ),               &
              INTENT(INOUT) ::                                          &
-                          qv, 		&
-                          qv_old, 	&
+                          qv, 		        &
+                          qv_old, 	      &
                           th_old
  	REAL,    DIMENSION( ims:ime , kms:kme , jms:jme ),               &
              INTENT(INOUT) ::                                          &
-                          qc, 		&
-                          qr, 		&
-                          qi,	 	&
-                          qs, 		&
-                          qg, 		&
-                          qnc, 		&
-                          qnr, 		&
-                          qni,      &
-                          qns, 		&
-                          qng, 		&
-                          qna,      &
+                          qc, 		        &
+                          qr, 		        &
+                          qi,	 	          &
+                          qs, 		        &
+                          qg, 		        &
+                          qnc, 		        &
+                          qnr, 		        &
+                          qni,            &
+                          qns, 		        &
+                          qng, 		        &
+                          qna,qna_nucl,   &
                           MA,LH_rate,CE_rate,DS_rate,Melt_rate,Frz_rate,CldNucl_rate, &
-                          IceNucl_rate
+                          IceNucl_rate,n_reg_ccn
 
        REAL , DIMENSION( ims:ime , jms:jme ) , INTENT(IN)   :: XLAND
        LOGICAL, OPTIONAL, INTENT(IN) :: diagflag
@@ -4246,7 +4365,7 @@ end module module_mp_SBM_Auxiliary
  	REAL (KIND=R4SIZE) :: z_full
  	REAL (KIND=R4SIZE) :: VRX(kts:kte,NKR)
 
- 	REAL (KIND=R4SIZE) :: VR1_Z(NKR,KTS:KTE), VR1_Z3D(NKR,ITS:ITE,KTS:KTE,JTS:JTE), FACTOR_P
+ 	REAL (KIND=R4SIZE) :: VR1_Z(NKR,KTS:KTE), FACTOR_P, VR1_Z3D(NKR,ITS:ITE,KTS:KTE,JTS:JTE)
  	REAL (KIND=R4SIZE) :: VR2_ZC(NKR,KTS:KTE), VR2_Z(NKR,ICEMAX)
  	REAL (KIND=R4SIZE) :: VR2_ZP(NKR,KTS:KTE)
  	REAL (KIND=R4SIZE) :: VR2_ZD(NKR,KTS:KTE)
@@ -4312,7 +4431,8 @@ end module module_mp_SBM_Auxiliary
                           lh_frz, lh_mlt, lh_rime, lh_homo, ce_bf, ce_af, ds_bf, &
                           ds_af, mlt_bf, mlt_af, frz_af, frz_bf, cldnucl_af,     &
                           cldnucl_bf, icenucl_af, icenucl_bf, lh_ice_nucl,del_ds_sum, &
-                          del_ce_sum, del_cldnucl_sum, del_icenucl_sum
+                          del_ce_sum, del_cldnucl_sum, del_icenucl_sum,n_reg_ccn_bf,  & 
+                          n_reg_ccn_af
  ! ### (KS) ............................................................................................
  	INTEGER :: NZ,NZZ,II,JJ
 
@@ -4358,21 +4478,27 @@ end module module_mp_SBM_Auxiliary
                     chem_new(I,K,J,KR) = chem_new(I,K,J,KR)*RHOCGS(I,K,J)/1000.
                                                        ! chem_new (input) is #/kg
               END DO
+            ! ... Nucleated Aerosols
+              KRR=0
+              DO KR=p_ff8in01,p_ff8in33
+                  KRR=KRR+1
+                  chem_new(I,K,J,KR) = chem_new(I,K,J,KR)*RHOCGS(I,K,J)/1000.0                                   
+              END DO 
             !  ... Hail or Graupel [same registry adresses]
-               if(hail_opt == 1) then
-                 KRR=0
-                 DO KR=p_ff6i01,p_ff6i33
-                     KRR=KRR+1
-                     chem_new(I,K,J,KR)=chem_new(I,K,J,KR)*RHOCGS(I,K,J)/COL/XH(KRR)/XH(KRR)/3.0
-                 END DO
+              if(hail_opt == 1) then
+                KRR=0
+                DO KR=p_ff6i01,p_ff6i33
+                    KRR=KRR+1
+                    chem_new(I,K,J,KR)=chem_new(I,K,J,KR)*RHOCGS(I,K,J)/COL/XH(KRR)/XH(KRR)/3.0
+                END DO
 
-               else
-                 KRR=0
-                 DO KR=p_ff6i01,p_ff6i33
-                     KRR=KRR+1
-                     chem_new(I,K,J,KR)=chem_new(I,K,J,KR)*RHOCGS(I,K,J)/COL/XG(KRR)/XG(KRR)/3.0
-                 END DO
-               endif
+              else
+                KRR=0
+                DO KR=p_ff6i01,p_ff6i33
+                    KRR=KRR+1
+                    chem_new(I,K,J,KR)=chem_new(I,K,J,KR)*RHOCGS(I,K,J)/COL/XG(KRR)/XG(KRR)/3.0
+                END DO
+              endif
 
  				END DO ! K
  			END DO	! I
@@ -4406,56 +4532,57 @@ end module module_mp_SBM_Auxiliary
  	  if (itimestep == 1)then
 
  	    do j = jts,jte
- 		  do i = its,ite
- 			do k = kts,kte
- 			   rhoair_max = rhocgs(i,1,j) ! [g/cm3]
+ 		    do i = its,ite
+ 			    do k = kts,kte
+          rhoair_max = rhocgs(i,1,j) ! [g/cm3]
 
- 			   if(ILogNormal_modes_Aerosol_ACPC == 1)then ! ... distribute vertically following ACPC
-                  FACTZ = 0.0
- 				  if(zcgs(i,k,j) <= 2.5e5)then
-                    KRR = 0
-                    do KR = p_ff8i01,p_ff8i33
-                        KRR = KRR + 1
-                        chem_new(I,K,J,KR) = FCCNR_bl(KRR)
-                    enddo
- 				  elseif(zcgs(i,k,j) > 2.5e5 .and. zcgs(i,k,j) <= 5.0e5)then
- 				    KRR = 0
-                    do KR = p_ff8i01,p_ff8i33
-                        KRR = KRR + 1
-                        chem_new(I,K,J,KR) = FCCNR_bl(KRR) - ((FCCNR_bl(KRR)-FCCNR_ft(KRR))/2.5e5)*(zcgs(i,k,j)-2.5e5)
-                    enddo
- 					!FACTZ = Nbl - ((Nbl-Nft)/2.5e5)*(zcgs(i,k,j) - 2.5e5)
- 				  else
- 				    KRR = 0
-                    do KR = p_ff8i01,p_ff8i33
-                        KRR = KRR + 1
-                        chem_new(I,K,J,KR) = FCCNR_ft(KRR)
-                    enddo
- 				  endif
-               endif
-
-               if(ILogNormal_modes_Aerosol == 1)then
-                  if(zcgs(I,K,J) <= ZMIN)then
-                      FACTZ = 1.0
-                  else
-                      FACTZ=EXP(-(zcgs(I,K,J)-ZMIN)/Z0IN)
-                  endif
-                  ! ... CCN
-                  KRR = 0
-                  do KR = p_ff8i01,p_ff8i33
+          if(ILogNormal_modes_Aerosol_ACPC == 1)then ! ... distribute vertically following ACPC
+                    FACTZ = 0.0
+            if(zcgs(i,k,j) <= 2.5e5)then
+                KRR = 0
+                do KR = p_ff8i01,p_ff8i33
                     KRR = KRR + 1
-                    if (xland(i,j) == 1)then
-                        ! chem_new(I,K,J,KR)=FCCNR_CON(KRR)*FACTZ
-                        chem_new(I,K,J,KR) = (FCCNR_CON(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
-                    else
-                        chem_new(I,K,J,KR) = (FCCNR_MAR(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
-                    endif
-                  enddo
-                endif
+                    chem_new(I,K,J,KR) = FCCNR_bl(KRR)
+                enddo
+            elseif(zcgs(i,k,j) > 2.5e5 .and. zcgs(i,k,j) <= 5.0e5)then
+                KRR = 0
+                do KR = p_ff8i01,p_ff8i33
+                    KRR = KRR + 1
+                    chem_new(I,K,J,KR) = FCCNR_bl(KRR) - ((FCCNR_bl(KRR)-FCCNR_ft(KRR))/2.5e5)*(zcgs(i,k,j)-2.5e5)
+                enddo
+            !FACTZ = Nbl - ((Nbl-Nft)/2.5e5)*(zcgs(i,k,j) - 2.5e5)
+            else
+                KRR = 0
+                do KR = p_ff8i01,p_ff8i33
+                    KRR = KRR + 1
+                    chem_new(I,K,J,KR) = FCCNR_ft(KRR)
+                enddo
+            endif
+          endif
 
- 			end do
+          if(ILogNormal_modes_Aerosol == 1)then
+            if(zcgs(I,K,J) <= ZMIN)then
+                FACTZ = 1.0
+            else
+                FACTZ=EXP(-(zcgs(I,K,J)-ZMIN)/Z0IN)
+            endif
+            ! ... CCN
+            KRR = 0
+            do KR = p_ff8i01,p_ff8i33
+              KRR = KRR + 1
+              if (xland(i,j) == 1)then
+                  ! chem_new(I,K,J,KR)=FCCNR_CON(KRR)*FACTZ
+                  chem_new(I,K,J,KR) = (FCCNR_CON(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
+              else
+                  chem_new(I,K,J,KR) = (FCCNR_MAR(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
+              endif
+            enddo
+          endif
+
+ 			  end do
  		  end do
- 	   end do
+      end do
+      
  	 end if
 
  ! +--------------------------------------------+
@@ -4689,7 +4816,7 @@ end module module_mp_SBM_Auxiliary
             VR2_ZC(1:nkr,K) = VR2(1:nkr,1)*FACTOR_P
             VR2_ZP(1:nkr,K) = VR2(1:nkr,2)*FACTOR_P
             VR2_ZD(1:nkr,K) = VR2(1:nkr,3)*FACTOR_P
-            VR1_Z(1:nkr,K) = VR1(1:nkr)*FACTOR_P
+            VR1_Z(1:nkr,K) =  VR1(1:nkr)*FACTOR_P
             VR3_Z(1:nkr,K) = VR3(1:nkr)*FACTOR_P
             VR4_Z(1:nkr,K) = VR4(1:nkr)*FACTOR_P
             VR5_Z(1:nkr,k) = VR5(1:nkr)*FACTOR_P
@@ -4711,6 +4838,14 @@ end module module_mp_SBM_Auxiliary
                  KRR = KRR + 1
                  FCCN(KRR) = chem_new(I,K,J,KR)
                  if (fccn(krr) < 0.0)fccn(krr) = 0.0
+              END DO
+
+            ! ... Nucleated CCN
+              KRR = 0
+              DO kr=p_ff8in01,p_ff8in33
+                KRR = KRR + 1
+                FCCN_nucl(KRR) = chem_new(I,K,J,KR)
+                if (fccn_nucl(krr) < 0.0)fccn_nucl(krr) = 0.0
               END DO
 
             ! no explicit Ice Crystals in FSBM
@@ -4753,9 +4888,13 @@ end module module_mp_SBM_Auxiliary
           cldnucl_af=0.0 ;  cldnucl_bf = 0.0 ; icenucl_af = 0.0 ;
           icenucl_bf = 0.0; lh_ice_nucl = 0.0; del_ds_sum = 0.0;
           del_ce_sum = 0.0; del_cldnucl_sum = 0.0; del_icenucl_sum = 0.0
+          n_reg_ccn_bf = 0.0
+          n_reg_ccn_af = 0.0
 ! +---------------------------------------------+
 ! Neucliation, Condensation, Collisions
 ! +---------------------------------------------+
+          CCN_reg = 0.0
+          Del_CCNreg = 0.0
           IF (T_OLD(I,K,J).GT.193.15)THEN
              TT=T_OLD(I,K,J)
              QQ=QV_OLD(I,K,J)
@@ -4859,13 +4998,13 @@ end module module_mp_SBM_Auxiliary
                                                 sum(ff2in(:,2)*(xi(:,2)**2.0)) +  &
                                                 sum(ff2in(:,3)*(xi(:,3)**2.0)) )/rhocgs(I,K,J)
 
-                         CALL JERNUCL01_KS(FF1IN,FF2IN,FCCN 		  &
+                         CALL JERNUCL01_KS(FF1IN,FF2IN,FCCN,FCCN_nucl 		  &
                                            ,XL,XI,TT,QQ       					    &
                                            ,rhocgs(I,K,J),pcgs(I,K,J) 			&
                                            ,DEL1IN,DEL2IN     			        &
                                            ,COL 								            &
                                            ,SUP2_OLD,DSUPICE_XYZ(I,K,J) 		&
-                                           ,RCCN,DROPRADII,NKR,NKR_aerosol,ICEMAX,ICEPROCS &
+                                           ,RCCN,DROPRADII,NKR,NKR_aerosol,ICEMAX,ICEPROCS    &
                                            ,W_Stag_My,Is_This_CloudBase,RO_SOLUTE,IONS,MWAERO &
                                            ,I,J,K,lh_homo,lh_ice_nucl)
 
@@ -4934,11 +5073,11 @@ end module module_mp_SBM_Auxiliary
                                        ,AA1_MY,BB1_MY,AA2_MY,BB2_MY &
                                        ,C1_MEY,C2_MEY &
                                        ,COL,DTCOND,ICEMAX,NKR,ISYM1 &
-                                       ,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep,lh_ce_1)
+                                       ,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep,lh_ce_1,CCN_reg)
 
                       ELSE IF(ISYM1==0 .AND. (TT-273.15)<-0.187 .AND. &
                           (sum(ISYM2)>1 .OR. ISYM3==1 .OR. ISYM4==1 .OR. ISYM5==1))THEN
-                            !IF (T_OLD(I,K,J).GT.213.15)THEN
+                            IF (T_OLD(I,K,J).GT.213.15)THEN
                                VR2_Z(:,1) = VR2_ZC(:,K)
                                VR2_Z(:,2) = VR2_ZP(:,K)
                                VR2_Z(:,3) = VR2_ZD(:,K)
@@ -4953,7 +5092,7 @@ end module module_mp_SBM_Auxiliary
                                ,C1_MEY,C2_MEY &
                                ,COL,DTCOND,ICEMAX,NKR &
                                ,ISYM1,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep,lh_ce_2)
-                           !END IF
+                           END IF
                         ELSE IF(ISYM1==1 .AND. (TT-273.15)<-0.187 .AND. &
                              (sum(ISYM2)>1 .OR. ISYM3==1 .OR. ISYM4==1 .OR. ISYM5==1))THEN
                              IF (T_OLD(I,K,J).GT.233.15)THEN
@@ -4971,7 +5110,7 @@ end module module_mp_SBM_Auxiliary
                                ,AA1_MY,BB1_MY,AA2_MY,BB2_MY &
                                ,C1_MEY,C2_MEY &
                                ,COL,DTCOND,ICEMAX,NKR &
-                               ,ISYM1,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep,lh_ce_3)
+                               ,ISYM1,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep,lh_ce_3,CCN_reg)
                             ENDIF
                         END IF
                         ce_af = 3.0*col*( sum(ff1r*(xl**2.0)) )/rhocgs(I,K,J)
@@ -4981,6 +5120,14 @@ end module module_mp_SBM_Auxiliary
                     END IF ! DIFF.NE.0
                 END IF 	! DIFFU.NE.0
                END DO ! NCOND - end of NCOND loop
+
+               !... CCN_regenaration
+               n_reg_ccn_bf = col*sum(FCCN)
+               if(ICCN_reg == 1 .and. CCN_reg > 0.0)then
+                 call CCN_regeneration(NKR,COL,CCN_reg,FCCN,FCCN_nucl,Del_CCNreg,1,I,J,K)
+               endif
+               n_reg_ccn_af = col*sum(FCCN)
+
 ! +----------------------------------+
 ! Collision-Coallescnce
 ! +----------------------------------+
@@ -5012,17 +5159,18 @@ end module module_mp_SBM_Auxiliary
             ENDIF
         ! in case T_OLD(I,K,J).GT.213.15
         END IF
+
  ! +-------------------------------- +
  ! Immediate Freezing
  ! +---------------------------------+
         IF(T_NEW(i,k,j) < 273.15 .and. ICEPROCS == 1)THEN
 
-            frz_bf = 3.0*col*( sum(ff3r*(xs**2.0)) +  &
+            frz_bf = 3.0*col*( sum(ff3r*(xs**2.0)) +            &
                                sum(ff4r*(xg**2.0)) + sum(ff5r*(xh**2.0)) )/rhocgs(I,K,J)
             CALL FREEZ &
                     (FF1R,XL,FF2R,XI,FF3R,XS,FF4R,XG,FF5R,XH,   &
-                     T_NEW(I,K,J),DT,rhocgs(I,K,J), 	        &
-                     COL,AFREEZMY,BFREEZMY,BFREEZMAX, 		    &
+                     T_NEW(I,K,J),DT,rhocgs(I,K,J), 	          &
+                     COL,AFREEZMY,BFREEZMY,BFREEZMAX, 		      &
                      KRFREEZ,ICEMAX,NKR,lh_frz)
 
             frz_af = 3.0*col*( sum(ff2r(2,:)*(xi(2,:)**2.0)) +  &
@@ -5039,6 +5187,7 @@ end module module_mp_SBM_Auxiliary
             FF5R(KR) = 0.0
           endif
         END DO
+
 ! --------------------------------------------------------------+
 ! Jiwen Fan Melting (melting along a constant time scale)
 ! --------------------------------------------------------------+
@@ -5072,24 +5221,23 @@ end module module_mp_SBM_Auxiliary
  ! Spontanaous Rain Breakup
 ! +----------------------------+
         IF (Spont_Rain_BreakUp_On == 1 .AND. (SUM(FF1R) > 43.0*1.0D-30)  .and. ICEPROCS == 1)THEN
-                FF1R_D(:) = FF1R(:)
-                XL_D(:) = XL(:)
-                CALL Spont_Rain_BreakUp (DT ,FF1R_D, XL_D, Prob, Gain_Var_New, NND, NKR, ikr_spon_break)
-                FF1R(:) = FF1R_D(:)
+            FF1R_D(:) = FF1R(:)
+            XL_D(:) = XL(:)
+            CALL Spont_Rain_BreakUp (DT ,FF1R_D, XL_D, Prob, Gain_Var_New, NND, NKR, ikr_spon_break)
+            FF1R(:) = FF1R_D(:)
         END IF
 
  ! -----------------------------------------------------------+
  ! ... Snow BreakUp
  ! -----------------------------------------------------------+
  		IF (Snow_BreakUp_On == 1 .and. ICEPROCS == 1 .AND. sum(FF3R(KR_SNOW_MIN:NKR))> (NKR-KR_SNOW_MIN)*1.0D-30)THEN
-
  			DO KR=1,NKR
  				FF3R_D(KR) = FF3R(KR)
  			END DO
 			IF (KR_SNOW_MAX <= NKR) CALL BreakUp_Snow (TT_r,FF3R_D,FLIQFR_SD,xs_d,FRIMFR_SD,NKR)
-            DO KR=1,NKR
-                FF3R(KR) = FF3R_D(KR)
-            END DO
+      DO KR=1,NKR
+          FF3R(KR) = FF3R_D(KR)
+      END DO
  		END IF
 
     ! ... Process rate for the ACPC
@@ -5100,6 +5248,7 @@ end module module_mp_SBM_Auxiliary
     Frz_rate(i,k,j) =  Frz_rate(i,k,j) + (frz_af - frz_bf)/dt
     CldNucl_rate(i,k,j) = CldNucl_rate(i,k,j) + del_cldnucl_sum/dt
     IceNucl_rate(i,k,j) = IceNucl_rate(i,k,j) + del_icenucl_sum/dt
+    n_reg_ccn(i,k,j) = (n_reg_ccn_af - n_reg_ccn_bf)/DT             ! in [#/cm3/s]
 
     ! Update temperature at the end of MP
   	th_phy(i,k,j) = t_new(i,k,j)/pi_phy(i,k,j)
@@ -5115,7 +5264,13 @@ end module module_mp_SBM_Auxiliary
 	  DO kr=p_ff8i01,p_ff8i33
 		  KRR=KRR+1
 		  chem_new(I,K,J,KR)=FCCN(KRR)
-	  END DO
+    END DO
+    ! ... Nucleated CCN
+    KRR = 0
+    DO kr=p_ff8in01,p_ff8in33
+        KRR=KRR+1
+        chem_new(I,K,J,KR) = FCCN_nucl(KRR)
+    END DO
 	  IF (ICEPROCS == 1)THEN
 	  ! ... Snow
 		  KRR = 0
@@ -5170,7 +5325,7 @@ end module module_mp_SBM_Auxiliary
                 end do
             end do
        		if(iceprocs == 1)then
- ! ... Snow ...
+                ! ... Snow ...
                 do k = kts,kte
                     rhocgs_z(k)=rhocgs(i,k,j)
                     pcgs_z(k)=pcgs(i,k,j)
@@ -5190,32 +5345,32 @@ end module module_mp_SBM_Auxiliary
                       chem_new(i,k,j,kr)=ffx_z(k,krr)*rhocgs(i,k,j)
                     end do
                   end do
- ! ... Hail or Graupel ...
-              do k = kts,kte
-                rhocgs_z(k)=rhocgs(i,k,j)
-                pcgs_z(k)=pcgs(i,k,j)
-                zcgs_z(k)=zcgs(i,k,j)
-                if(hail_opt == 1)then
-                  vrx(k,:) = vr5_z3D(:,i,k,j)
-                else
-                  vrx(k,:) = vr4_z3D(:,i,k,j)
-                endif
-                krr=0
-                do kr=p_ff6i01,p_ff6i33
-                  krr=krr+1
-                  ffx_z(k,krr)=chem_new(i,k,j,kr)/rhocgs(i,k,j)
-                end do
-              end do
-              call FALFLUXHUCM_Z(ffx_z,VRX,RHOCGS_z,PCGS_z,ZCGS_z,DT,kts,kte,nkr)
-              do k = kts,kte
-                krr=0
-                do kr=p_ff6i01,p_ff6i33
-                  krr=krr+1
-                  chem_new(i,k,j,kr)=ffx_z(k,krr)*rhocgs(i,k,j)
-                end do
-              end do
-        end if ! if (iceprocs == 1)
-   	end do
+                  ! ... Hail or Graupel ...
+                  do k = kts,kte
+                    rhocgs_z(k)=rhocgs(i,k,j)
+                    pcgs_z(k)=pcgs(i,k,j)
+                    zcgs_z(k)=zcgs(i,k,j)
+                    if(hail_opt == 1)then
+                      vrx(k,:) = vr5_z3D(:,i,k,j)
+                    else
+                      vrx(k,:) = vr4_z3D(:,i,k,j)
+                    endif
+                    krr=0
+                    do kr=p_ff6i01,p_ff6i33
+                      krr=krr+1
+                      ffx_z(k,krr)=chem_new(i,k,j,kr)/rhocgs(i,k,j)
+                    end do
+                  end do
+                  call FALFLUXHUCM_Z(ffx_z,VRX,RHOCGS_z,PCGS_z,ZCGS_z,DT,kts,kte,nkr)
+                  do k = kts,kte
+                    krr=0
+                    do kr=p_ff6i01,p_ff6i33
+                      krr=krr+1
+                      chem_new(i,k,j,kr)=ffx_z(k,krr)*rhocgs(i,k,j)
+                    end do
+                  end do
+            end if ! if (iceprocs == 1)
+        end do
    end do
 
     gmax=0
@@ -5239,6 +5394,7 @@ end module module_mp_SBM_Auxiliary
           QNS(I,K,J) = 0.0
           QNG(I,K,J) = 0.0
           QNA(I,K,J) = 0.0
+          QNA_nucl(I,K,J) = 0.0
 
           tt= th_phy(i,k,j)*pi_phy(i,k,j)
 
@@ -5304,6 +5460,14 @@ end module module_mp_SBM_Auxiliary
       			   	+ COL*chem_new(I,K,J,KR)/rhocgs(I,K,J)*1000.0   ! #/kg
       	MA(I,K,J) = MA(I,K,J) &
                     + COL*chem_new(I,K,J,KR)*XCCN(KRR)/rhocgs(I,K,J) ! g/g
+      END DO
+
+      ! ... Nucleated aerosols output
+      KRR = 0
+      DO  KR = p_ff8in01,p_ff8in33
+          KRR = KRR + 1
+          QNA_nucl(I,K,J) = QNA_nucl(I,K,J) &
+              + COL*chem_new(I,K,J,KR)/rhocgs(I,K,J)*1000.0   ! #/kg
       END DO
 
     END DO
@@ -5448,21 +5612,21 @@ end module module_mp_SBM_Auxiliary
         ICLOUD = 0
 
           CALL polar_hucm &
-                            (FF1R_D, FF2R_D, FF3R_D, FF4R_D, FF5R_D, FF1_FD, 		    &
-                            FLIQFR_SD, FLIQFR_GD, FLIQFR_HD, FL1_FD, 				        &
-                            BKDEN_Snow, T_NEW_D, rhocgs_D, wavelength, iwl,         &
-                            distance, dx_dbl, dy_dbl, zmks_1d, 					            &
-                            out1, out2, out3, out4, out5, out6, out7, out8, out9,   &
-                            bin_mass, tab_colum, tab_dendr, tab_snow, bin_log, 		  &
-                            ijk, i, j, k, kts, kte, NKR, ICEMAX, icloud, itimestep, &
-                            faf1,fbf1,fab1,fbb1, 									    &
-                            faf3,fbf3,fab3,fbb3,         							&
-                            faf4,fbf4,fab4,fbb4,         							&
-                            faf5,fbf5,fab5,fbb5,         							&
-                            temps_water,temps_fd,temps_crystals,  	  &
-                            temps_snow,temps_graupel,temps_hail,  		&
-                            fws_fd,fws_crystals,fws_snow,		  				&
-                            fws_graupel,fws_hail,usetables)
+                (FF1R_D, FF2R_D, FF3R_D, FF4R_D, FF5R_D, FF1_FD, 		    &
+                FLIQFR_SD, FLIQFR_GD, FLIQFR_HD, FL1_FD, 				        &
+                BKDEN_Snow, T_NEW_D, rhocgs_D, wavelength, iwl,         &
+                distance, dx_dbl, dy_dbl, zmks_1d, 					            &
+                out1, out2, out3, out4, out5, out6, out7, out8, out9,   &
+                bin_mass, tab_colum, tab_dendr, tab_snow, bin_log, 		  &
+                ijk, i, j, k, kts, kte, NKR, ICEMAX, icloud, itimestep, &
+                faf1,fbf1,fab1,fbb1, 									    &
+                faf3,fbf3,fab3,fbb3,         							&
+                faf4,fbf4,fab4,fbb4,         							&
+                faf5,fbf5,fab5,fbb5,         							&
+                temps_water,temps_fd,temps_crystals,  	  &
+                temps_snow,temps_graupel,temps_hail,  		&
+                fws_fd,fws_crystals,fws_snow,		  				&
+                fws_graupel,fws_hail,usetables)
 
 
    			KRR=0
@@ -5555,7 +5719,15 @@ end module module_mp_SBM_Auxiliary
          		   KRR=KRR+1
          		   chem_new(I,K,J,KR)=chem_new(I,K,J,KR)/RHOCGS(I,K,J)*1000.0
          		  END DO
-              ! ... Hail / Graupel
+              
+              ! ... Nucleated CCN
+              KRR=0
+              DO KR=p_ff8in01,p_ff8in33
+              KRR=KRR+1
+              chem_new(I,K,J,KR)=chem_new(I,K,J,KR)/RHOCGS(I,K,J)*1000.0
+              END DO
+
+               ! ... Hail / Graupel
               if(hail_opt == 1)then
                  KRR=0
                  DO KR=p_ff6i01,p_ff6i33
@@ -6314,6 +6486,7 @@ end module module_mp_SBM_Auxiliary
  if (.NOT. ALLOCATED(RCCN)) ALLOCATE(RCCN(NKR_aerosol))
  if (.NOT. ALLOCATED(Scale_CCN_Factor)) ALLOCATE(Scale_CCN_Factor)
  if (.NOT. ALLOCATED(FCCN)) ALLOCATE(FCCN(NKR_aerosol))
+ if (.NOT. ALLOCATED(FCCN_nucl)) ALLOCATE(FCCN_nucl(NKR_aerosol))
 
     IF(ILogNormal_modes_Aerosol == 1)THEN
         ! ... Initializing the FCCNR_MAR and FCCNR_CON
@@ -6973,7 +7146,7 @@ end module module_mp_SBM_Auxiliary
 				 & ,AA1_MY,BB1_MY,AA2_MY,BB2_MY &
 				 & ,C1_MEY,C2_MEY &
 				 & ,COL,DTCOND,ICEMAX,NKR,ISYM1 &
-				   ,ISYM2,ISYM3,ISYM4,ISYM5,Iin,Jin,Kin,W_in,DX_in,Itimestep,lh_ce_1)
+				   ,ISYM2,ISYM3,ISYM4,ISYM5,Iin,Jin,Kin,W_in,DX_in,Itimestep,lh_ce_1,CCN_reg)
 
         IMPLICIT NONE
 
@@ -6982,7 +7155,7 @@ end module module_mp_SBM_Auxiliary
  	  		  sea_spray_no_temp_change_per_grid, Itimestep
        REAL    COL,VR1(NKR),PSINGLE &
       &       ,AA1_MY,BB1_MY,AA2_MY,BB2_MY &
-      &       ,DTCOND, W_in,DX_in,lh_ce_1
+      &       ,DTCOND, W_in,DX_in,lh_ce_1,CCN_reg
 
        REAL C1_MEY,C2_MEY
        INTEGER I_ABERGERON,I_BERGERON, &
@@ -7039,7 +7212,7 @@ end module module_mp_SBM_Auxiliary
 
  ! NEW ALGORITHM (NO TYPE OF ICE)
 
- 	REAL :: FL1(NKR), sfndummy(3), R1N(NKR)
+ 	REAL :: FL1(NKR), sfndummy(3), R1N(NKR), totccn_before, totccn_after
  	INTEGER :: IDROP
 
  	DOUBLE PRECISION :: R1D(NKR),R1ND(NKR)
@@ -7095,6 +7268,10 @@ end module module_mp_SBM_Auxiliary
  B8L=1./ROR
  B8I=1./ROR
  RORI=1./ROR
+
+ ! ... CCN_regeneration
+totccn_before = 0.0
+totccn_before = sum(psi1(1:nkr)*r1(1:nkr))*3.0*col
 
  DO KR=1,NKR
     FF1_OLD(KR)=FF1(KR)
@@ -7357,6 +7534,11 @@ end module module_mp_SBM_Auxiliary
  TPN = TOLD + DAL1*DELMASSL1
 
  lh_ce_1 = lh_ce_1 + DAL1*DELMASSL1
+
+! ... CCN regeneration
+ totccn_after = 0.0
+ totccn_after = sum(psi1(1:nkr)*r1(1:nkr))*3.0*col ! [cm-3]
+ CCN_reg = CCN_reg + max((totccn_before - totccn_after),0.0)
 
  IF(ABS(DAL1*DELMASSL1) > 5.0 )THEN
  	print*,"ONECOND1-out (start)"
@@ -8016,7 +8198,7 @@ end module module_mp_SBM_Auxiliary
  						 & ,C1_MEY,C2_MEY &
  						 & ,COL,DTCOND,ICEMAX,NKR &
  						 & ,ISYM1,ISYM2,ISYM3,ISYM4,ISYM5, &
- 						 	Iin,Jin,Kin,W_in,DX_in, Itimestep,lh_ce_3)
+ 						 	Iin,Jin,Kin,W_in,DX_in, Itimestep,lh_ce_3,CCN_reg)
 
         IMPLICIT NONE
         INTEGER ICEMAX,NKR,KR,ITIME,ICE,KCOND,K &
@@ -8028,7 +8210,7 @@ end module module_mp_SBM_Auxiliary
       &           ,VR5(NKR),PSINGLE &
       &           ,AA1_MY,BB1_MY,AA2_MY,BB2_MY &
       &           ,C1_MEY,C2_MEY &
-      &           ,COL,DTCOND,W_in,DX_in,lh_ce_3
+      &           ,COL,DTCOND,W_in,DX_in,lh_ce_3,CCN_reg
 
  ! DROPLETS
 
@@ -8093,7 +8275,7 @@ end module module_mp_SBM_Auxiliary
       &  SFN52
         REAL DEL1,DEL2
         REAL  TIMEREV,DT,DTT,TIMENEW
-        REAL DTIMEG(NKR),DTIMEH(NKR),totccn_before,totccn_after
+        REAL DTIMEG(NKR),DTIMEH(NKR)
 
         REAL DEL2D(ICEMAX),DTIMEO(NKR),DTIMEL(NKR) &
       &           ,DTIMEI_1(NKR),DTIMEI_2(NKR),DTIMEI_3(NKR)
@@ -8109,7 +8291,8 @@ end module module_mp_SBM_Auxiliary
         DATA EPSDEL, EPSDEL2 /0.1E-03,0.1E-03/
 
  	   REAL :: FL1(NKR), FL2(NKR,ICEMAX), FL3(NKR), FL4(NKR), FL5(NKR), SFNDUMMY(3), &
- 	   		   R1N(NKR), R2N(NKR,ICEMAX), R3N(NKR), R4N(NKR), R5N(NKR)
+ 	   		   R1N(NKR), R2N(NKR,ICEMAX), R3N(NKR), R4N(NKR), R5N(NKR), totccn_before, &
+             totccn_after
  	   INTEGER :: IDROP, ICM, ISYMICE
  	   DOUBLE PRECISION :: R1D(NKR),R2D(NKR,ICEMAX),R3D(NKR), R4D(NKR), R5D(NKR), &
  			       R1ND(NKR),R2ND(NKR,ICEMAX),R3ND(NKR), R4ND(NKR), R5ND(NKR)
@@ -8193,6 +8376,10 @@ end module module_mp_SBM_Auxiliary
   COL3=3.D0*COL
  TPN=TT
  QPN=QQ
+ 
+! ... CCN_regeneration
+ totccn_before = 0.0
+ totccn_before = sum(psi1(1:nkr)*r1(1:nkr))*3.0*col
 
  16  ITIME = ITIME + 1
  IF((TPN-273.15).GE.-0.187) GO TO 17
@@ -8560,6 +8747,11 @@ end module module_mp_SBM_Auxiliary
 
  	IF(TIMENEW < DT) GOTO 16
  	17 CONTINUE
+ 
+! ... CCN regeneration
+  totccn_after = 0.0
+  totccn_after = sum(psi1(1:nkr)*r1(1:nkr))*3.0*col ! [cm-3]
+  CCN_reg = CCN_reg + max((totccn_before - totccn_after),0.0)
 
  	TT=TPN
  	QQ=QPN
@@ -8582,6 +8774,7 @@ end module module_mp_SBM_Auxiliary
                             DEL1in, DEL2in,                             &
                             Iin,Jin,Kin,CollEff,lh_rime)
 
+    use mpp_mod, only: NOTE, FATAL, WARNING, mpp_error, mpp_root_pe, mpp_pe
     use module_mp_SBM_Collision,only:coll_xyy_lwf,coll_xyx_lwf,coll_xxx_lwf,    &
                                      coll_xyz_lwf, modkrn_KS, coll_breakup_KS, 	&
                                      coll_xxy_lwf
@@ -8694,44 +8887,40 @@ end module module_mp_SBM_Auxiliary
   if(icol_drop_brk == 1)then
     ndiv = 1
     10     	continue
-	do it = 1,ndiv
-		!if (ndiv > 1024)print*,'ndiv in coal_bott_new = ',ndiv
-		!if (ndiv > 1024) go to 11
-		dtbreakup = dt_coll/ndiv
-		if (it == 1)then
-			do kr=1,JMAX
-			  gdumb(kr)= g1(kr)*1.D-3
-			  gdumb_bf_breakup(kr) =  g1(kr)*1.D-3
-			  xl_dumb(kr)=xl_mg(KR)*1.D-3
-			end do
-			break_drop_bef=0.d0
-			do kr=1,JMAX
-			  break_drop_bef = break_drop_bef+g1(kr)*1.D-3
-			end do
-		end if
+    do it = 1,ndiv
+      dtbreakup = dt_coll/ndiv
+      if (it == 1)then
+        do kr=1,JMAX
+          gdumb(kr)= g1(kr)*1.D-3
+          gdumb_bf_breakup(kr) =  g1(kr)*1.D-3
+          xl_dumb(kr)=xl_mg(KR)*1.D-3
+        end do
+        break_drop_bef=0.d0
+        do kr=1,JMAX
+          break_drop_bef = break_drop_bef+g1(kr)*1.D-3
+        end do
+      end if
+    enddo  
+      
+    call coll_breakup_KS(gdumb, xl_dumb, JMAX, dtbreakup, JBREAK, PKIJ, QKJ, NKR, NKR)
 
-		call coll_breakup_KS(gdumb, xl_dumb, JMAX, dtbreakup, JBREAK, PKIJ, QKJ, NKR, NKR)
-	enddo
-	
-      	do KR=1,NKR
-        	FF1R(KR) = (1.0d3*GDUMB(KR))/(3.*XL(KR)*XL(KR)*1.E3)
-		if(GDUMB(KR) < 0.0)then
-		  if(ndiv < 4)then
-		    ndiv = 2*ndiv
-		    go to 10
-		  endif
-		else
-		  go to 11
-		  !call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R/GDUMB < 0.0")
-		endif
-		if(GDUMB(kr) .ne. GDUMB(kr)) then
-		  print*,kr,GDUMB(kr),GDUMB_BF_BREAKUP(kr),XL(kr)
-		  print*,IT,NDIV, DTBREAKUP
-		  print*,GDUMB
-		  print*,GDUMB_BF_BREAKUP
-		  call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R NaN, model stop")
-		endif
-      	enddo
+    do KR=1,NKR
+      FF1R(KR) = (1.0d3*GDUMB(KR))/(3.*XL(KR)*XL(KR)*1.E3)
+      if(GDUMB(KR) < 0.0 .and. ndiv < 8)then
+        ndiv = 2*ndiv
+        go to 10
+      elseif(GDUMB(KR) < 0.0 .and. ndiv > 8)then
+        go to 11
+        !call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R/GDUMB < 0.0")
+      endif
+      if(GDUMB(kr) .ne. GDUMB(kr)) then
+        print*,kr,GDUMB(kr),GDUMB_BF_BREAKUP(kr),XL(kr)
+        print*,IT,NDIV, DTBREAKUP
+        print*,GDUMB
+        print*,GDUMB_BF_BREAKUP
+        call mpp_error (FATAL, "in coal_bott af-coll_breakup - FF1R NaN, model stop")
+      endif
+    enddo
 
     break_drop_aft=0.0d0
     do kr=1,JMAX
@@ -8757,119 +8946,123 @@ end if
  ! +---------------------------------------------------------+
  	if(tt <= 273.15 .and. ICEPROCS == 1)then
  		if(icol_drop == 1)then
-	    ! ... interactions between drops and snow
-            !       drop - snow = graupel
-            !       snow - drop = snow
-            !     snow - drop = graupel
-            if (icol_snow == 1)then
-		rf1 = 1.0;rf5 = 0.0;rf4 = 0.0
-                if(hail_opt == 1)then
-                        call coll_xyz_lwf(g1,g3,g5,rf1,rf3,rf5,cwls,xl_mg,xs_mg, &
-                                 	chucm,ima,prdkrn1,nkr,0)
-                else
-                        call coll_xyz_lwf(g1,g3,g4,rf1,rf3,rf4,cwls,xl_mg,xs_mg, &
-                                  	chucm,ima,prdkrn1,nkr,0)
-                endif
-                rf1 = 1.0;rf5 = 0.0;rf4 = 0.0
-		if(alwc < alcr) then
-			call coll_xyx_lwf(g3,g1,rf3,rf1,cwsl,xs_mg,xl_mg, &
-			      		chucm,ima,prdkrn1,nkr,1,dm_rime)
-		else
-			if(hail_opt == 1)then
-			        call coll_xyz_lwf(g3,g1,g5,rf3,rf1,rf5,cwsl,xs_mg,xl_mg, &
-	                                           chucm,ima,prdkrn1,nkr,1)
-			else
-			        call coll_xyz_lwf(g3,g1,g4,rf3,rf1,rf4,cwsl,xs_mg,xl_mg, &
-                                                 chucm,ima,prdkrn1,nkr,1)
-			endif
-		endif
-            ! in case : icolxz_snow.ne.0
-            end if
-
-            if (icol_graupel == 1) then
-            ! ... interactions between drops and graupel
-            ! drops - graupel = graupel
-            ! graupel - drops = graupel
-            ! drops - graupel = hail
-            ! graupel - drop = hail
-                if(alwc < alcr_g) then
-                    rf1 = 1.0
-                    rf4 = 0.0
-                    call coll_xyy_lwf(g1,g4,rf1,rf4,cwlg,xl_mg,xg_mg, &
-                                          chucm,ima,prdkrn1,nkr,0)
-                    ! ... for ice multiplication
-                    conc_old = 0.0
-                    conc_new = 0.0
-                    do kr = kr_icempl,nkr
-                        conc_old = conc_old+col*g1(kr)/xl_mg(kr)
-                    end do
-                    rf1 = 1.0
-                    rf4 = 0.0
-                    call coll_xyx_lwf(g4,g1,rf4,rf1,cwgl,xg_mg,xl_mg, &
-                                           chucm,ima,prdkrn1,nkr,1,dm_rime)
-                else
-                    rf1 = 1.0
-                    rf5 = 0.0
-                    rf4 = 0.0
-                    call coll_xyz_lwf(g1,g4,g5,rf1,rf4,rf5,cwlg,xl_mg,xg_mg, &
-                                        chucm,ima,prdkrn1,nkr,0)
-                    ! ... for ice multiplication
-                    conc_old = 0.0
-                    conc_new = 0.0
-                    do kr = kr_icempl,nkr
-                        conc_old = conc_old+col*g1(kr)/xl_mg(kr)
-                    enddo
-                    rf1 = 1.0
-                    rf5 = 0.0
-                    rf4 = 0.0
-                    call coll_xyz_lwf(g4,g1,g5,rf4,rf1,rf5,cwgl,xg_mg,xl_mg, &
-                                    chucm,ima,prdkrn1,nkr,1)
-                end if
-            ! in case icol_graup == 1
-            endif
-
-            if(icol_hail == 1) then
-                ! interactions between drops and hail
-                ! drops - hail = hail
-                ! hail - water = hail
-                rf1 = 1.0
-                rf5 = 0.0
-                call coll_xyy_lwf(g1,g5,rf1,rf5,cwlh,xl_mg,xh_mg, &
-                                  chucm,ima,1.0d0,nkr,0)
-                 ! ... for ice multiplication
-                 conc_old = 0.0
-                 conc_new = 0.0
-                 do kr = kr_icempl,nkr
-                  conc_old = conc_old+col*g1(kr)/xl_mg(kr)
-                 enddo
-                rf1 = 1.0
-                rf5 = 0.0
-                call coll_xyx_lwf(g5,g1,rf5,rf1,cwhl,xh_mg,xl_mg, &
-                                   chucm,ima,1.0d0,nkr,1,dm_rime)
-            ! in case icol_hail == 1
-            endif
-
-            if((icol_graupel == 1 .or. icol_hail == 1) .and. icempl == 1) then
-                if(tt .ge. 265.15 .and. tt .le. tcrit) then
-                ! ... ice-multiplication :
-                    do kr = kr_icempl,nkr
-                       conc_new=conc_new+col*g1(kr)/xl_mg(kr)
-                    enddo
-                    dconc = conc_old-conc_new
-                    if(tt .le. 268.15) then
-                        conc_icempl=dconc*4.e-3*(265.15-tt)/(265.15-268.15)
-                    endif
-                    if(tt .gt. 268.15) then
-                        conc_icempl=dconc*4.e-3*(tcrit-tt)/(tcrit-268.15)
-                    endif
-                    !g2_2(1)=g2_2(1)+conc_icempl*xi2_mg(1)/col
-                     g3(1)=g3(1)+conc_icempl*xs_mg(1)/col ! [KSS] >> FAST-sbm has small snow as IC
-                ! in case t.ge.265.15 :
-                endif
-            ! in case icempl=1
-            endif
-        ! if icol_drop.eq.1
+ 			! ... interactions between drops and snow
+      !       drop - snow = graupel
+      !       snow - drop = snow
+      !     snow - drop = graupel
+      if (icol_snow == 1)then
+        if(hail_opt == 1)then
+          rf1 = 1.0 ; rf3 = 0.0 ; rf5 = 0.0
+          call coll_xyz_lwf(g1,g3,g5,rf1,rf3,rf5,cwls,xl_mg,xs_mg, &
+                              chucm,ima,1.0d0,nkr,0)
+        else
+          rf1 = 1.0 ; rf3 = 0.0 ; rf4 = 0.0
+          call coll_xyz_lwf(g1,g3,g4,rf1,rf3,rf4,cwls,xl_mg,xs_mg, &
+                              chucm,ima,1.0d0,nkr,0)
         endif
+
+        if(alwc < alcr) then
+            rf1 = 1.0 ; rf3 = 0.0
+            call coll_xyx_lwf(g3,g1,rf3,rf1,cwsl,xs_mg,xl_mg, &
+                                chucm,ima,1.0d0,nkr,1,dm_rime)
+        else
+          if(hail_opt == 1)then
+              rf1 = 1.0 ; rf3 = 0.0 ; rf5 = 0.0
+              call coll_xyz_lwf(g3,g1,g5,rf3,rf1,rf5,cwsl,xs_mg,xl_mg, &
+                                chucm,ima,1.0d0,nkr,1)
+          else
+              rf1 = 1.0 ; rf3 = 0.0 ; rf4 = 0.0
+              call coll_xyz_lwf(g3,g1,g4,rf3,rf1,rf4,cwsl,xs_mg,xl_mg, &
+                                chucm,ima,1.0d0,nkr,1)
+          endif
+        endif
+      ! in case : icolxz_snow.ne.0
+      end if
+
+      if (icol_graupel == 1) then
+      ! ... interactions between drops and graupel
+      ! drops - graupel = graupel
+      ! graupel - drops = graupel
+      ! drops - graupel = hail
+      ! graupel - drop = hail
+          if(alwc < alcr_g) then
+              rf1 = 1.0
+              rf4 = 0.0
+              call coll_xyy_lwf(g1,g4,rf1,rf4,cwlg,xl_mg,xg_mg, &
+                                    chucm,ima,prdkrn1,nkr,0)
+              ! ... for ice multiplication
+              conc_old = 0.0
+              conc_new = 0.0
+              do kr = kr_icempl,nkr
+                  conc_old = conc_old+col*g1(kr)/xl_mg(kr)
+              end do
+              rf1 = 1.0
+              rf4 = 0.0
+              call coll_xyx_lwf(g4,g1,rf4,rf1,cwgl,xg_mg,xl_mg, &
+                                      chucm,ima,prdkrn1,nkr,1,dm_rime)
+          else
+              rf1 = 1.0
+              rf5 = 0.0
+              rf4 = 0.0
+              call coll_xyz_lwf(g1,g4,g5,rf1,rf4,rf5,cwlg,xl_mg,xg_mg, &
+                                  chucm,ima,prdkrn1,nkr,0)
+              ! ... for ice multiplication
+              conc_old = 0.0
+              conc_new = 0.0
+              do kr = kr_icempl,nkr
+                  conc_old = conc_old+col*g1(kr)/xl_mg(kr)
+              enddo
+              rf1 = 1.0
+              rf5 = 0.0
+              rf4 = 0.0
+              call coll_xyz_lwf(g4,g1,g5,rf4,rf1,rf5,cwgl,xg_mg,xl_mg, &
+                              chucm,ima,prdkrn1,nkr,1)
+          end if
+      ! in case icol_graup == 1
+      endif
+
+      if(icol_hail == 1) then
+          ! interactions between drops and hail
+          ! drops - hail = hail
+          ! hail - water = hail
+          rf1 = 1.0
+          rf5 = 0.0
+          call coll_xyy_lwf(g1,g5,rf1,rf5,cwlh,xl_mg,xh_mg, &
+                            chucm,ima,1.0d0,nkr,0)
+          ! ... for ice multiplication
+          conc_old = 0.0
+          conc_new = 0.0
+          do kr = kr_icempl,nkr
+          conc_old = conc_old+col*g1(kr)/xl_mg(kr)
+          enddo
+          rf1 = 1.0
+          rf5 = 0.0
+          call coll_xyx_lwf(g5,g1,rf5,rf1,cwhl,xh_mg,xl_mg, &
+                              chucm,ima,1.0d0,nkr,1,dm_rime)
+      ! in case icol_hail == 1
+      endif
+
+      if((icol_graupel == 1 .or. icol_hail == 1) .and. icempl == 1) then
+          if(tt .ge. 265.15 .and. tt .le. tcrit) then
+          ! ... ice-multiplication :
+              do kr = kr_icempl,nkr
+                  conc_new=conc_new+col*g1(kr)/xl_mg(kr)
+              enddo
+              dconc = conc_old-conc_new
+              if(tt .le. 268.15) then
+                  conc_icempl=dconc*4.e-3*(265.15-tt)/(265.15-268.15)
+              endif
+              if(tt .gt. 268.15) then
+                  conc_icempl=dconc*4.e-3*(tcrit-tt)/(tcrit-268.15)
+              endif
+              !g2_2(1)=g2_2(1)+conc_icempl*xi2_mg(1)/col
+                g3(1)=g3(1)+conc_icempl*xs_mg(1)/col ! [KSS] >> FAST-sbm has small snow as IC
+            ! in case t.ge.265.15 :
+          endif
+        ! in case icempl=1
+      endif
+      ! if icol_drop.eq.1
+    endif
 
  		if(icol_snow == 1) then
  		! ... interactions between snowflakes
