@@ -4119,7 +4119,7 @@ end module module_mp_SBM_Auxiliary
  INTEGER,PARAMETER :: ILogNormal_modes_Aerosol = 1, ILogNormal_modes_Aerosol_ACPC = 0, do_case_CLN = 1, do_case_POL = 0
  INTEGER,PARAMETER :: ICCN_reg = 1
  
- REAL,PARAMETER :: DX_BOUND = 99
+ REAL,PARAMETER :: DX_BOUND = 1555
  REAL(kind=r8size), PARAMETER :: SCAL = 1.d0
  INTEGER,PARAMETER :: ICEPROCS = 1
  INTEGER,PARAMETER :: ICETURB = 0, LIQTURB = 0
