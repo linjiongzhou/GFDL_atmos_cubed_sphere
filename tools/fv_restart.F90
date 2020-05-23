@@ -129,7 +129,7 @@ contains
     logical :: do_read_restart_bc = .false.
     integer, allocatable :: ideal_test_case(:), new_nest_topo(:)
 
-    integer :: m, qlr_ind, qis_ind, qg_ind, ccn_ind
+    integer :: m, qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind
     character (len=4) :: ind
 
     rgrav = 1. / grav
@@ -556,11 +556,13 @@ contains
            qlr_ind = get_tracer_index(MODEL_ATMOS, 'qlr_'//trim(ind))
            qis_ind = get_tracer_index(MODEL_ATMOS, 'qis_'//trim(ind))
            qg_ind = get_tracer_index(MODEL_ATMOS, 'qg_'//trim(ind))
-           ccn_ind = get_tracer_index(MODEL_ATMOS, 'ccn_'//trim(ind))
+           qa_ind = get_tracer_index(MODEL_ATMOS, 'qa_'//trim(ind))
+           qn_ind = get_tracer_index(MODEL_ATMOS, 'qn_'//trim(ind))
            Atm(n)%q(isc:iec,jsc:jec,:,qlr_ind) = 0.0
            Atm(n)%q(isc:iec,jsc:jec,:,qis_ind) = 0.0
            Atm(n)%q(isc:iec,jsc:jec,:,qg_ind) = 0.0
-           Atm(n)%q(isc:iec,jsc:jec,:,ccn_ind) = 0.0
+           Atm(n)%q(isc:iec,jsc:jec,:,qa_ind) = 0.0
+           Atm(n)%q(isc:iec,jsc:jec,:,qn_ind) = 0.0
         enddo
      endif
 

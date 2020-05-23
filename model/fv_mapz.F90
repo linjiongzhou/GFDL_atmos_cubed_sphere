@@ -174,7 +174,7 @@ contains
   integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
   integer:: ccn_cm3, cin_cm3
-  integer:: ql_num, qr_num, qi_num, qs_num, qg_num, qa_num
+  integer:: ql_num, qr_num, qi_num, qs_num, qg_num, qa_num, qn_num
 
   ! Linjiong Zhou, FSBM
 
@@ -185,13 +185,14 @@ contains
   real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
   real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
   real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
-  integer, dimension(fsbm_bin) :: qlr_ind, qis_ind, qg_ind, ccn_ind
+  integer, dimension(fsbm_bin) :: qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind
   real, dimension(fsbm_bin) :: f
   real, allocatable, dimension(:,:) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
   real, allocatable, dimension(:,:,:) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
-  real, allocatable, dimension(:,:,:) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna
+  real, allocatable, dimension(:,:,:) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng
+  real, allocatable, dimension(:,:,:) :: sbqna, sbqnn
   real, allocatable, dimension(:,:,:) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
-  real, allocatable, dimension(:,:,:) :: cldnucl_rate, icenucl_rate
+  real, allocatable, dimension(:,:,:) :: cldnucl_rate, icenucl_rate, n_reg_ccn
   real, allocatable, dimension(:,:,:) :: th_old, qv_old
   real, allocatable, dimension(:,:,:) :: pkz0, delz0
   real, allocatable, dimension(:,:,:,:) :: chem_new
@@ -218,6 +219,7 @@ contains
        qs_num = get_tracer_index (MODEL_ATMOS, 'qs_num')
        qg_num = get_tracer_index (MODEL_ATMOS, 'qg_num')
        qa_num = get_tracer_index (MODEL_ATMOS, 'qa_num')
+       qn_num = get_tracer_index (MODEL_ATMOS, 'qn_num')
 
        if ( do_adiabatic_init .or. do_sat_adj ) then
             fast_mp_consv = (.not.do_adiabatic_init) .and. consv>consv_min
@@ -974,22 +976,24 @@ endif        ! end last_step check
             qlr_ind(n) = get_tracer_index(MODEL_ATMOS, 'qlr_'//trim(ind))
             qis_ind(n) = get_tracer_index(MODEL_ATMOS, 'qis_'//trim(ind))
             qg_ind(n) = get_tracer_index(MODEL_ATMOS, 'qg_'//trim(ind))
-            ccn_ind(n) = get_tracer_index(MODEL_ATMOS, 'ccn_'//trim(ind))
+            qa_ind(n) = get_tracer_index(MODEL_ATMOS, 'qa_'//trim(ind))
+            qn_ind(n) = get_tracer_index(MODEL_ATMOS, 'qn_'//trim(ind))
         enddo
         f = f / f_sum
 
-        n_chem = fsbm_bin * 4
+        n_chem = fsbm_bin * 5
         num_sbmradar = 55
 
         allocate(xland(is:ie,js:je), rainnc(is:ie,js:je), rainncv(is:ie,js:je), snownc(is:ie,js:je))
         allocate(snowncv(is:ie,js:je), graupelnc(is:ie,js:je), graupelncv(is:ie,js:je))
-        allocate(ur(is-1:ie+1,km,js-1:je+1), vr(is-1:ie+1,km,js-1:je+1), wr(is-1:ie+1,km,js-1:je+1), dz8w(is-1:ie+1,km,js-1:je+1))
+        allocate(ur(is-1:ie+1,km,js-1:je+1), vr(is-1:ie+1,km,js-1:je+1), wr(is-1:ie+1,km,js-1:je+1))
+		allocate(dz8w(is-1:ie+1,km,js-1:je+1), n_reg_ccn(is:ie,km,js:je))
         allocate(p_phy(is-1:ie+1,km,js-1:je+1), pi_phy(is-1:ie+1,km,js-1:je+1), rho_phy(is-1:ie+1,km,js-1:je+1))
         allocate(th_phy(is-1:ie+1,km,js-1:je+1), sbqv(is-1:ie+1,km,js-1:je+1), sbqc(is:ie,km,js:je))
         allocate(sbqr(is:ie,km,js:je), sbqi(is:ie,km,js:je), sbqs(is:ie,km,js:je))
         allocate(sbqg(is:ie,km,js:je), sbqnc(is:ie,km,js:je), sbqnr(is:ie,km,js:je))
         allocate(sbqni(is:ie,km,js:je), sbqns(is:ie,km,js:je), sbqng(is:ie,km,js:je))
-        allocate(sbqna(is:ie,km,js:je), ma(is:ie,km,js:je), lh_rate(is:ie,km,js:je))
+        allocate(sbqna(is:ie,km,js:je), ma(is:ie,km,js:je), lh_rate(is:ie,km,js:je), sbqnn(is:ie,km,js:je))
         allocate(ce_rate(is:ie,km,js:je), ds_rate(is:ie,km,js:je), melt_rate(is:ie,km,js:je))
         allocate(frz_rate(is:ie,km,js:je), cldnucl_rate(is:ie,km,js:je), icenucl_rate(is:ie,km,js:je))
         allocate(th_old(is-1:ie+1,km,js-1:je+1), qv_old(is-1:ie+1,km,js-1:je+1), chem_new(is:ie,km,js:je,n_chem))
@@ -1041,7 +1045,7 @@ endif        ! end last_step check
 !$OMP parallel do default(none) shared(is,ie,js,je,km,hs,rho_phy,delp,pt,q, &
 !$OMP                                  chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
-!$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,ccn_ind,a_step, &
+!$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,qa_ind,qn_ind,a_step, &
 !$OMP                                  fsbm_bin,r_vir,warm_start,itimestep) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
@@ -1058,13 +1062,15 @@ endif        ! end last_step check
                             chem_new(i,k,j,fsbm_bin*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
                             chem_new(i,k,j,fsbm_bin*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
                             chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,graupel) * f(n)
-                            chem_new(i,k,j,fsbm_bin*3+n) = 1.e8 / rho_phy(i,k,j) * f(n)
+                            chem_new(i,k,j,fsbm_bin*3+n) = 1.e8
+                            chem_new(i,k,j,fsbm_bin*4+n) = 0.0
                         else
                             itimestep = 2
                             chem_new(i,k,j,fsbm_bin*0+n) = q(i,j,km+1-k,qlr_ind(n))
                             chem_new(i,k,j,fsbm_bin*1+n) = q(i,j,km+1-k,qis_ind(n))
                             chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,qg_ind(n))
-                            chem_new(i,k,j,fsbm_bin*3+n) = q(i,j,km+1-k,ccn_ind(n)) 
+                            chem_new(i,k,j,fsbm_bin*3+n) = q(i,j,km+1-k,qa_ind(n)) 
+                            chem_new(i,k,j,fsbm_bin*4+n) = q(i,j,km+1-k,qn_ind(n)) 
                         endif
                     enddo
                     ma(i,k,j) = 0.0
@@ -1123,18 +1129,20 @@ endif        ! end last_step check
 
         call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, itimestep, abs(mdt), fsbm_dx, &
             fsbm_dy, dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, sbqv, sbqc, sbqr, sbqi, &
-            sbqs, sbqg, qv_old, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, 1, npx, 1, npy, &
-            1, km, is, ie, js, je, 1, km, is, ie, js, je, 1, km, diagflag, sbmradar, &
+            sbqs, sbqg, qv_old, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, sbqnn, 1, npx, &
+            1, npy, 1, km, is, ie, js, je, 1, km, is, ie, js, je, 1, km, diagflag, sbmradar, &
             num_sbmradar, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv, ma, &
-            lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, cldnucl_rate, icenucl_rate)
+            lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, cldnucl_rate, icenucl_rate, &
+            n_reg_ccn)
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,inline_mp,do_inline_mp,rainncv,snowncv, &
 !$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &
 !$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
 !$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
-!$OMP                                  consv,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind, ccn_ind, &
+!$OMP                                  consv,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind,qa_ind,qn_ind,&
 !$OMP                                  chem_new,fsbm_bin,te0_2d,ql_num,qr_num,qi_num,qs_num, &
-!$OMP                                  qg_num,qa_num,sbqnc,sbqnr,sbqni,sbqns,sbqng,sbqna) &
+!$OMP                                  qg_num,qa_num,qn_num,sbqnc,sbqnr,sbqni,sbqns,sbqng,&
+!$OMP                                  sbqna,sbqnn) &
 !$OMP                          private(qliq,qsol,cvm,dqv,dql,dqr,dqi,dqs,dqg,rh,qsat,ps_dt)
         do j = js, je
             do i = is, ie
@@ -1163,14 +1171,16 @@ endif        ! end last_step check
                     q(i,j,k,qs_num) = sbqns(i,km+1-k,j) / ps_dt
                     q(i,j,k,qg_num) = sbqng(i,km+1-k,j) / ps_dt
                     q(i,j,k,qa_num) = sbqna(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qn_num) = sbqnn(i,km+1-k,j) / ps_dt
                     pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
                     q_old(i,j,k) = qv_old(i,km+1-k,j)
                     do n = 1, fsbm_bin
                         q(i,j,k,qlr_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*0+n)
                         q(i,j,k,qis_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*1+n)
-                        q(i,j,k,qg_ind(n))  = chem_new(i,km+1-k,j,fsbm_bin*2+n)
-                        q(i,j,k,ccn_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*3+n)
+                        q(i,j,k,qg_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*2+n)
+                        q(i,j,k,qa_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*3+n)
+                        q(i,j,k,qn_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*4+n)
                     enddo
 
                     qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
@@ -1237,9 +1247,9 @@ endif        ! end last_step check
   
         deallocate(xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv)
         deallocate(ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy)
-        deallocate(sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna)
+        deallocate(sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, sbqnn)
         deallocate(ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate)
-        deallocate(cldnucl_rate, icenucl_rate)
+        deallocate(cldnucl_rate, icenucl_rate, n_reg_ccn)
         deallocate(th_old, qv_old)
         deallocate(pkz0, delz0)
         deallocate(chem_new)
