@@ -381,7 +381,7 @@ subroutine gfdl_cld_mp_driver (qv, ql, qr, qi, qs, qg, qa, qnl, qni, &
     real, intent (inout), dimension (is:ie, ks:ke) :: delp
     real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa
     real, intent (inout), dimension (is:ie, ks:ke) :: pt, ua, va, w
-    real, intent (inout), dimension (is:ie, ks:ke) :: q_con, cappa
+    real, intent (inout), dimension (is:, ks:) :: q_con, cappa
     real, intent (inout), dimension (is:ie) :: rain, snow, ice, graupel
     real, intent (inout), dimension (is:ie) :: condensation, deposition
     real, intent (inout), dimension (is:ie) :: evaporation, sublimation
@@ -486,7 +486,7 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
     real, intent (inout), dimension (is:ie, ks:ke) :: delp
     real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa
     real, intent (inout), dimension (is:ie, ks:ke) :: pt, ua, va, w
-    real, intent (inout), dimension (is:ie, ks:ke) :: q_con, cappa
+    real, intent (inout), dimension (is:, ks:) :: q_con, cappa
     real, intent (inout), dimension (is:ie) :: rain, snow, ice, graupel
     real, intent (inout), dimension (is:ie) :: condensation, deposition
     real, intent (inout), dimension (is:ie) :: evaporation, sublimation
@@ -517,7 +517,7 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
     real (kind = r_grid), dimension (ks:ke) :: dp0, tz, cvm
     real (kind = r_grid) :: con_r8, c8
     real :: convt
-    real :: dts
+    real :: dts, q_cond
     real :: cond, dep, reevap, sub
     
     integer :: i, k, n
@@ -562,7 +562,11 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
                 cvm (k) = c_air * (1.0 - qv (i, k) - q_liq (k) - q_sol (k)) + &
                     qv (i, k) * c_vap + q_liq (k) * c_liq + q_sol (k) * c_ice
                 te_beg_0 (i, k) = cvm (k) * tz (k) + lv00 * c_air * qv (i, k) - li00 * c_air * q_sol (k)
-                te_beg_0 (i, k) = te_beg_0 (i, k) + 0.5 * (ua (i, k) ** 2 + va (i, k) ** 2 + w (i, k) ** 2)
+                if (hydrostatic) then
+                    te_beg_0 (i, k) = te_beg_0 (i, k) + 0.5 * (ua (i, k) ** 2 + va (i, k) ** 2)
+                else
+                    te_beg_0 (i, k) = te_beg_0 (i, k) + 0.5 * (ua (i, k) ** 2 + va (i, k) ** 2 + w (i, k) ** 2)
+                endif
                 te_beg_0 (i, k) = rgrav * te_beg_0 (i, k) * delp (i, k) * gsize (i) ** 2.0
                 tw_beg_0 (i, k) = rgrav * (qv (i, k) + q_liq (k) + q_sol (k)) * delp (i, k) * gsize (i) ** 2.0
             enddo
@@ -584,10 +588,10 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
             ! save moist ratios for te:
             q_liq (k) = qlz (k) + qrz (k)
             q_sol (k) = qiz (k) + qsz (k) + qgz (k)
-            q_con (i, k) = q_liq (k) + q_sol (k)
+            q_cond = q_liq (k) + q_sol (k)
             qaz (k) = 0.
             dz1 (k) = dz (i, k)
-            con_r8 = one_r8 - (qvz (k) + q_con (i, k))
+            con_r8 = one_r8 - (qvz (k) + q_cond)
             ! dp1 is dry mass (no change during mp)
             dp1 (k) = dp0 (k) * con_r8
             con_r8 = one_r8 / con_r8
@@ -608,7 +612,9 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
             m1 (k) = 0.
             u0 (k) = ua (i, k)
             v0 (k) = va (i, k)
-            w1 (k) = w (i, k)
+            if (.not. hydrostatic) then
+                w1 (k) = w (i, k)
+            endif
             u1 (k) = u0 (k)
             v1 (k) = v0 (k)
             denfac (k) = sqrt (sfcrho / den (k))
@@ -628,8 +634,8 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
 #ifdef MOIST_CAPPA
                     q_liq (k) = ql (i, k) + qr (i, k)
                     q_sol (k) = qi (i, k) + qs (i, k) + qg (i, k)
-                    q_con (i, k) = q_liq (k) + q_sol (k)
-                    cvm (k) = (one_r8 - (qv (i, k) + q_con (i, k))) * c_air + &
+                    q_cond = q_liq (k) + q_sol (k)
+                    cvm (k) = (one_r8 - (qv (i, k) + q_cond)) * c_air + &
                         qv (i, k) * c_vap + q_liq (k) * c_liq + q_sol (k) * c_ice
                     te (i, k) = - cvm (k) * tz (k) * delp (i, k)
 #else
@@ -649,7 +655,11 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
                 q_sol (k) = qiz (k) + qsz (k) + qgz (k)
                 cvm (k) = c_air + qvz (k) * c_vap + q_liq (k) * c_liq + q_sol (k) * c_ice
                 te_beg (i, k) = cvm (k) * tz (k) + lv00 * c_air * qvz (k) - li00 * c_air * q_sol (k)
-                te_beg (i, k) = te_beg (i, k) + 0.5 * (u1 (k) ** 2 + v1 (k) ** 2 + w1 (k) ** 2)
+                if (hydrostatic) then
+                    te_beg (i, k) = te_beg (i, k) + 0.5 * (u1 (k) ** 2 + v1 (k) ** 2)
+                else
+                    te_beg (i, k) = te_beg (i, k) + 0.5 * (u1 (k) ** 2 + v1 (k) ** 2 + w1 (k) ** 2)
+                endif
                 te_beg (i, k) = rgrav * te_beg (i, k) * dp1 (k) * gsize (i) ** 2.0
                 tw_beg (i, k) = rgrav * (qvz (k) + q_liq (k) + q_sol (k)) * dp1 (k) * gsize (i) ** 2.0
             enddo
@@ -863,7 +873,11 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
                 q_sol (k) = qiz (k) + qsz (k) + qgz (k)
                 cvm (k) = c_air + qvz (k) * c_vap + q_liq (k) * c_liq + q_sol (k) * c_ice
                 te_end (i, k) = cvm (k) * tz (k) + lv00 * c_air * qvz (k) - li00 * c_air * q_sol (k)
-                te_end (i, k) = te_end (i, k) + 0.5 * (u1 (k) ** 2 + v1 (k) ** 2 + w1 (k) ** 2)
+                if (hydrostatic) then
+                    te_end (i, k) = te_end (i, k) + 0.5 * (u1 (k) ** 2 + v1 (k) ** 2)
+                else
+                    te_end (i, k) = te_end (i, k) + 0.5 * (u1 (k) ** 2 + v1 (k) ** 2 + w1 (k) ** 2)
+                endif
                 te_end (i, k) = rgrav * te_end (i, k) * dp1 (k) * gsize (i) ** 2.0
                 tw_end (i, k) = rgrav * (qvz (k) + q_liq (k) + q_sol (k)) * dp1 (k) * gsize (i) ** 2.0
             enddo
@@ -899,13 +913,16 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
             qg (i, k) = qgz (k)
             q_liq (k) = qlz (k) + qrz (k)
             q_sol (k) = qiz (k) + qsz (k) + qgz (k)
-            q_con (i, k) = q_liq (k) + q_sol (k)
-            cvm (k) = (one_r8 - (qvz (k) + q_con (i, k))) * c_air + qvz (k) * c_vap + q_liq (k) * c_liq + q_sol (k) * c_ice
+            q_cond = q_liq (k) + q_sol (k)
+            cvm (k) = (one_r8 - (qvz (k) + q_cond)) * c_air + qvz (k) * c_vap + q_liq (k) * c_liq + q_sol (k) * c_ice
+#ifdef MOIST_CAPPA
+            q_con (i, k) = q_cond
             tmp = rdgas * (1. + zvir * qvz (k))
             cappa (i, k) = tmp / (tmp + cvm (k))
+#endif
             if (do_inline_mp) then
 #ifdef MOIST_CAPPA
-                pt (i, k) = tz (k) * (1. + zvir * qvz (k)) * (1. - q_con (i, k))
+                pt (i, k) = tz (k) * (1. + zvir * qvz (k)) * (1. - q_cond)
 #else
                 pt (i, k) = tz (k) * (1. + zvir * qvz (k))
 #endif
