@@ -161,6 +161,7 @@ contains
 ! SJL 03.11.04: Initial version for partial remapping
 !
 !-----------------------------------------------------------------------
+  real, allocatable, dimension(:,:) :: dz, wa
   real, allocatable, dimension(:,:,:) :: dp0, u0, v0
   real, allocatable, dimension(:,:,:) :: u_dt, v_dt
   real, dimension(is:ie,js:je):: te_2d, zsum0, zsum1, dpln
@@ -700,7 +701,7 @@ if( last_step .and. (.not.do_adiabatic_init)  ) then
            enddo
 
            do k=1,km
-#ifdef MOIST_CAPPA
+#ifdef USE_COND
               call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
                             ice_wat, snowwat, graupel, q, gz, cvm)
               do i=is,ie
@@ -783,10 +784,12 @@ endif        ! end last_step check
   if (do_adiabatic_init .or. do_sat_adj) then
                                            call timing_on('sat_adj2')
 
+           allocate(dz(is:ie,js:je))
+
 !$OMP parallel do default(none) shared(is,ie,js,je,km,kmp,isd,jsd,te,delp,hydrostatic,hs,pt,peln, &
 !$OMP                                  delz,rainwat,liq_wat,ice_wat,snowwat,graupel,q_con,r_vir, &
 !$OMP                                  sphum,pkz,last_step,ng,gridstruct,q,mdt,cld_amt,cappa,dtdt, &
-!$OMP                                  out_dt,rrg,akap,fast_mp_consv,aerosol) &
+!$OMP                                  out_dt,rrg,akap,fast_mp_consv,dz,aerosol) &
 !$OMP                          private(qnl,qni,dpln)
            do k=kmp,km
               do j=js,je
@@ -798,15 +801,28 @@ endif        ! end last_step check
                        qnl(i,j,k) = 0.0
                     endif
                     qni(i,j,k) = 0.0
+                    if (.not. hydrostatic) then
+                       dz(i,j) = delz(i,j,k)
+                    endif
                  enddo
               enddo
               call fast_sat_adj(abs(mdt), is, ie, js, je, ng, hydrostatic, fast_mp_consv, &
                              te(isd,jsd,k), q(isd,jsd,k,sphum), q(isd,jsd,k,liq_wat),   &
                              q(isd,jsd,k,ice_wat), q(isd,jsd,k,rainwat),    &
                              q(isd,jsd,k,snowwat), q(isd,jsd,k,graupel), q(isd,jsd,k,cld_amt), &
-                             qnl(isd,jsd,k), qni(isd,jsd,k), hs ,dpln, delz(is:ie,js:je,k), &
-                             pt(isd,jsd,k), delp(isd,jsd,k), q_con(isd:,jsd:,k), & ! TEMPORARY
-                             cappa(isd:,jsd:,k), sqrt(gridstruct%area_64(is:ie,js:je)), &
+                             qnl(isd,jsd,k), qni(isd,jsd,k), hs ,dpln, dz(is:ie,js:je), &
+                             pt(isd,jsd,k), delp(isd,jsd,k), &
+#ifdef USE_COND
+                             q_con(isd:,jsd:,k), &
+#else
+                             q_con(isd:,jsd:,1), &
+#endif
+#ifdef MOIST_CAPPA
+                             cappa(isd:,jsd:,k), &
+#else
+                             cappa(isd:,jsd:,1), &
+#endif
+                             sqrt(gridstruct%area_64(is:ie,js:je)), &
                              dtdt(is,js,k), out_dt, last_step)
               if ( .not. hydrostatic  ) then
                  do j=js,je
@@ -820,6 +836,8 @@ endif        ! end last_step check
                  enddo
               endif
            enddo    ! OpenMP k-loop
+
+           deallocate(dz)
 
            if ( fast_mp_consv ) then
 !$OMP parallel do default(none) shared(is,ie,js,je,km,kmp,te,te0_2d)
@@ -841,6 +859,9 @@ endif        ! end last_step check
 
   if ((.not. do_adiabatic_init) .and. do_inline_mp .and. (.not. do_fsbm)) then
 
+    allocate(dz(is:ie,km))
+    allocate(wa(is:ie,km))
+
 !$OMP parallel do default(none) shared(is,ie,js,je,km,pe,ua,va, &
 !$OMP                                  te,delp,hydrostatic,hs,pt,peln, &
 !$OMP                                  delz,rainwat,liq_wat,ice_wat,snowwat, &
@@ -849,7 +870,7 @@ endif        ! end last_step check
 !$OMP                                  gridstruct,q,aerosol, &
 !$OMP                                  mdt,cld_amt,cappa,rrg,akap, &
 !$OMP                                  ccn_cm3,cin_cm3,inline_mp, &
-!$OMP                                  do_inline_mp,ps) &
+!$OMP                                  do_inline_mp,ps,dz,wa) &
 !$OMP                          private(u_dt,v_dt,q2,q3,gsize,dp2,t0)
     do j = js, je
 
@@ -896,19 +917,40 @@ endif        ! end last_step check
         if (allocated(inline_mp%u_dt)) inline_mp%u_dt(is:ie,j,:) = inline_mp%u_dt(is:ie,j,:) - ua(is:ie,j,:)
         if (allocated(inline_mp%v_dt)) inline_mp%v_dt(is:ie,j,:) = inline_mp%v_dt(is:ie,j,:) - va(is:ie,j,:)
 
+        if (.not. hydrostatic) then
+            wa(is:ie,:) = w(is:ie,j,:)
+            dz(is:ie,:) = delz(is:ie,j,:)
+        else
+            dz(is:ie,:) = (peln(is:je,1:km,j) - peln(is:ie,2:km+1,j)) * rdgas * pt(is:ie,j,:) / grav
+        endif
+
 #ifndef DYCORE_SOLO
         call gfdl_mp_driver(q(is:ie,j,:,sphum), q(is:ie,j,:,liq_wat), &
                        q(is:ie,j,:,rainwat), q(is:ie,j,:,ice_wat), q(is:ie,j,:,snowwat), &
                        q(is:ie,j,:,graupel), q(is:ie,j,:,cld_amt), q2(is:ie,:), q3(is:ie,:),  &
-                       pt(is:ie,j,:), w(is:ie,j,:), ua(is:ie,j,:), va(is:ie,j,:), &
-                       delz(is:ie,j,:), delp(is:ie,j,:), gsize, abs(mdt), &
+                       pt(is:ie,j,:), wa(is:ie,:), ua(is:ie,j,:), va(is:ie,j,:), &
+                       dz(is:ie,:), delp(is:ie,j,:), gsize, abs(mdt), &
                        hs(is:ie,j), inline_mp%prer(is:ie,j), inline_mp%pres(is:ie,j), &
-                       inline_mp%prei(is:ie,j), inline_mp%preg(is:ie,j), &
-                       hydrostatic, &
-                       is, ie, 1, km, q_con(is:ie,j,:), cappa(is:ie,j,:), consv>consv_min, &
+                       inline_mp%prei(is:ie,j), inline_mp%preg(is:ie,j), hydrostatic, &
+                       is, ie, 1, km, &
+#ifdef USE_COND
+                       q_con(is:ie,j,:), &
+#else
+                       q_con(is:,js,1:), &
+#endif
+#ifdef MOIST_CAPPA
+                       cappa(is:ie,j,:), &
+#else
+                       cappa(is:,js,1:), &
+#endif
+                       consv>consv_min, &
                        te(is:ie,j,:), inline_mp%cond(is:ie,j), inline_mp%dep(is:ie,j), &
                        inline_mp%reevap(is:ie,j), inline_mp%sub(is:ie,j), last_step, do_inline_mp)
 #endif
+
+        if (.not. hydrostatic) then
+            w(is:ie,j,:) = wa(is:ie,:)
+        endif
 
         ! compute wind tendency at A grid fori D grid wind update
         u_dt(is:ie,j,:) = (ua(is:ie,j,:) - u_dt(is:ie,j,:)) / abs(mdt)
@@ -953,6 +995,9 @@ endif        ! end last_step check
         endif
 
     enddo
+
+    deallocate(dz)
+    deallocate(wa)
 
   endif
 

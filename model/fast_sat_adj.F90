@@ -74,7 +74,7 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
     
     real, intent (in), dimension (is - ng:ie + ng, js - ng:je + ng) :: delp, hs
     real, intent (in), dimension (is:ie, js:je) :: dpln
-    real, intent (in), dimension (is:, js:) :: delz
+    real, intent (in), dimension (is:ie, js:je) :: delz
     
     real (kind = r_grid), intent (in), dimension (is:ie, js:je) :: gsize
     
@@ -148,7 +148,7 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
             q_liq (i) = ql (i, j) + qr (i, j)
             q_sol (i) = qi (i, j) + qs (i, j) + qg (i, j)
             qpz (i) = q_liq (i) + q_sol (i)
-#ifdef USE_COND
+#ifdef MOIST_CAPPA
             pt1 (i) = pt (i, j) / ((1 + zvir * qv (i, j)) * (1 - qpz (i)))
 #else
             pt1 (i) = pt (i, j) / (1 + zvir * qv (i, j))
@@ -218,7 +218,7 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
                 enddo
             else
                 do i = is, ie
-#ifdef USE_COND
+#ifdef MOIST_CAPPA
                     te (i, j) = - cvm (i) * t0 (i)
 #else
                     te (i, j) = - c_air * t0 (i)
@@ -642,7 +642,7 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
         ! -----------------------------------------------------------------------
         
         do i = is, ie
-#ifdef USE_COND
+#ifdef MOIST_CAPPA
             q_con (i, j) = q_liq (i) + q_sol (i)
             tmp = 1. + zvir * qv (i, j)
             pt (i, j) = pt1 (i) * tmp * (1. - q_con (i, j))
@@ -668,7 +668,7 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
                 if (hydrostatic) then
                     te (i, j) = delp (i, j) * (te (i, j) + c_air * pt1 (i))
                 else
-#ifdef USE_COND
+#ifdef MOIST_CAPPA
                     te (i, j) = delp (i, j) * (te (i, j) + cvm (i) * pt1 (i))
 #else
                     te (i, j) = delp (i, j) * (te (i, j) + c_air * pt1 (i))
