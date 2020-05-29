@@ -6785,7 +6785,7 @@ end subroutine terminator_tracers
         pturb = dt_amp
         r0 = 10.e3
         zc = 1.4e3         ! center of bubble  from surface
-        icenter = (npx-1)/4 + 1
+        icenter = (npx-1)/2 + 1
         jcenter = (npy-1)/2 + 1
         do k=1, npz
            zm = 0.5*(ze1(k)+ze1(k+1))
@@ -6813,7 +6813,7 @@ end subroutine terminator_tracers
         pturb = dt_amp
         r0 = 10.e3
         zc = 1.4e3         ! center of bubble  from surface
-        icenter = (npx-1)/4 + 1
+        icenter = (npx-1)/2 + 1
         jcenter = (npy-1)/2 + 1
         do k=1, npz
            zm = 0.5*(ze1(k)+ze1(k+1))
