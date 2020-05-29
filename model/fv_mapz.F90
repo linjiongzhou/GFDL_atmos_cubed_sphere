@@ -195,7 +195,7 @@ contains
   real, allocatable, dimension(:,:,:) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
   real, allocatable, dimension(:,:,:) :: cldnucl_rate, icenucl_rate, n_reg_ccn
   real, allocatable, dimension(:,:,:) :: th_old, qv_old
-  real, allocatable, dimension(:,:,:) :: pkz0, delz0
+  real, allocatable, dimension(:,:,:) :: pkz0, delz0, dlnp
   real, allocatable, dimension(:,:,:,:) :: chem_new
   real, allocatable, dimension(:,:,:,:) :: sbmradar
   character(len=4) :: ind
@@ -1032,7 +1032,7 @@ endif        ! end last_step check
         allocate(xland(is:ie,js:je), rainnc(is:ie,js:je), rainncv(is:ie,js:je), snownc(is:ie,js:je))
         allocate(snowncv(is:ie,js:je), graupelnc(is:ie,js:je), graupelncv(is:ie,js:je))
         allocate(ur(is-1:ie+1,km,js-1:je+1), vr(is-1:ie+1,km,js-1:je+1), wr(is-1:ie+1,km,js-1:je+1))
-		allocate(dz8w(is-1:ie+1,km,js-1:je+1), n_reg_ccn(is:ie,km,js:je))
+        allocate(dz8w(is-1:ie+1,km,js-1:je+1), n_reg_ccn(is:ie,km,js:je))
         allocate(p_phy(is-1:ie+1,km,js-1:je+1), pi_phy(is-1:ie+1,km,js-1:je+1), rho_phy(is-1:ie+1,km,js-1:je+1))
         allocate(th_phy(is-1:ie+1,km,js-1:je+1), sbqv(is-1:ie+1,km,js-1:je+1), sbqc(is:ie,km,js:je))
         allocate(sbqr(is:ie,km,js:je), sbqi(is:ie,km,js:je), sbqs(is:ie,km,js:je))
@@ -1042,15 +1042,19 @@ endif        ! end last_step check
         allocate(ce_rate(is:ie,km,js:je), ds_rate(is:ie,km,js:je), melt_rate(is:ie,km,js:je))
         allocate(frz_rate(is:ie,km,js:je), cldnucl_rate(is:ie,km,js:je), icenucl_rate(is:ie,km,js:je))
         allocate(th_old(is-1:ie+1,km,js-1:je+1), qv_old(is-1:ie+1,km,js-1:je+1), chem_new(is:ie,km,js:je,n_chem))
-        allocate(pkz0(is-ng:ie+ng,js-ng:je+ng,km), delz0(is-ng:ie+ng,js-ng:je+ng,km))
+        allocate(pkz0(is-ng:ie+ng,js-ng:je+ng,km), delz0(is-ng:ie+ng,js-ng:je+ng,km), dlnp(is-ng:ie+ng,js-ng:je+ng,km))
         allocate(sbmradar(is:ie,km,js:je,num_sbmradar))
 
-!$OMP parallel do default(none) shared(is,ie,js,je,km,pkz,pkz0,delz,delz0)
+!$OMP parallel do default(none) shared(is,ie,js,je,km,pkz,pkz0,delz,delz0,dlnp,peln,hydrostatic)
         do j = js, je
             do i = is, ie
                 do k = 1, km
                     pkz0(i,j,k) = pkz(i,j,k)
-                    delz0(i,j,k) = delz(i,j,k)
+                    if (hydrostatic) then
+                        dlnp(i,j,k) = peln(i,k+1,j) - peln(i,k,j)
+                    else
+                        delz0(i,j,k) = delz(i,j,k)
+                    endif
                 enddo
             enddo
         enddo
@@ -1058,26 +1062,37 @@ endif        ! end last_step check
         call mpp_update_domains(pt, domain)
         call mpp_update_domains(ua, domain)
         call mpp_update_domains(va, domain)
-        call mpp_update_domains(w, domain)
         call mpp_update_domains(q(:,:,:,sphum), domain)
         call mpp_update_domains(delp, domain)
-        call mpp_update_domains(delz0, domain)
+        if (hydrostatic) then
+            call mpp_update_domains(dlnp, domain)
+        else
+            call mpp_update_domains(w, domain)
+            call mpp_update_domains(delz0, domain)
+        endif
         call mpp_update_domains(pkz0, domain)
         call mpp_update_domains(pt_old, domain)
         call mpp_update_domains(q_old, domain)
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,ua,va,w,ur,vr,wr,dz8w,delz0,rho_phy,delp, &
 !$OMP                                  p_phy,pt,pi_phy,pkz0,th_phy,pt_old,th_old,q_old,qv_old, &
-!$OMP                                  sbqv,q,sphum)
+!$OMP                                  sbqv,q,sphum,dlnp,hydrostatic,omga)
         do j = js-1, je+1
             do i = is-1, ie+1
                 do k = 1, km
                     ur(i,k,j) = ua(i,j,km+1-k)
                     vr(i,k,j) = va(i,j,km+1-k)
-                    wr(i,k,j) = w(i,j,km+1-k)
-                    dz8w(i,k,j) = - delz0(i,j,km+1-k)
-                    rho_phy(i,k,j) = - delp(i,j,km+1-k) / delz0(i,j,km+1-k) / grav
-                    p_phy(i,k,j) = rho_phy(i,k,j) * rdgas * pt(i,j,km+1-k)
+                    if (hydrostatic) then
+                        p_phy(i,k,j) = delp(i,j,km+1-k) / dlnp(i,j,km+1-k)
+                        rho_phy(i,k,j) = p_phy(i,k,j) / (rdgas * pt(i,j,km+1-k))
+                        dz8w(i,k,j) = delp(i,j,km+1-k) / (rho_phy(i,k,j) * grav)
+                        wr(i,k,j) = - omga(i,j,km+1-k) * dz8w(i,k,j) / delp(i,j,km+1-k)
+                    else
+                        dz8w(i,k,j) = - delz0(i,j,km+1-k)
+                        rho_phy(i,k,j) = - delp(i,j,km+1-k) / delz0(i,j,km+1-k) / grav
+                        p_phy(i,k,j) = rho_phy(i,k,j) * rdgas * pt(i,j,km+1-k)
+                        wr(i,k,j) = w(i,j,km+1-k)
+                    endif
                     pi_phy(i,k,j) = pkz0(i,j,km+1-k)
                     th_phy(i,k,j) = pt(i,j,km+1-k) / pi_phy(i,k,j)
                     th_old(i,k,j) = pt_old(i,j,km+1-k) / pi_phy(i,k,j)
@@ -1168,7 +1183,7 @@ endif        ! end last_step check
                     if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(i,j,k) = inline_mp%qs_dt(i,j,k) - q(i,j,k,snowwat)
                     if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(i,j,k) = inline_mp%qg_dt(i,j,k) - q(i,j,k,graupel)
                     if (allocated(inline_mp%t_dt)) inline_mp%t_dt(i,j,k) = inline_mp%t_dt(i,j,k) - pt(i,j,k)
-            	enddo
+                enddo
             enddo
         enddo
 
@@ -1243,8 +1258,12 @@ endif        ! end last_step check
                     endif
                     cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
                         q(i,j,k,sphum) * cv_vap + qliq * c_liq + qsol * c_ice
+#ifdef USE_COND
                     q_con(i,j,k) = qliq + qsol
+#endif
+#ifdef MOIST_CAPPA
                     cappa(i,j,k) = rdgas / (rdgas + cvm(i) / (1. + r_vir * q(i,j,k,sphum)))
+#endif
                     delp(i,j,k) = delp(i,j,k) * ps_dt
                     if (consv .gt. consv_min) then
                         te(i,j,k) = te(i,j,k) + cvm(i) * pt(i,j,k) / ((1. + r_vir * q(i,j,k,sphum)) * &
@@ -1268,7 +1287,7 @@ endif        ! end last_step check
                     if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(i,j,k) = inline_mp%qs_dt(i,j,k) + q(i,j,k,snowwat)
                     if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(i,j,k) = inline_mp%qg_dt(i,j,k) + q(i,j,k,graupel)
                     if (allocated(inline_mp%t_dt)) inline_mp%t_dt(i,j,k) = inline_mp%t_dt(i,j,k) + pt(i,j,k)
-            	enddo
+                enddo
             enddo
         enddo
 
@@ -1296,7 +1315,7 @@ endif        ! end last_step check
         deallocate(ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate)
         deallocate(cldnucl_rate, icenucl_rate, n_reg_ccn)
         deallocate(th_old, qv_old)
-        deallocate(pkz0, delz0)
+        deallocate(pkz0, delz0, dlnp)
         deallocate(chem_new)
         deallocate(sbmradar)
 
