@@ -52,6 +52,7 @@ module cld_eff_rad_mod
     real :: resmin = 0.0, resmax = 10000.0
     real :: regmin = 0.0, regmax = 10000.0
 #endif
+    ! rewmax = 15.0, rermin = 15.0 ! Kokhanovsky 2004
     
     real :: betaw = 1.0
     real :: betai = 1.0
