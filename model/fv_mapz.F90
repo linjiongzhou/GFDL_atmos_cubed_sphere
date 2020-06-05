@@ -789,8 +789,8 @@ endif        ! end last_step check
 !$OMP parallel do default(none) shared(is,ie,js,je,km,kmp,isd,jsd,te,delp,hydrostatic,hs,pt,peln, &
 !$OMP                                  delz,rainwat,liq_wat,ice_wat,snowwat,graupel,q_con,r_vir, &
 !$OMP                                  sphum,pkz,last_step,ng,gridstruct,q,mdt,cld_amt,cappa,dtdt, &
-!$OMP                                  out_dt,rrg,akap,fast_mp_consv,dz,aerosol) &
-!$OMP                          private(qnl,qni,dpln)
+!$OMP                                  out_dt,rrg,akap,fast_mp_consv,aerosol) &
+!$OMP                          private(qnl,qni,dpln,dz)
            do k=kmp,km
               do j=js,je
                  do i=is,ie
@@ -862,7 +862,7 @@ endif        ! end last_step check
     allocate(dz(is:ie,km))
     allocate(wa(is:ie,km))
 
-!$OMP parallel do default(none) shared(is,ie,js,je,km,pe,ua,va, &
+!$OMP parallel do default(none) shared(is,ie,js,je,isd,jsd,km,pe,ua,va, &
 !$OMP                                  te,delp,hydrostatic,hs,pt,peln, &
 !$OMP                                  delz,rainwat,liq_wat,ice_wat,snowwat, &
 !$OMP                                  graupel,q_con,sphum,w,pk,pkz,last_step,consv, &
@@ -870,8 +870,8 @@ endif        ! end last_step check
 !$OMP                                  gridstruct,q,aerosol, &
 !$OMP                                  mdt,cld_amt,cappa,rrg,akap, &
 !$OMP                                  ccn_cm3,cin_cm3,inline_mp, &
-!$OMP                                  do_inline_mp,ps,dz,wa) &
-!$OMP                          private(u_dt,v_dt,q2,q3,gsize,dp2,t0)
+!$OMP                                  do_inline_mp,ps) &
+!$OMP                          private(u_dt,v_dt,q2,q3,gsize,dp2,t0,dz,wa)
     do j = js, je
 
         gsize(is:ie) = sqrt(gridstruct%area_64(is:ie,j))
@@ -936,12 +936,12 @@ endif        ! end last_step check
 #ifdef USE_COND
                        q_con(is:ie,j,:), &
 #else
-                       q_con(is:,js,1:), &
+                       q_con(isd:,jsd,1:), &
 #endif
 #ifdef MOIST_CAPPA
                        cappa(is:ie,j,:), &
 #else
-                       cappa(is:,js,1:), &
+                       cappa(isd:,jsd,1:), &
 #endif
                        consv>consv_min, &
                        te(is:ie,j,:), inline_mp%cond(is:ie,j), inline_mp%dep(is:ie,j), &
