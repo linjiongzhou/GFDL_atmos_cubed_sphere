@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 module atmosphere_mod
 #include <fms_platform.h>
 
@@ -1247,7 +1246,7 @@ contains
     endif
     if (do_uni_zfull) then
        do k=1,npz
-       	  z_full(:,:,k)=0.5*(z_half(:,:,k)+z_half(:,:,k+1))
+          z_full(:,:,k)=0.5*(z_half(:,:,k)+z_half(:,:,k+1))
        enddo
     endif
   end subroutine fv_compute_p_z

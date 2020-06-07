@@ -226,7 +226,7 @@ module fv_update_phys_mod
     if (allocated(phys_diag%phys_t_dt)) phys_diag%phys_t_dt = pt(is:ie,js:je,:)
     if (present(q_dt)) then
        if (allocated(phys_diag%phys_qv_dt)) phys_diag%phys_qv_dt = q(is:ie,js:je,:,sphum)
-	
+
        if (allocated(phys_diag%phys_ql_dt)) then
           if (liq_wat < 0) call mpp_error(FATAL, " phys_ql_dt needs at least one liquid water tracer defined")
           phys_diag%phys_ql_dt = q(is:ie,js:je,:,liq_wat)
@@ -242,11 +242,11 @@ module fv_update_phys_mod
           if (snowwat > 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,snowwat) + phys_diag%phys_qi_dt
           if (graupel > 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,graupel) + phys_diag%phys_qi_dt
        endif
-       
+
        if (liq_wat > 0) then
           if (allocated(phys_diag%phys_liq_wat_dt)) phys_diag%phys_liq_wat_dt = q(is:ie,js:je,:,liq_wat)
        endif
-       
+
        if (rainwat > 0) then
           if (allocated(phys_diag%phys_qr_dt)) phys_diag%phys_qr_dt = q(is:ie,js:je,:,rainwat)
        endif
@@ -254,7 +254,7 @@ module fv_update_phys_mod
        if (ice_wat > 0) then
           if (allocated(phys_diag%phys_ice_wat_dt)) phys_diag%phys_ice_wat_dt = q(is:ie,js:je,:,ice_wat)
        endif
-       
+
        if (graupel > 0) then
           if (allocated(phys_diag%phys_qg_dt)) phys_diag%phys_qg_dt = q(is:ie,js:je,:,graupel)
        endif
@@ -404,9 +404,11 @@ module fv_update_phys_mod
                      delz(i,j,k) = delz(i,j,k) - delp(i,j,k)*dim(tbad, tmax)*cvm(i) / (grav*(pe(i,k+1,j)-ptop))
                      pt(i,j,k) = min(tmax, tbad)
                      !!! DEBUG CODE
+#ifdef TEST_LMH
                      if (tbad > tmax) then
                         print*, ' fv_update_phys: Limited temp', i, j, k, mpp_pe(), gridstruct%agrid(i,j,:)*180./pi, tbad, pt(i,j,k), delz(i,j,k)
                      endif
+#endif
                      !!! END DEBUG CODE
 !-- Limiter (sjl): ---------------------------------------------------------------------------------------------------
                   enddo
@@ -436,7 +438,7 @@ module fv_update_phys_mod
          if (rainwat > 0) phys_diag%phys_ql_dt = q(is:ie,js:je,:,rainwat) + phys_diag%phys_ql_dt
          phys_diag%phys_ql_dt = phys_diag%phys_ql_dt / dt
       endif
-      
+
       if (allocated(phys_diag%phys_qi_dt)) then
          if (ice_wat < 0) then
             call mpp_error(WARNING, " phys_qi_dt needs at least one ice water tracer defined")
@@ -447,11 +449,11 @@ module fv_update_phys_mod
          if (graupel > 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,graupel) + phys_diag%phys_qi_dt
          phys_diag%phys_qi_dt = phys_diag%phys_qi_dt / dt
       endif
-              
+
       if (liq_wat > 0) then
          if (allocated(phys_diag%phys_liq_wat_dt)) phys_diag%phys_liq_wat_dt = (q(is:ie,js:je,:,liq_wat) - phys_diag%phys_liq_wat_dt) / dt
       endif
-       
+
       if (rainwat > 0) then
          if (allocated(phys_diag%phys_qr_dt)) phys_diag%phys_qr_dt = (q(is:ie,js:je,:,rainwat) - phys_diag%phys_qr_dt) / dt
       endif
@@ -459,7 +461,7 @@ module fv_update_phys_mod
       if (ice_wat > 0) then
          if (allocated(phys_diag%phys_ice_wat_dt)) phys_diag%phys_ice_wat_dt = (q(is:ie,js:je,:,ice_wat) - phys_diag%phys_ice_wat_dt) / dt
       endif
-       
+
       if (graupel > 0) then
          if (allocated(phys_diag%phys_qg_dt)) phys_diag%phys_qg_dt = (q(is:ie,js:je,:,graupel) - phys_diag%phys_qg_dt) / dt
       endif
@@ -489,10 +491,10 @@ module fv_update_phys_mod
 !------- nudging of atmospheric variables toward specified data --------
 
     ps_dt(:,:) = 0.
-    
+
     if ( nudge ) then
        ! Initialize nudged diagnostics
-       
+
 #if defined (ATMOS_NUDGE)
 !--------------------------------------------
 ! All fields will be updated; tendencies added
@@ -503,7 +505,7 @@ module fv_update_phys_mod
        if (allocated(nudge_diag%nudge_delp_dt)) nudge_diag%nudge_delp_dt = delp(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_u_dt)) nudge_diag%nudge_u_dt = ua(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_v_dt)) nudge_diag%nudge_v_dt = va(is:ie,js:je,:)
-       
+
         call get_atmos_nudge ( Time, dt, is, ie, js, je,    &
              npz, ng, ps(is:ie,js:je), ua(is:ie, js:je,:), &
              va(is:ie,js:je,:), pt(is:ie,js:je,:), &
@@ -531,7 +533,7 @@ module fv_update_phys_mod
        if (allocated(nudge_diag%nudge_delp_dt)) nudge_diag%nudge_delp_dt = (delp(is:ie,js:je,:) - nudge_diag%nudge_delp_dt) / dt
        if (allocated(nudge_diag%nudge_u_dt)) nudge_diag%nudge_u_dt = (ua(is:ie,js:je,:) - nudge_diag%nudge_u_dt) / dt
        if (allocated(nudge_diag%nudge_v_dt)) nudge_diag%nudge_v_dt = (va(is:ie,js:je,:) - nudge_diag%nudge_v_dt) / dt
-         
+
 #elif defined (CLIMATE_NUDGE)
 !--------------------------------------------
 ! All fields will be updated; tendencies added
@@ -542,7 +544,7 @@ module fv_update_phys_mod
        if (allocated(nudge_diag%nudge_delp_dt)) nudge_diag%nudge_delp_dt = delp(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_u_dt)) nudge_diag%nudge_u_dt = ua(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_v_dt)) nudge_diag%nudge_v_dt = va(is:ie,js:je,:)
-       
+
        call fv_climate_nudge ( Time, dt, is, ie, js, je, npz, pfull,    &
              lona(is:ie,js:je), lata(is:ie,js:je), phis(is:ie,js:je), &
              ptop, ak, bk, &
@@ -610,7 +612,7 @@ module fv_update_phys_mod
        if (allocated(nudge_diag%nudge_delp_dt)) nudge_diag%nudge_delp_dt = delp(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_u_dt)) nudge_diag%nudge_u_dt = u_dt(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_v_dt)) nudge_diag%nudge_v_dt = v_dt(is:ie,js:je,:)
-       
+
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,pe,delp,ps)
         do j=js,je
          do k=2,npz+1
@@ -631,7 +633,7 @@ module fv_update_phys_mod
        if (allocated(nudge_diag%nudge_delp_dt)) nudge_diag%nudge_delp_dt = (delp(is:ie,js:je,:) - nudge_diag%nudge_delp_dt) / dt
        if (allocated(nudge_diag%nudge_u_dt)) nudge_diag%nudge_u_dt = (u_dt(is:ie,js:je,:) - nudge_diag%nudge_u_dt)
        if (allocated(nudge_diag%nudge_v_dt)) nudge_diag%nudge_v_dt = (v_dt(is:ie,js:je,:) - nudge_diag%nudge_v_dt)
-        
+
 #endif
 
   endif         ! end nudging

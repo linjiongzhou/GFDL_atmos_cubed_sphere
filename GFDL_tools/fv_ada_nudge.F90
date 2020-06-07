@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 #ifdef OVERLOAD_R4
 #define _GET_VAR1 get_var1_real
 #else

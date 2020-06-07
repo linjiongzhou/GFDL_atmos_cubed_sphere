@@ -142,9 +142,9 @@ contains
   v_surf0(:,:) = 0.
 
   if (do_fixed_cd) then
-	drag_m(:,:) = cd
-	drag_t(:,:) = cd
-	drag_q(:,:) = cd
+     drag_m(:,:) = cd
+     drag_t(:,:) = cd
+     drag_q(:,:) = cd
   end if
 
 ! momentum flux

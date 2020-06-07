@@ -406,7 +406,7 @@ contains
 !!$          enddo
 !!$       enddo
        !bottom-up
-       
+
        do k=km,2,-1
           do i=is,ie
              if (ph(i,k) <= p1) then

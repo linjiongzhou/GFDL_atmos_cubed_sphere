@@ -49,7 +49,7 @@ contains
 
 
 subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                        nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, lim_fac)
+                        nq,  hord, q_split, dt, id_divg, q_pack, dp1_pack, nord_tr, trdm, lim_fac)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
       integer, intent(IN) :: npx
@@ -61,7 +61,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
       integer, intent(IN) :: id_divg
       real   , intent(IN) :: dt, trdm
       real   , intent(IN) :: lim_fac
-      type(group_halo_update_type), intent(inout) :: q_pack
+      type(group_halo_update_type), intent(inout) :: q_pack, dp1_pack
       real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   ! Tracers
       real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)        ! DELP before dyn_core
       real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    ! Mass Flux X-Dir
@@ -148,6 +148,14 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
      endif
   enddo  ! k-loop
 
+    if (trdm>1.e-4) then
+                        call timing_on('COMM_TOTAL')
+                            call timing_on('COMM_TRACER')
+      call complete_group_halo_update(dp1_pack, domain)
+                           call timing_off('COMM_TRACER')
+                       call timing_off('COMM_TOTAL')
+
+    endif
   call mp_reduce_max(cmax,npz)
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,cx,xfx, &
@@ -273,7 +281,7 @@ end subroutine tracer_2d_1L
 
 
 subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                     nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, lim_fac)
+                     nq,  hord, q_split, dt, id_divg, q_pack, dp1_pack, nord_tr, trdm, lim_fac)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
       integer, intent(IN) :: npx
@@ -285,7 +293,7 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
       integer, intent(IN) :: id_divg
       real   , intent(IN) :: dt, trdm
       real   , intent(IN) :: lim_fac
-      type(group_halo_update_type), intent(inout) :: q_pack
+      type(group_halo_update_type), intent(inout) :: q_pack, dp1_pack
       real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   ! Tracers
       real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)        ! DELP before dyn_core
       real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    ! Mass Flux X-Dir
@@ -436,6 +444,14 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
         enddo
     endif
 
+    if (trdm>1.e-4) then
+                        call timing_on('COMM_TOTAL')
+                            call timing_on('COMM_TRACER')
+      call complete_group_halo_update(dp1_pack, domain)
+                           call timing_off('COMM_TRACER')
+                       call timing_off('COMM_TOTAL')
+
+    endif
     do it=1,nsplt
                         call timing_on('COMM_TOTAL')
                             call timing_on('COMM_TRACER')
@@ -513,7 +529,7 @@ end subroutine tracer_2d
 
 
 subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                     nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, &
+                     nq,  hord, q_split, dt, id_divg, q_pack, dp1_pack, nord_tr, trdm, &
                      k_split, neststruct, parent_grid, n_map, lim_fac)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
@@ -526,7 +542,7 @@ subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, np
       integer, intent(IN) :: id_divg
       real   , intent(IN) :: dt, trdm
       real   , intent(IN) :: lim_fac
-      type(group_halo_update_type), intent(inout) :: q_pack
+      type(group_halo_update_type), intent(inout) :: q_pack, dp1_pack
       real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   ! Tracers
       real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)        ! DELP before dyn_core
       real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    ! Mass Flux X-Dir
@@ -710,6 +726,16 @@ subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, np
                                                iq )
             enddo
       endif
+
+      if (trdm>1.e-4) then
+                        call timing_on('COMM_TOTAL')
+                            call timing_on('COMM_TRACER')
+         call complete_group_halo_update(dp1_pack, domain)
+                           call timing_off('COMM_TRACER')
+                       call timing_off('COMM_TOTAL')
+
+      endif
+
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,dp1,mfx,mfy,rarea,nq, &
 !$OMP                                  area,xfx,yfx,q,cx,cy,npx,npy,hord,gridstruct,bd,it,nsplt,nord_tr,trdm,lim_fac) &
