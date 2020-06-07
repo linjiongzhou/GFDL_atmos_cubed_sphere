@@ -1,5 +1,25 @@
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.
+!* If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
 module fv_coarse_graining_mod
-  
+
   use constants_mod,   only: grav, rdgas, pi=>pi_8
   use diag_manager_mod, only: diag_axis_init, register_diag_field, register_static_field, send_data
   use fms_io_mod,      only: register_restart_field, save_restart
@@ -11,20 +31,20 @@ module fv_coarse_graining_mod
   use time_manager_mod, only: time_type
   use tracer_manager_mod, only: get_tracer_index, get_tracer_names, set_tracer_profile
   use field_manager_mod,  only: MODEL_ATMOS
-  
+
   implicit none
   private
-  
+
   public :: fv_coarse_graining_init, fv_io_write_restart_coarse
   public :: fv_coarse_grained_diagnostics_init, fv_coarse_grained_diagnostics
   public :: block_average, block_edge_average_x, block_edge_average_y
-  
+
   interface block_average
      module procedure block_average_2d
      module procedure block_average_3d_variable_2d_weights
      module procedure block_average_3d_variable_3d_weights
   end interface block_average
-  
+
   interface block_edge_average_x
      module procedure block_edge_average_x_2d
      module procedure block_edge_average_x_3d
@@ -34,7 +54,7 @@ module fv_coarse_graining_mod
      module procedure block_edge_average_y_2d
      module procedure block_edge_average_y_3d
   end interface block_edge_average_y
-  
+
   type(domain2d) :: coarse_domain
   real, parameter:: missing_value = -1.e10
   real, parameter :: rad2deg = 180. / pi
@@ -54,25 +74,25 @@ module fv_coarse_graining_mod
   integer :: id_t_dt_gfdlmp_coarse, id_u_dt_gfdlmp_coarse, id_v_dt_gfdlmp_coarse
   integer :: id_liq_wat_dt_phys_coarse, id_ice_wat_dt_phys_coarse
   integer :: id_liq_wat_dt_gfdlmp_coarse, id_ice_wat_dt_gfdlmp_coarse
-  
+
   ! Namelist parameters (with default values)
   integer :: coarsening_factor = 8
   logical :: write_coarse_grained_restart_files = .false.
   logical :: write_coarse_grained_diagnostics = .false.
-  
+
   namelist /fv_coarse_graining_nml/ coarsening_factor,&
-       write_coarse_grained_restart_files, write_coarse_grained_diagnostics  
+       write_coarse_grained_restart_files, write_coarse_grained_diagnostics
 
 contains
 
   subroutine fv_coarse_graining_init(Atm, n)
     type(fv_atmos_type), intent(inout) :: Atm
     integer, intent(in) :: n
-    
+
     character(len=256) :: errmsg
     logical :: exists
     integer :: nlunit, ios
-    
+
     integer :: native_resolution, np_target
 
 #ifdef INTERNAL_FILE_NML
@@ -96,11 +116,11 @@ contains
        nt_prog = Atm%flagstruct%nt_prog
        nt_diag = Atm%flagstruct%nt_phys
        ntracers = nt_prog + nt_diag
-       
+
        native_resolution = Atm%flagstruct%npx - 1
        target_resolution = native_resolution / coarsening_factor
        np_target = target_resolution + 1
-       
+
        ! Check that the coarsening factor evenly divides the native domain
        if (mod(native_resolution, coarsening_factor) .ne. 0) then
           write(errmsg, *) 'fv_coarse_graining_init: coarsening factor ',&
@@ -115,7 +135,7 @@ contains
 !!$               Atm%layout, ' does not produce square subdomains.'
 !!$          call mpp_error(FATAL, errmsg)
 !!$       endif
-    
+
        ! Check that the coarsening factor is appropriate for the domain
        ! decomposition
        if (mod(native_resolution, Atm%layout(1)) > 0 .or. mod(target_resolution, Atm%layout(1)) > 0) then
@@ -130,19 +150,19 @@ contains
        call mpp_get_compute_domain(coarse_domain, is_coarse, ie_coarse, &
             js_coarse, je_coarse)
        call mpp_get_compute_domain(Atm%domain, is, ie, js, je)
-       
+
     endif
 
     if (write_coarse_grained_restart_files) then
        call allocate_coarse_restart_type(Atm)
        call register_coarse_grained_restart_files(Atm, n)
-    endif 
-    
+    endif
+
   end subroutine fv_coarse_graining_init
 
   subroutine allocate_coarse_restart_type(Atm)
     type(fv_atmos_type), intent(INOUT) :: Atm
-    
+
     allocate (Atm%coarse_restart%u(is_coarse:ie_coarse,js_coarse:je_coarse+1,npz))
     allocate (Atm%coarse_restart%v(is_coarse:ie_coarse+1,js_coarse:je_coarse,npz))
     allocate (Atm%coarse_restart%ua(is_coarse:ie_coarse,js_coarse:je_coarse,npz))
@@ -161,13 +181,13 @@ contains
     allocate (Atm%coarse_restart%ze0(is_coarse:ie_coarse,js_coarse:je_coarse,npz))
 
     Atm%coarse_restart%allocated = .true.
-    
+
   end subroutine allocate_coarse_restart_type
 
   subroutine register_coarse_grained_restart_files(Atm, n)
     type(fv_atmos_type), intent(inout) :: Atm
     integer, intent(in) :: n
-    
+
     character(len=64) :: fname, tracer_name
     integer           :: id_restart
     integer           :: nt, ntracers
@@ -182,7 +202,7 @@ contains
          fname, 'v', Atm%coarse_restart%v, &
          domain=coarse_domain, &
          position=EAST,tile_count=n)
-       
+
     if (.not. Atm%flagstruct%hydrostatic) then
        id_restart = register_restart_field(Atm%coarse_restart%fv_tile_restart_coarse, &
             fname, 'W', Atm%coarse_restart%w, &
@@ -192,14 +212,14 @@ contains
             fname, 'DZ', Atm%coarse_restart%delz, &
             domain=coarse_domain, &
             mandatory=.false., tile_count=n)
-          
+
        if ( Atm%flagstruct%hybrid_z ) then
           id_restart = register_restart_field(Atm%coarse_restart%fv_tile_restart_coarse, &
                fname, 'ZE0', Atm%coarse_restart%ze0, &
                domain=coarse_domain, mandatory=.false., tile_count=n)
-       endif 
+       endif
     endif
-    
+
     id_restart = register_restart_field(Atm%coarse_restart%fv_tile_restart_coarse, &
          fname, 'T', Atm%coarse_restart%pt, &
          domain=coarse_domain, tile_count=n)
@@ -209,7 +229,7 @@ contains
     id_restart = register_restart_field(Atm%coarse_restart%fv_tile_restart_coarse, &
          fname, 'phis', Atm%coarse_restart%phis, &
          domain=coarse_domain, tile_count=n)
-       
+
     if (Atm%flagstruct%agrid_vel_rst) then
        id_restart = register_restart_field(Atm%coarse_restart%fv_tile_restart_coarse, &
             fname, 'ua', Atm%coarse_restart%ua, &
@@ -218,7 +238,7 @@ contains
             fname, 'va', Atm%coarse_restart%va, &
             domain=coarse_domain, tile_count=n, mandatory=.false.)
     endif
-      
+
     fname = 'fv_srf_wnd_coarse.res.nc'
     id_restart = register_restart_field(Atm%coarse_restart%rsf_restart_coarse, &
          fname, 'u_srf', Atm%coarse_restart%u_srf, &
@@ -226,19 +246,19 @@ contains
     id_restart = register_restart_field(Atm%coarse_restart%rsf_restart_coarse, &
          fname, 'v_srf', Atm%coarse_restart%v_srf, &
          domain=coarse_domain, tile_count=n)
-       
-    if ( Atm%flagstruct%fv_land ) then          
+
+    if ( Atm%flagstruct%fv_land ) then
        fname = 'mg_drag_coarse.res.nc'
        id_restart = register_restart_field(Atm%coarse_restart%mg_restart_coarse, &
             fname, 'ghprime', Atm%coarse_restart%sgh, &
-            domain=coarse_domain, tile_count=n)  
+            domain=coarse_domain, tile_count=n)
 
        fname = 'fv_land_coarse.res.nc'
        id_restart = register_restart_field(Atm%coarse_restart%lnd_restart_coarse, &
             fname, 'oro', Atm%coarse_restart%oro, &
             domain=coarse_domain, tile_count=n)
     endif
-       
+
     fname = 'fv_tracer_coarse.res.nc'
     do nt = 1, nt_prog
        call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
@@ -247,7 +267,7 @@ contains
             fname,tracer_name, Atm%coarse_restart%q(:,:,:,nt), &
             domain=coarse_domain, mandatory=.false., tile_count=n)
     enddo
-       
+
     do nt = nt_prog+1, ntracers
        call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
        call set_tracer_profile (MODEL_ATMOS, nt, Atm%coarse_restart%qdiag(:,:,:,nt))
@@ -255,7 +275,7 @@ contains
             fname, tracer_name, Atm%coarse_restart%qdiag(:,:,:,nt), &
             domain=coarse_domain, mandatory=.false., tile_count=n)
     enddo
-     
+
   end subroutine register_coarse_grained_restart_files
 
   subroutine fv_io_write_restart_coarse(Atm, timestamp)
@@ -269,20 +289,20 @@ contains
           call write_restart_coarse(Atm)
        endif
     endif
-    
+
   end subroutine fv_io_write_restart_coarse
-  
+
   subroutine write_restart_coarse(Atm, timestamp)
     type(fv_atmos_type),        intent(inout) :: Atm
     character(len=*), optional, intent(in) :: timestamp
 
     call coarse_grain_restart_data(Atm)
-    
+
     ! TODO: do we need to support this?
     ! if ( (use_ncep_sst .or. Atm%flagstruct%nudge) .and. .not. Atm%gridstruct%nested ) then
     !    call save_restart(Atm%SST_restart, timestamp)
     ! endif
-    
+
     call save_restart(Atm%coarse_restart%fv_tile_restart_coarse, timestamp)
     call save_restart(Atm%coarse_restart%rsf_restart_coarse, timestamp)
 
@@ -292,7 +312,7 @@ contains
     endif
 
     call save_restart(Atm%coarse_restart%tra_restart_coarse, timestamp)
-    
+
   end subroutine write_restart_coarse
 
   subroutine coarse_grain_restart_data(Atm)
@@ -305,7 +325,7 @@ contains
     do k = 1, npz
        mass(is:ie,js:je,k) = Atm%gridstruct%area(is:ie,js:je) * Atm%delp(is:ie,js:je,k)
     enddo
-    
+
     call block_edge_average_x(Atm%gridstruct%dx(is:ie,js:je+1), &
           Atm%u(is:ie,js:je+1,1:npz), Atm%coarse_restart%u)
     call block_edge_average_y(Atm%gridstruct%dy(is:ie+1,js:je), &
@@ -321,7 +341,7 @@ contains
        if ( Atm%flagstruct%hybrid_z ) then
           call block_average(Atm%gridstruct%area(is:ie,js:je), &
             Atm%ze0(is:ie,js:je,1:npz), Atm%coarse_restart%ze0)
-       endif 
+       endif
     endif
 
     call block_average(mass(is:ie,js:je,1:npz), &
@@ -363,7 +383,7 @@ contains
                Atm%coarse_restart%q(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz,nt))
        endif
     enddo
-    
+
     do nt = nt_prog+1, ntracers
        call block_average(mass(is:ie,js:je,1:npz), &
             Atm%qdiag(is:ie,js:je,1:npz,nt), &
@@ -383,7 +403,7 @@ contains
     endif
 
   end subroutine fv_coarse_grained_diagnostics_init
-  
+
   subroutine register_coarse_grained_diagnostics(Atm, Time, id_pfull)
     type(fv_atmos_type), intent(inout) :: Atm(:)
     type(time_type), intent(in) :: Time
@@ -395,16 +415,16 @@ contains
     logical :: used
     real, allocatable :: grid_x_coarse(:), grid_y_coarse(:), grid_xt_coarse(:), grid_yt_coarse(:)
     real, allocatable :: agrid_coarse(:,:,:), grid_coarse(:,:,:)
-    
+
     n = 1
-    
+
     allocate(grid_x_coarse(target_resolution + 1), grid_y_coarse(target_resolution + 1))
     grid_x_coarse = (/ (i, i=1, target_resolution + 1) /)
     grid_y_coarse = (/ (j, j=1, target_resolution + 1) /)
-    
+
     allocate(grid_xt_coarse(target_resolution), grid_yt_coarse(target_resolution))
     grid_xt_coarse = (/ (i, i=1, target_resolution) /)
-    grid_yt_coarse = (/ (j, j=1, target_resolution) /)    
+    grid_yt_coarse = (/ (j, j=1, target_resolution) /)
 
     id_coarse_x = diag_axis_init('grid_x_coarse', grid_x_coarse, &
          'degrees_E', 'x', 'Corner longitude', set_name='coarse_grid', &
@@ -412,7 +432,7 @@ contains
     id_coarse_y = diag_axis_init('grid_y_coarse', grid_y_coarse, &
          'degrees_N', 'y', 'Corner latitude', set_name='coarse_grid', &
          Domain2=coarse_domain, tile_count=n)
-    
+
     id_coarse_xt = diag_axis_init('grid_xt_coarse', grid_xt_coarse, &
          'degrees_E', 'x', 'T-cell longitude', set_name='coarse_grid', &
          Domain2=coarse_domain, tile_count=n)
@@ -421,11 +441,11 @@ contains
          Domain2=coarse_domain, tile_count=n)
 
     deallocate(grid_x_coarse, grid_y_coarse, grid_xt_coarse, grid_yt_coarse)
-    
+
     coarse_axes(1) = id_coarse_x
     coarse_axes(2) = id_coarse_y
     coarse_axes(3) = id_pfull
-    
+
     coarse_axes_t(1) = id_coarse_xt
     coarse_axes_t(2) = id_coarse_yt
     coarse_axes_t(3) = id_pfull
@@ -436,7 +456,7 @@ contains
             'non-hydrostatic pressure', &
             'pa', missing_value=missing_value)
     endif
-    
+
     id_qv_dt_phys_coarse = register_diag_field('dynamics', &
          'qv_dt_phys_coarse', coarse_axes_t(1:3), Time, &
          'water vapor specific humidity tendency from physics', &
@@ -444,7 +464,7 @@ contains
     if ((id_qv_dt_phys_coarse > 0) .and. (.not. allocated(Atm(n)%phys_diag%phys_qv_dt))) then
        allocate (Atm(n)%phys_diag%phys_qv_dt(is:ie,js:je,npz))
     endif
-    
+
     id_ql_dt_phys_coarse = register_diag_field('dynamics', &
          'ql_dt_phys_coarse', coarse_axes_t(1:3), Time, &
          'total liquid water tendency from physics', &
@@ -476,7 +496,7 @@ contains
     if ((id_ice_wat_dt_phys_coarse > 0) .and. (.not. allocated(Atm(n)%phys_diag%phys_ice_wat_dt))) then
        allocate (Atm(n)%phys_diag%phys_ice_wat_dt(is:ie,js:je,npz))
     endif
-    
+
     id_qr_dt_phys_coarse = register_diag_field('dynamics', &
          'qr_dt_phys_coarse', coarse_axes_t(1:3), Time, &
          'rain water tendency from physics', &
@@ -500,7 +520,7 @@ contains
     if ((id_qs_dt_phys_coarse > 0) .and. (.not. allocated(Atm(n)%phys_diag%phys_qs_dt))) then
        allocate (Atm(n)%phys_diag%phys_qs_dt(is:ie,js:je,npz))
     endif
-    
+
     id_t_dt_phys_coarse = register_diag_field('dynamics', &
          't_dt_phys_coarse', coarse_axes_t(1:3), Time, &
          'temperature tendency from physics', &
@@ -508,7 +528,7 @@ contains
     if ((id_t_dt_phys_coarse > 0) .and. (.not. allocated(Atm(n)%phys_diag%phys_t_dt))) then
        allocate (Atm(n)%phys_diag%phys_t_dt(is:ie,js:je,npz))
     endif
-    
+
     id_u_dt_phys_coarse = register_diag_field('dynamics', &
          'u_dt_phys_coarse', coarse_axes_t(1:3), Time, &
          'zonal wind tendency from physics', &
@@ -516,7 +536,7 @@ contains
     if ((id_u_dt_phys_coarse > 0) .and. (.not. allocated(Atm(n)%phys_diag%phys_u_dt))) then
        allocate (Atm(n)%phys_diag%phys_u_dt(is:ie,js:je,npz))
     endif
-    
+
     id_v_dt_phys_coarse = register_diag_field('dynamics', &
          'v_dt_phys_coarse', coarse_axes_t(1:3), Time, &
          'meridional wind tendency from physics', &
@@ -524,7 +544,7 @@ contains
     if ((id_v_dt_phys_coarse > 0) .and. (.not. allocated(Atm(n)%phys_diag%phys_v_dt))) then
        allocate (Atm(n)%phys_diag%phys_v_dt(is:ie,js:je,npz))
     endif
-    
+
     ! Add coarse-grain tendencies from nudging
     id_t_dt_nudge_coarse = register_diag_field('dynamics', &
          't_dt_nudge_coarse', coarse_axes_t(1:3), Time, &
@@ -606,7 +626,7 @@ contains
     if ((id_ice_wat_dt_gfdlmp_coarse > 0) .and. (.not. allocated(Atm(n)%inline_mp%ice_wat_dt))) then
        allocate (Atm(n)%inline_mp%ice_wat_dt(is:ie,js:je,npz))
     endif
-    
+
     id_qr_dt_gfdlmp_coarse = register_diag_field('dynamics', &
          'qr_dt_gfdlmp_coarse', coarse_axes_t(1:3), Time, &
          'rain water tendency from GFDL MP', &
@@ -630,7 +650,7 @@ contains
     if ((id_qs_dt_gfdlmp_coarse > 0) .and. (.not. allocated(Atm(n)%inline_mp%qs_dt))) then
        allocate (Atm(n)%inline_mp%qs_dt(is:ie,js:je,npz))
     endif
-    
+
     id_t_dt_gfdlmp_coarse = register_diag_field('dynamics', &
          't_dt_gfdlmp_coarse', coarse_axes_t(1:3), Time, &
          'temperature tendency from GFDL MP', &
@@ -638,7 +658,7 @@ contains
     if ((id_t_dt_gfdlmp_coarse > 0) .and. (.not. allocated(Atm(n)%inline_mp%T_dt))) then
        allocate (Atm(n)%inline_mp%T_dt(is:ie,js:je,npz))
     endif
-    
+
     id_u_dt_gfdlmp_coarse = register_diag_field('dynamics', &
          'u_dt_gfdlmp_coarse', coarse_axes_t(1:3), Time, &
          'zonal wind tendency from GFDL MP', &
@@ -654,7 +674,7 @@ contains
     if ((id_v_dt_gfdlmp_coarse > 0) .and. (.not. allocated(Atm(n)%inline_mp%v_dt))) then
        allocate (Atm(n)%inline_mp%v_dt(is:ie,js:je,npz))
     endif
-        
+
     ! Construct coarse latitude and longitude coordinates
     allocate(grid_coarse(is_coarse:ie_coarse+1,js_coarse:je_coarse+1, 1:2))
     allocate(agrid_coarse(is_coarse:ie_coarse,js_coarse:je_coarse, 1:2))
@@ -671,14 +691,14 @@ contains
     else
        agrid_coarse = Atm(n)%gridstruct%agrid(is+offset:ie:coarsening_factor,js+offset:je:coarsening_factor,:)
     endif
-    
+
     id_coarse_lon = register_static_field('dynamics', &
          'grid_lon_coarse', coarse_axes(1:2), &
          'longitude', 'degrees_E')
     id_coarse_lat = register_static_field('dynamics', &
          'grid_lat_coarse', coarse_axes(1:2), &
          'latitude', 'degrees_N')
-    
+
     id_coarse_lont = register_static_field('dynamics', &
          'grid_lont_coarse', coarse_axes_t(1:2), &
          'longitude', 'degrees_E')
@@ -696,7 +716,7 @@ contains
          rad2deg * agrid_coarse(is_coarse:ie_coarse,js_coarse:je_coarse,2), Time)
 
     deallocate(grid_coarse, agrid_coarse)
-    
+
   end subroutine register_coarse_grained_diagnostics
 
   subroutine fv_coarse_grained_diagnostics(Atm, Time, zvir)
@@ -708,7 +728,7 @@ contains
        call compute_coarse_grained_diagnostics(Atm, Time, zvir)
     endif
   end subroutine fv_coarse_grained_diagnostics
-  
+
   subroutine compute_coarse_grained_diagnostics(Atm, Time, zvir)
     type(fv_atmos_type), intent(in), target :: Atm(:)
     type(time_type), intent(in) :: Time
@@ -721,7 +741,7 @@ contains
     real, allocatable :: work_2d(:,:), work_3d(:,:,:), mass(:,:,:), nhpres(:,:,:)
 
     var_2d = (/ id_ps_dt_nudge_coarse /)
-    
+
     var_3d = (/ &
          id_u_dt_phys_coarse, &
          id_v_dt_phys_coarse, &
@@ -750,8 +770,8 @@ contains
          id_liq_wat_dt_phys_coarse, &
          id_ice_wat_dt_phys_coarse, &
          id_pfnh_coarse &
-         /) 
-    
+         /)
+
     var_mass_weighted = (/ &
          id_t_dt_phys_coarse, &
          id_qv_dt_phys_coarse, &
@@ -773,7 +793,7 @@ contains
          id_liq_wat_dt_phys_coarse, &
          id_ice_wat_dt_phys_coarse &
          /)
-    
+
     if (any(var_2d > 0)) then
        allocate(work_2d(is_coarse:ie_coarse,js_coarse:je_coarse))
     endif
@@ -797,19 +817,19 @@ contains
        used = send_data(id_pfnh_coarse, work_3d, Time)
        deallocate(nhpres)
     endif
-    
+
     if (id_u_dt_phys_coarse > 0) then
        call block_average(Atm(n)%gridstruct%area(is:ie,js:je), &
             Atm(n)%phys_diag%phys_u_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_u_dt_phys_coarse, work_3d, Time)
     endif
-    
+
     if (id_v_dt_phys_coarse > 0) then
        call block_average(Atm(n)%gridstruct%area(is:ie,js:je), &
             Atm(n)%phys_diag%phys_v_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_v_dt_phys_coarse, work_3d, Time)
     endif
-        
+
     if (id_t_dt_phys_coarse > 0) then
        call block_average(mass, &
             Atm(n)%phys_diag%phys_t_dt(is:ie,js:je,1:npz), work_3d)
@@ -821,7 +841,7 @@ contains
             Atm(n)%phys_diag%phys_qv_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_qv_dt_phys_coarse, work_3d, Time)
     endif
-    
+
     if (id_ql_dt_phys_coarse > 0) then
        call block_average(mass, &
             Atm(n)%phys_diag%phys_ql_dt(is:ie,js:je,1:npz), work_3d)
@@ -845,7 +865,7 @@ contains
             Atm(n)%phys_diag%phys_ice_wat_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_ice_wat_dt_phys_coarse, work_3d, Time)
     endif
-    
+
     if (id_qr_dt_phys_coarse > 0) then
        call block_average(mass, &
             Atm(n)%phys_diag%phys_qr_dt(is:ie,js:je,1:npz), work_3d)
@@ -881,7 +901,7 @@ contains
             Atm(n)%nudge_diag%nudge_t_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_t_dt_nudge_coarse, work_3d, Time)
     endif
-    
+
     if (id_delp_dt_nudge_coarse > 0) then
        call block_average(Atm(n)%gridstruct%area(is:ie,js:je), &
             Atm(n)%nudge_diag%nudge_delp_dt(is:ie,js:je,1:npz), work_3d)
@@ -935,7 +955,7 @@ contains
             Atm(n)%inline_mp%liq_wat_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_liq_wat_dt_gfdlmp_coarse, work_3d, Time)
     endif
-    
+
     if (id_qg_dt_gfdlmp_coarse > 0) then
        call block_average(mass, &
             Atm(n)%inline_mp%qg_dt(is:ie,js:je,1:npz), work_3d)
@@ -947,36 +967,36 @@ contains
             Atm(n)%inline_mp%qs_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_qs_dt_gfdlmp_coarse, work_3d, Time)
     endif
-    
+
     if (id_u_dt_gfdlmp_coarse > 0) then
        call block_average(Atm(n)%gridstruct%area(is:ie,js:je), &
             Atm(n)%inline_mp%u_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_u_dt_gfdlmp_coarse, work_3d, Time)
     endif
-    
+
     if (id_v_dt_gfdlmp_coarse > 0) then
        call block_average(Atm(n)%gridstruct%area(is:ie,js:je), &
             Atm(n)%inline_mp%v_dt(is:ie,js:je,1:npz), work_3d)
        used = send_data(id_v_dt_gfdlmp_coarse, work_3d, Time)
     endif
-    
+
     if (allocated(work_2d)) deallocate(work_2d)
     if (allocated(work_3d)) deallocate(work_3d)
     if (allocated(mass)) deallocate(mass)
-    
+
   end subroutine compute_coarse_grained_diagnostics
-  
+
   subroutine block_average_2d(weights, fine, coarse)
     real, intent(in) :: weights(is:ie,js:je)
     real, intent(in) :: fine(is:ie,js:je)
     real, intent(out) :: coarse(is_coarse:ie_coarse,js_coarse:je_coarse)
-    
+
     real, allocatable :: weighted_fine(:,:)
     integer :: i, j, i_coarse, j_coarse, a
 
     allocate(weighted_fine(is:ie,js:je))
     weighted_fine = weights * fine
-    
+
     a = coarsening_factor - 1
     do i = is, ie, coarsening_factor
        i_coarse = (i - 1) / coarsening_factor + 1
@@ -987,16 +1007,16 @@ contains
     enddo
 
     deallocate(weighted_fine)
-    
+
   end subroutine block_average_2d
 
   subroutine block_average_3d_variable_2d_weights(weights, fine, coarse)
     real, intent(in) :: weights(is:ie,js:je)
     real, intent(in) :: fine(is:ie,js:je,1:npz)
     real, intent(out) :: coarse(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz)
-        
+
     integer :: k
-    
+
     do k = 1, npz
        call block_average_2d(weights, fine(is:ie,js:je,k), coarse(is_coarse:ie_coarse,js_coarse:je_coarse,k))
     enddo
@@ -1006,9 +1026,9 @@ contains
     real, intent(in) :: weights(is:ie,js:je,1:npz)
     real, intent(in) :: fine(is:ie,js:je,1:npz)
     real, intent(out) :: coarse(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz)
-        
+
     integer :: k
-    
+
     do k = 1, npz
        call block_average_2d(weights(is:ie,js:je,k), fine(is:ie,js:je,k), &
             coarse(is_coarse:ie_coarse,js_coarse:je_coarse,k))
@@ -1023,9 +1043,9 @@ contains
     real, intent(in) :: dx(is:ie,js:je+1)
     real, intent(in) :: fine(is:ie,js:je+1)
     real, intent(out) :: coarse(is_coarse:ie_coarse,js_coarse:je_coarse+1)
-    
+
     integer :: i, j, i_coarse, j_coarse, a
-    
+
     a = coarsening_factor - 1
     do i = is, ie, coarsening_factor
        i_coarse = (i - 1) / coarsening_factor + 1
@@ -1033,7 +1053,7 @@ contains
           j_coarse = (j - 1) / coarsening_factor + 1
           coarse(i_coarse,j_coarse) = sum(dx(i:i+a,j) * fine(i:i+a,j)) / sum(dx(i:i+a,j))
        enddo
-    enddo    
+    enddo
   end subroutine block_edge_average_x_2d
 
   ! For now we always assume that the variables passed to this function are
@@ -1044,9 +1064,9 @@ contains
     real, intent(in) :: dx(is:ie,js:je+1)
     real, intent(in) :: fine(is:ie,js:je+1,1:npz)
     real, intent(out) :: coarse(is_coarse:ie_coarse,js_coarse:je_coarse+1,1:npz)
-    
+
     integer :: k
-    
+
     do k = 1, npz
        call block_edge_average_x_2d(dx, fine(is:ie,js:je+1,k), &
             coarse(is_coarse:ie_coarse,js_coarse:je_coarse+1,k))
@@ -1061,7 +1081,7 @@ contains
     real, intent(in) :: dy(is:ie+1,js:je)
     real, intent(in) :: fine(is:ie+1,js:je)
     real, intent(out) :: coarse(is_coarse:ie_coarse+1,js_coarse:je_coarse)
-    
+
     integer :: i, j, i_coarse, j_coarse, a
 
     a = coarsening_factor - 1
@@ -1082,7 +1102,7 @@ contains
     real, intent(in) :: dy(is:ie+1,js:je)
     real, intent(in) :: fine(is:ie+1,js:je,1:npz)
     real, intent(out) :: coarse(is_coarse:ie_coarse+1,js_coarse:je_coarse,1:npz)
-    
+
     integer :: k
 
     do k = 1, npz
@@ -1090,7 +1110,7 @@ contains
             coarse(is_coarse:ie_coarse+1,js_coarse:je_coarse,k))
     enddo
   end subroutine block_edge_average_y_3d
-  
+
   ! This subroutine is copied from fms/horiz_interp/horiz_interp_test.F90;
   ! domain_decomp in fv_mp_mod.F90 does something similar, but it does a
   ! few other unnecessary things (and requires more arguments).
@@ -1173,7 +1193,7 @@ contains
          pe_start, pe_end, symmetry = .true., name = 'coarse cubic mosaic'  )
 
     return
-    
+
   end subroutine define_cubic_mosaic
 
   subroutine compute_nonhydrostatic_pressure(Atm, zvir, nhpres)
@@ -1185,21 +1205,21 @@ contains
     integer :: sphum
 
     sphum = get_tracer_index(MODEL_ATMOS, 'sphum')
-    
+
 #ifdef GFS_PHYS
     do k= 1, npz
        do j=js, je
-          do i=is, ie         
+          do i=is, ie
              nhpres(i,j,k) = Atm%delp(i,j,k)*(1.-sum(Atm%q(i,j,k,2:Atm%flagstruct%nwat)))
           enddo
        enddo
     enddo
-      
+
     do k = 1, npz
        do j = js, je
           do i = is, ie
              nhpres(i,j,k) = -nhpres(i,j,k)/(Atm%delz(i,j,k)*grav)*rdgas*    &
-                  Atm%pt(i,j,k)*(1.+zvir*Atm%q(i,j,k,sphum))     
+                  Atm%pt(i,j,k)*(1.+zvir*Atm%q(i,j,k,sphum))
           enddo
        enddo
     enddo
@@ -1214,5 +1234,5 @@ contains
       enddo
 #endif
   end subroutine compute_nonhydrostatic_pressure
-  
+
 end module fv_coarse_graining_mod

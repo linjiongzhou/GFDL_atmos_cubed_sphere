@@ -34,7 +34,7 @@ module dyn_core_mod
   use nh_core_mod,        only: Riem_Solver3, Riem_Solver_C, update_dz_c, update_dz_d, nh_bc
   use tp_core_mod,        only: copy_corners
   use fv_timing_mod,      only: timing_on, timing_off
-  use fv_diagnostics_mod, only: prt_maxmin, fv_time, prt_mxm
+  use fv_diagnostics_mod, only: prt_maxmin, fv_time, prt_mxm, do_diag_debug_dyn, debug_column_dyn
 #ifdef ROT3
   use fv_update_phys_mod, only: update_dwinds_phys
 #endif
@@ -75,6 +75,7 @@ public :: dyn_core, del2_cubed, init_ijk_mem
   integer:: k_rf = 0
   logical:: RFF_initialized = .false.
   integer :: kmax=1
+  real, parameter    ::     rad2deg = 180./pi
 
 contains
 
@@ -784,7 +785,7 @@ contains
     endif
                                                      call timing_off('d_sw')
 
-    if( flagstruct%fill_dp ) call mix_dp(hydrostatic, w, delp, pt, npz, ak, bk, .false., flagstruct%fv_debug, bd)
+    if( flagstruct%fill_dp ) call mix_dp(hydrostatic, w, delp, pt, npz, ak, bk, .false., flagstruct%fv_debug, bd, gridstruct)
 
                                                              call timing_on('COMM_TOTAL')
     call start_group_halo_update(i_pack(1), delp, domain, complete=.false.)
@@ -882,12 +883,14 @@ contains
                          gridstruct%rarea, dp_ref, zs, zh, crx, cry, xfx, yfx, ws, rdt, gridstruct, bd, flagstruct%lim_fac)
                                             call timing_off('UPDATE_DZ')
     if ( flagstruct%fv_debug ) then
-         if ( .not. flagstruct%hydrostatic )    &
-         call prt_mxm('delz updated',  delz, is, ie, js, je, 0, npz, 1., gridstruct%area_64, domain)
+         if ( .not. flagstruct%hydrostatic )    then
+            call prt_mxm('delz updated',  delz, is, ie, js, je, 0, npz, 1., gridstruct%area_64, domain)
+            call prt_maxmin('WS', ws, is, ie, js, je, 0, 1, 1.)
+         endif
     endif
 
         if (idiag%id_ws>0 .and. last_step) then
-!           call prt_maxmin('WS', ws, is, ie, js, je, 0, 1, 1., master)
+!           call prt_maxmin('WS', ws, is, ie, js, je, 0, 1, 1.)
             used=send_data(idiag%id_ws, ws, fv_time)
         endif
 
@@ -903,6 +906,7 @@ contains
                          flagstruct%scale_z, flagstruct%p_fac, flagstruct%a_imp, &
                          flagstruct%use_logp, remap_step, beta<-0.1)
                                                          call timing_off('Riem_Solver')
+
                                        call timing_on('COMM_TOTAL')
         if ( gridstruct%square_domain ) then
           call start_group_halo_update(i_pack(4), zh ,  domain)
@@ -1183,6 +1187,12 @@ contains
 
          call mpp_update_domains(u, v, domain, gridtype=DGRID_NE)
       end if
+
+      if ( do_diag_debug_dyn ) then
+         call debug_column_dyn( pt, delp, delz, u, v, w, q, heat_source, cappa, akap, &
+              allocated(heat_source), npz, nq, sphum, flagstruct%nwat, zvir, hydrostatic, bd, fv_time, n_map, it)
+      endif
+
 
 !-----------------------------------------------------
   enddo   ! time split loop
@@ -2021,13 +2031,15 @@ enddo    ! end k-loop
 end subroutine grad1_p_update
 
 
-subroutine mix_dp(hydrostatic, w, delp, pt, km, ak, bk, CG, fv_debug, bd)
+subroutine mix_dp(hydrostatic, w, delp, pt, km, ak, bk, CG, fv_debug, bd, gridstruct)
 integer, intent(IN) :: km
 real   , intent(IN) :: ak(km+1), bk(km+1)
 type(fv_grid_bounds_type), intent(IN) :: bd
 real, intent(INOUT), dimension(bd%isd:bd%ied,bd%jsd:bd%jed,km):: pt, delp
 real, intent(INOUT), dimension(bd%isd:,bd%jsd:,1:):: w
 logical, intent(IN) :: hydrostatic, CG, fv_debug
+type(fv_grid_type),  intent(INOUT), target :: gridstruct
+
 ! Local:
 real dp, dpmin
 integer i, j, k, ip
@@ -2057,7 +2069,7 @@ endif
 
 
 !$OMP parallel do default(none) shared(jfirst,jlast,km,ifirst,ilast,delp,ak,bk,pt, &
-!$OMP                                  hydrostatic,w,fv_debug) &
+!$OMP                                  hydrostatic,w,fv_debug,gridstruct) &
 !$OMP                          private(ip, dpmin, dp)
 do 1000 j=jfirst,jlast
 
@@ -2066,8 +2078,9 @@ do 1000 j=jfirst,jlast
    do k=1, km-1
       dpmin = 0.01 * ( ak(k+1)-ak(k) + (bk(k+1)-bk(k))*1.E5 )
       do i=ifirst, ilast
-         if(delp(i,j,k) < dpmin) then
-            if (fv_debug) write(*,*) 'Mix_dp: ', i, j, k, mpp_pe(), delp(i,j,k), pt(i,j,k)
+         if(.not. delp(i,j,k) >= dpmin) then ! catches NaN
+!         if(delp(i,j,k) < dpmin) then
+            if (fv_debug) write(*,*) 'Mix_dp: ', i, j, k, mpp_pe(), delp(i,j,k), pt(i,j,k), gridstruct%agrid(i,j,:)*rad2deg
             ! Remap from below and mix pt
             dp = dpmin - delp(i,j,k)
             pt(i,j,k) = (pt(i,j,k)*delp(i,j,k) + pt(i,j,k+1)*dp) / dpmin
@@ -2082,8 +2095,9 @@ do 1000 j=jfirst,jlast
    ! Bottom (k=km):
    dpmin = 0.01 * ( ak(km+1)-ak(km) + (bk(km+1)-bk(km))*1.E5 )
    do i=ifirst, ilast
-      if(delp(i,j,km) < dpmin) then
-         if (fv_debug) write(*,*) 'Mix_dp: ', i, j, km, mpp_pe(), delp(i,j,km), pt(i,j,km)
+      if(.not. delp(i,j,km) >= dpmin) then ! catches NaN
+!      if(delp(i,j,km) < dpmin) then
+         if (fv_debug) write(*,*) 'Mix_dp: ', i, j, km, mpp_pe(), delp(i,j,km), pt(i,j,km), gridstruct%agrid(i,j,:)*rad2deg
          ! Remap from above and mix pt
          dp = dpmin - delp(i,j,km)
          pt(i,j,km) = (pt(i,j,km)*delp(i,j,km) + pt(i,j,km-1)*dp)/dpmin

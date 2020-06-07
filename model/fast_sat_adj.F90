@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 ! =======================================================================
 ! fast saturation adjustment is part of the gfdl cloud microphysics.
 ! it mainly consists of melting / freezing, condensation / evaporation,

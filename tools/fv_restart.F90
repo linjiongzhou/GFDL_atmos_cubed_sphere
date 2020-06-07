@@ -62,7 +62,7 @@ module fv_restart_mod
   use fms_mod,             only: file_exist
   use fv_treat_da_inc_mod, only: read_da_inc
   use fv_coarse_graining_mod, only: fv_io_write_restart_coarse
-  
+
   implicit none
   private
 
@@ -82,10 +82,10 @@ contains
   ! </DESCRIPTION>
   !
   subroutine fv_restart_init()
-    
+
     call fv_io_init()
     module_is_initialized = .TRUE.
-    
+
   end subroutine fv_restart_init
   ! </SUBROUTINE> NAME="fv_restart_init"
 
@@ -1262,7 +1262,7 @@ contains
     else
        call fv_io_write_restart(Atm, timestamp)
     endif
-    
+
     if (Atm%neststruct%nested) then
        call fv_io_write_BCs(Atm)
     endif
@@ -1358,7 +1358,7 @@ contains
 !    else
 !       call fv_io_write_restart(Atm)
 !    endif
-    
+
  if (Atm%neststruct%nested) call fv_io_write_BCs(Atm)
 
  module_is_initialized = .FALSE.
