@@ -97,7 +97,7 @@ module gfdl_mp_mod
     
     real, parameter :: t_ice = 273.16 ! freezing temperature
     real, parameter :: table_ice = 273.16 ! freezing point for qs table
-    real, parameter :: t_wfr = t_ice - 40.0 ! complete freezing temperature
+    real :: t_wfr ! complete freezing temperature
     
     real (kind = r_grid), parameter :: e00 = 611.21 ! ifs: saturation vapor pressure at 0 deg c
     ! real (kind = r_grid), parameter :: e00 = 610.71 ! gfdl: saturation vapor pressure at 0 deg c
@@ -3612,6 +3612,12 @@ subroutine gfdl_mp_init (me, master, nlunit, input_nml_file, logunit, fn_nml)
     
     g2 = 0.5 * grav
     log_10 = log (10.)
+
+    if (do_warm_rain_mp) then
+        t_wfr = t_min
+    else
+        t_wfr = t_ice - 40.0
+    endif
     
     module_is_initialized = .true.
     
