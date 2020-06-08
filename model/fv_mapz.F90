@@ -55,15 +55,15 @@ module fv_mapz_mod
   real, parameter:: cp_vap = cp_vapor   ! 1846.
   real, parameter:: tice = 273.16
 
-  real, parameter :: w_max = 60.
-  real, parameter :: w_min = -30.
-  logical, parameter :: w_limiter = .false. ! doesn't work so well??
+  real, parameter :: w_max = 90.
+  real, parameter :: w_min = -60.
+  logical, parameter :: w_limiter = .False.
 
   real(kind=4) :: E_Flux = 0.
   private
 
   public compute_total_energy, Lagrangian_to_Eulerian, moist_cv, moist_cp,   &
-         rst_remap, mappm, E_Flux, remap_2d
+         rst_remap, mappm, E_Flux, remap_2d, map_scalar
 
 contains
 

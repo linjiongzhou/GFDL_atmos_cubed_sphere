@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 !-------------------------------------------------------------------------------
 !> @brief Treat DA increment
 !> @author Xi.Chen <xi.chen@noaa.gov>

@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 module fv_climate_nudge_mod
 
 use fms_mod,          only: open_namelist_file, check_nml_error,  &

@@ -515,7 +515,7 @@ contains
           cycle
        endif
 
-	!For correct diagnostics (may need to be changed for moist Held-Suarez)
+      !For correct diagnostics (may need to be changed for moist Held-Suarez)
       if ( Atm(n)%flagstruct%adiabatic .or. Atm(n)%flagstruct%do_Held_Suarez ) then
           zvir = 0.         ! no virtual effect
        else

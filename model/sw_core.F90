@@ -646,12 +646,12 @@ module sw_core_mod
 !!! TO DO: separate versions for nesting and for cubed-sphere
         if (bounded_domain) then
            do j=jsd,jed
-              do i=is-1,ie+2
+              do i=is,ie+1
                  ut(i,j) = ( uc(i,j) - 0.25 * cosa_u(i,j) *     &
                       (vc(i-1,j)+vc(i,j)+vc(i-1,j+1)+vc(i,j+1)))*rsin_u(i,j)
               enddo
            enddo
-           do j=js-1,je+2
+           do j=js,je+1
               do i=isd,ied
                  vt(i,j) = ( vc(i,j) - 0.25 * cosa_v(i,j) *     &
                       (uc(i,j-1)+uc(i+1,j-1)+uc(i,j)+uc(i+1,j)))*rsin_v(i,j)
@@ -1692,7 +1692,7 @@ module sw_core_mod
     is2 = max(2,is); ie1 = min(npx-1,ie+1)
  end if
 
-    if (flagstruct%grid_type==4) then
+    if (flagstruct%grid_type > 3) then
         do j=js-1,je+2
            do i=is-2,ie+2
               uf(i,j) = u(i,j)*dyc(i,j)
@@ -1803,7 +1803,7 @@ module sw_core_mod
 
  divg_d = 1.e25
 
-    if (flagstruct%grid_type==4) then
+    if (flagstruct%grid_type > 3) then
         do j=jsd,jed
            do i=isd,ied
               uf(i,j) = u(i,j)*dyc(i,j)

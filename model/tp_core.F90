@@ -132,10 +132,11 @@ contains
    ord_ou = hord
 
    if (.not. gridstruct%bounded_domain) &
-	call copy_corners(q, npx, npy, 2, gridstruct%bounded_domain, bd, &
-                          gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner)
+      call copy_corners(q, npx, npy, 2, gridstruct%bounded_domain, bd, &
+                         gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner)
 
-   call yppm(fy2, q, cry, ord_in, isd,ied,isd,ied, js,je,jsd,jed, npx,npy, gridstruct%dya, gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
+   call yppm(fy2, q, cry, ord_in, isd,ied,isd,ied, js,je,jsd,jed, npx,npy, gridstruct%dya, &
+             gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
 
    do j=js,je+1
       do i=isd,ied
@@ -148,24 +149,27 @@ contains
       enddo
    enddo
 
-   call xppm(fx, q_i, crx(is,js), ord_ou, is,ie,isd,ied, js,je,jsd,jed, npx,npy, gridstruct%dxa, gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
+   call xppm(fx, q_i, crx(is,js), ord_ou, is,ie,isd,ied, js,je,jsd,jed, npx,npy, &
+             gridstruct%dxa, gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
 
-  if (.not. gridstruct%bounded_domain) &
-	call copy_corners(q, npx, npy, 1, gridstruct%bounded_domain, bd, &
-                               gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner)
+   if (.not. gridstruct%bounded_domain) &
+     call copy_corners(q, npx, npy, 1, gridstruct%bounded_domain, bd, &
+                       gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner)
 
-  call xppm(fx2, q, crx, ord_in, is,ie,isd,ied, jsd,jed,jsd,jed, npx,npy, gridstruct%dxa, gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
+   call xppm(fx2, q, crx, ord_in, is,ie,isd,ied, jsd,jed,jsd,jed, npx,npy, gridstruct%dxa, &
+             gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
 
-  do j=jsd,jed
-     do i=is,ie+1
-        fx1(i) =  xfx(i,j) * fx2(i,j)
-     enddo
-     do i=is,ie
-        q_j(i,j) = (q(i,j)*gridstruct%area(i,j) + fx1(i)-fx1(i+1))/ra_x(i,j)
-     enddo
-  enddo
+   do j=jsd,jed
+      do i=is,ie+1
+         fx1(i) =  xfx(i,j) * fx2(i,j)
+      enddo
+      do i=is,ie
+         q_j(i,j) = (q(i,j)*gridstruct%area(i,j) + fx1(i)-fx1(i+1))/ra_x(i,j)
+      enddo
+   enddo
 
-  call yppm(fy, q_j, cry, ord_ou, is,ie,isd,ied, js,je,jsd,jed, npx, npy, gridstruct%dya, gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
+   call yppm(fy, q_j, cry, ord_ou, is,ie,isd,ied, js,je,jsd,jed, npx, npy, gridstruct%dya, &
+             gridstruct%bounded_domain, gridstruct%grid_type, lim_fac)
 
 !----------------
 ! Flux averaging:

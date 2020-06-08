@@ -246,8 +246,9 @@ module fv_arrays_mod
 
      integer, pointer :: grid_type !< Which type of grid to use. If 0, the equidistant gnomonic
                                    !< cubed-sphere will be used. If 4, a doubly-periodic
-                                   !< f-plane cartesian grid will be used. If -1, the grid is read
-                                   !< from INPUT/grid_spec.nc. Values 2, 3, 5, 6, and 7 are not
+                                   !< f-plane cartesian grid will be used. If 5, a user-defined
+                                   !< orthogonal grid will be used. If -1, the grid is read
+                                   !< from INPUT/grid_spec.nc. Values 2, 3, 6, and 7 are not
                                    !< supported and will likely not run. The default value is 0.
 
      logical, pointer :: nested   !< Whether this is a nested grid. .false. by default.
@@ -281,7 +282,7 @@ module fv_arrays_mod
 !                                    !  2: the equal-angular Gnomonic grid
 !                                    !  3: the lat-lon grid -- to be implemented
 !                                    !  4: double periodic boundary condition on Cartesian grid
-!                                    !  5: channel flow on Cartesian grid
+!                                    !  5: a user-defined orthogonal grid for stand alone regional model
 !  -> moved to grid_tools
 
 ! Momentum (or KE) options:
@@ -494,6 +495,7 @@ module fv_arrays_mod
    logical :: nudge_ic = .false.      ! Perform nudging on IC
    logical :: ncep_ic = .false.       ! use NCEP ICs
    logical :: nggps_ic = .false.      ! use NGGPS ICs
+   logical :: hrrrv3_ic = .false.
    logical :: ecmwf_ic = .false.      ! use ECMWF ICs
    logical :: gfs_phil = .false.      ! if .T., compute geopotential inside of GFS physics (not used?)
    logical :: agrid_vel_rst = .false. ! if .T., include ua/va (agrid winds) in the restarts
@@ -597,8 +599,8 @@ module fv_arrays_mod
      logical :: nested = .false.
      integer :: nestbctype = 1
      integer :: nsponge = 0
-     integer :: nestupdate = 0
-     logical :: twowaynest = .false.
+     integer :: nestupdate = 7 ! most commonly-used value
+     logical :: twowaynest = .true.  ! most commonly-used
      integer :: ioffset, joffset !Position of nest within parent grid
      integer :: nlevel = 0 ! levels down from top-most domain
 
@@ -690,7 +692,7 @@ module fv_arrays_mod
      real, _ALLOCATABLE :: phys_qs_dt(:,:,:)
      real, _ALLOCATABLE :: phys_u_dt(:,:,:)
      real, _ALLOCATABLE :: phys_v_dt(:,:,:)
-     
+
   end type phys_diag_type
 
   type nudge_diag_type
@@ -721,9 +723,9 @@ module fv_arrays_mod
      real, _ALLOCATABLE :: sgh(:,:)
      real, _ALLOCATABLE :: oro(:,:)
      real, _ALLOCATABLE :: ze0(:,:,:)
-     
+
      logical :: allocated = .false.
-     
+
      type(restart_file_type) :: fv_restart_coarse
      type(restart_file_type) :: sst_restart_coarse
      type(restart_file_type) :: fv_tile_restart_coarse
@@ -731,9 +733,9 @@ module fv_arrays_mod
      type(restart_file_type) :: mg_restart_coarse
      type(restart_file_type) :: lnd_restart_coarse
      type(restart_file_type) :: tra_restart_coarse
-     
+
   end type coarse_restart_type
-  
+
   interface allocate_fv_nest_BC_type
      module procedure allocate_fv_nest_BC_type_3D
      module procedure allocate_fv_nest_BC_type_3D_Atm
@@ -916,8 +918,8 @@ module fv_arrays_mod
      type(phys_diag_type) :: phys_diag
      type(nudge_diag_type) :: nudge_diag
      type(coarse_restart_type) :: coarse_restart
-     
-  end type fv_atmos_type  
+
+  end type fv_atmos_type
 contains
   subroutine allocate_fv_atmos_type(Atm, isd_in, ied_in, jsd_in, jed_in, is_in, ie_in, js_in, je_in, &
        npx_in, npy_in, npz_in, ndims_in, ncnst_in, nq_in, dummy, alloc_2d, ngrids_in)
@@ -937,7 +939,7 @@ contains
 
     !For 2D utility arrays
     integer:: isd_2d, ied_2d, jsd_2d, jed_2d, is_2d, ie_2d, js_2d, je_2d
-    integer:: npx_2d, npy_2d, npz_2d, ndims_2d, ncnst_2d, nq_2d, ng_2d    
+    integer:: npx_2d, npy_2d, npz_2d, ndims_2d, ncnst_2d, nq_2d, ng_2d
     integer :: i,j,k, ns, n
 
     if (Atm%allocated) return
@@ -1611,7 +1613,7 @@ contains
     end if
 
     call deallocate_coarse_restart_type(Atm)
-    
+
     Atm%allocated = .false.
 
   end subroutine deallocate_fv_atmos_type
@@ -1637,9 +1639,9 @@ contains
        deallocate(Atm%coarse_restart%phis)
        deallocate(Atm%coarse_restart%ze0)
     endif
-    
+
   end subroutine deallocate_coarse_restart_type
-  
+
 subroutine allocate_fv_nest_BC_type_3D_Atm(BC,Atm,ns,istag,jstag,dummy)
 
   type(fv_nest_BC_type_3D), intent(INOUT) :: BC

@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 ! =======================================================================
 ! fast saturation adjustment is part of the gfdl cloud microphysics.
 ! it mainly consists of melting / freezing, condensation / evaporation,
@@ -100,6 +99,7 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
     real :: sdt, dt_bigg, adj_fac
     real :: fac_smlt, fac_r2g, fac_i2s, fac_imlt, fac_l2r, fac_v2l, fac_l2v
     real :: factor, qim, c_air, c_vap, dw
+    real :: nl, ni
     
     integer :: i, j
     
@@ -177,8 +177,14 @@ subroutine fast_sat_adj (mdt, is, ie, js, je, ng, hydrostatic, consv_te, &
         
         if (prog_ccn) then
             do i = is, ie
-                ccn (i) = max (10.0, qnl (i, j)) * 1.e6
-                cin (i) = max (10.0, qni (i, j)) * 1.e6
+                ! boucher and lohmann (1995)
+                nl = min (1., abs (hs (i, j)) / (10. * grav)) * &
+                     (10. ** 2.24 * (0.7273 * qnl (i, j) * den (i) * 1.e9) ** 0.257) + &
+                     (1. - min (1., abs (hs (i, j)) / (10. * grav))) * &
+                     (10. ** 2.06 * (0.7273 * qnl (i, j) * den (i) * 1.e9) ** 0.48)
+                ni = qni (i, j)
+                ccn (i) = max (10.0, nl) * 1.e6
+                cin (i) = max (10.0, ni) * 1.e6
                 ccn (i) = ccn (i) / den (i)
             enddo
         else

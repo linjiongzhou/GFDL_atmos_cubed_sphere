@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 subroutine reed_simple_physics (pcols, pver, dtime, t, q, u, v, pmid, pint, pdel, rpdel, ps, precl, TSurf, rh, cond_only, dqdt, dTdt, dudt, dvdt)
 !-----------------------------------------------------------------------
 !
