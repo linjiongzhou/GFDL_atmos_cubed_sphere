@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 ! =======================================================================
 ! cloud radii diagnosis built for gfdl cloud microphysics
 ! authors: linjiong zhou and shian - jiann lin

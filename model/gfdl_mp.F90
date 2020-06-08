@@ -18,7 +18,6 @@
 !* License along with the FV3 dynamical core.
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-
 ! =======================================================================
 ! cloud micro - physics package for gfdl global cloud resolving model
 ! the algorithms are originally derived from lin et al 1983. most of the
