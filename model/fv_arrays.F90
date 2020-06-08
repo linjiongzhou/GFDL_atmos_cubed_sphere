@@ -334,7 +334,8 @@ module fv_arrays_mod
    logical :: consv_am  = .false.   ! Apply Angular Momentum Correction (to zonal wind component)
    logical :: do_sat_adj= .false.   !
    logical :: do_inline_mp = .false. ! inline cloud microphysics
-   logical :: do_f3d    = .false.   !
+   logical :: do_fsbm = .false.     ! fast spectral-bin microphysics
+   logical :: do_f3d    = .false.   ! 
    logical :: no_dycore = .false.   ! skip the dycore
    logical :: convert_ke = .false.
    logical :: do_vort_damp = .false.
@@ -545,6 +546,10 @@ module fv_arrays_mod
                                      !     to .true. in the next city release if desired
   !integer, pointer :: test_case
   !real,    pointer :: alpha
+
+  integer :: fsbm_bin = 33
+  real :: fsbm_dx = 1.e3
+  real :: fsbm_dy = 1.e3
 
   end type fv_flags_type
 
@@ -804,6 +809,8 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: delp(:,:,:) _NULL  ! pressure thickness (pascal)
     real, _ALLOCATABLE :: q(:,:,:,:)  _NULL  ! specific humidity and prognostic constituents
     real, _ALLOCATABLE :: qdiag(:,:,:,:)  _NULL  ! diagnostic tracers
+    real, _ALLOCATABLE :: pt_old(:,:,:)   _NULL  ! temperature at previous time step (K), used in fsbm
+    real, _ALLOCATABLE :: q_old(:,:,:)  _NULL  ! specific humidity at previous time step, used in fsbm
 
 !----------------------
 ! non-hydrostatic state:
@@ -1035,6 +1042,13 @@ contains
     allocate ( Atm%delp(isd:ied  ,jsd:jed  ,npz) )
     allocate (    Atm%q(isd:ied  ,jsd:jed  ,npz, nq) )
     allocate (Atm%qdiag(isd:ied  ,jsd:jed  ,npz, nq+1:ncnst) )
+    if (Atm%flagstruct%do_fsbm) then
+       allocate (Atm%pt_old(isd:ied  ,jsd:jed  ,npz) ) ! used in fsbm
+       allocate (Atm%q_old(isd:ied  ,jsd:jed  ,npz) ) ! used in fsbm
+    else
+       allocate (Atm%pt_old(1  ,1  ,1) ) ! used in fsbm
+       allocate (Atm%q_old(1  ,1  ,1) ) ! used in fsbm
+    endif
 
     ! Allocate Auxilliary pressure arrays
     allocate (   Atm%ps(isd:ied  ,jsd:jed) )
@@ -1392,6 +1406,10 @@ contains
     deallocate ( Atm%delp )
     deallocate (    Atm%q )
     deallocate (    Atm%qdiag )
+    if (Atm%flagstruct%do_fsbm) then
+       deallocate ( Atm%pt_old ) ! used in fsbm
+       deallocate ( Atm%q_old ) ! used in fsbm
+    endif
     deallocate (   Atm%ps )
     deallocate (   Atm%pe )
     deallocate (   Atm%pk )
