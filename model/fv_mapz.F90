@@ -75,10 +75,12 @@ contains
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, do_omega, adiabatic, do_adiabatic_init, &
                       do_inline_mp, do_fsbm, inline_mp, c2l_ord, bd, fv_debug, &
-                      moist_phys, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start)
+                      moist_phys, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start, &
+                      do_aerosol)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
   logical, intent(in):: warm_start
+  logical, intent(in):: do_aerosol
   real,    intent(in):: mdt                   ! remap time step
   real,    intent(in):: pdt                   ! phys time step
   integer, intent(in):: npx, npy
@@ -174,7 +176,7 @@ contains
   logical:: fast_mp_consv
   integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
-  integer:: ccn_cm3, cin_cm3
+  integer:: ccn_cm3, cin_cm3, aerosol
   integer:: ql_num, qr_num, qi_num, qs_num, qg_num, qa_num, qn_num
 
   ! Linjiong Zhou, FSBM
@@ -182,7 +184,7 @@ contains
   logical :: diagflag = .false.
   integer :: n_chem, num_sbmradar, itimestep
   real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
-  real :: dqv, dql, dqr, dqi, dqs, dqg, ps_dt
+  real :: dqv, dql, dqr, dqi, dqs, dqg, ps_dt, nl
   real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
   real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
   real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
@@ -221,6 +223,7 @@ contains
        qg_num = get_tracer_index (MODEL_ATMOS, 'qg_num')
        qa_num = get_tracer_index (MODEL_ATMOS, 'qa_num')
        qn_num = get_tracer_index (MODEL_ATMOS, 'qn_num')
+       aerosol = get_tracer_index (MODEL_ATMOS, 'aerosol')
 
        if ( do_adiabatic_init .or. do_sat_adj ) then
             fast_mp_consv = (.not.do_adiabatic_init) .and. consv>consv_min
@@ -786,13 +789,17 @@ endif        ! end last_step check
 !$OMP parallel do default(none) shared(is,ie,js,je,km,kmp,isd,jsd,te,delp,hydrostatic,hs,pt,peln, &
 !$OMP                                  delz,rainwat,liq_wat,ice_wat,snowwat,graupel,q_con,r_vir, &
 !$OMP                                  sphum,pkz,last_step,ng,gridstruct,q,mdt,cld_amt,cappa,dtdt, &
-!$OMP                                  out_dt,rrg,akap,fast_mp_consv) &
+!$OMP                                  out_dt,rrg,akap,fast_mp_consv,aerosol) &
 !$OMP                          private(qnl,qni,dpln,dz)
            do k=kmp,km
               do j=js,je
                  do i=is,ie
                     dpln(i,j) = peln(i,k+1,j) - peln(i,k,j)
-                    qnl(i,j,k) = 0.0
+                    if (aerosol .gt. 0) then
+                       qnl(i,j,k) = q(isd,jsd,k,aerosol)
+                    else
+                       qnl(i,j,k) = 0.0
+                    endif
                     qni(i,j,k) = 0.0
                     if (.not. hydrostatic) then
                        dz(i,j) = delz(i,j,k)
@@ -860,7 +867,7 @@ endif        ! end last_step check
 !$OMP                                  delz,rainwat,liq_wat,ice_wat,snowwat, &
 !$OMP                                  graupel,q_con,sphum,w,pk,pkz,last_step,consv, &
 !$OMP                                  do_adiabatic_init,te0_2d, &
-!$OMP                                  gridstruct,q, &
+!$OMP                                  gridstruct,q,aerosol, &
 !$OMP                                  mdt,cld_amt,cappa,rrg,akap, &
 !$OMP                                  ccn_cm3,cin_cm3,inline_mp, &
 !$OMP                                  do_inline_mp,ps) &
@@ -869,8 +876,8 @@ endif        ! end last_step check
 
         gsize(is:ie) = sqrt(gridstruct%area_64(is:ie,j))
 
-        if (ccn_cm3 .gt. 0) then
-          q2(is:ie,:) = q(is:ie,j,:,ccn_cm3)
+        if (aerosol .gt. 0) then
+          q2(is:ie,:) = q(is:ie,j,:,aerosol)
         else
           q2(is:ie,:) = 0.0
         endif
@@ -1106,7 +1113,7 @@ endif        ! end last_step check
 !$OMP                                  chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
 !$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
 !$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,qa_ind,qn_ind,a_step, &
-!$OMP                                  fsbm_bin,r_vir,warm_start,itimestep) &
+!$OMP                                  fsbm_bin,r_vir,warm_start,itimestep,do_aerosol,aerosol,nl) &
 !$OMP                          private(qliq,qsol,cvm)
         do j = js, je
             do i = is, ie
@@ -1116,13 +1123,23 @@ endif        ! end last_step check
                     xland(i,j) = 0
                 endif
                 do k = 1, km
+                    ! Boucher and Lohmann (1995)
+                    if (do_aerosol) then
+                        nl = xland(i,j) * &
+                            (10. ** 2.24 * (0.7273 * q(i,j,km+1-k,aerosol) * rho_phy(i,k,j) * 1.e9) ** 0.257) + &
+                            (1. - xland(i,j)) * &
+                            (10. ** 2.06 * (0.7273 * q(i,j,km+1-k,aerosol) * rho_phy(i,k,j) * 1.e9) ** 0.48)
+                        nl = max (10.0, nl) * 1.e6 / rho_phy(i,k,j)
+                    else
+                        nl = 1.e8 / rho_phy(i,k,j)
+                    endif
                     do n = 1, fsbm_bin
                         if (.not. warm_start .and. a_step .eq. 1) then
                             itimestep = 1
                             chem_new(i,k,j,fsbm_bin*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
                             chem_new(i,k,j,fsbm_bin*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
                             chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,graupel) * f(n)
-                            chem_new(i,k,j,fsbm_bin*3+n) = 1.e8
+                            chem_new(i,k,j,fsbm_bin*3+n) = nl * f(n)
                             chem_new(i,k,j,fsbm_bin*4+n) = 0.0
                         else
                             itimestep = 2
