@@ -4614,15 +4614,15 @@ contains
               qout(i,j,n) = qe(i,1)
           elseif ( pout(n) >= pe(i,km+1,j) ) then
 ! lower than the bottom surface:
-            if ( iv==1 ) then    ! Temperature
-! lower than the bottom surface:
-! mean (hydro) potential temp based on lowest 2-3 layers (NCEP method)
-! temp = ptm * p**cappa = ptm * exp(cappa*log(pout))
-               qout(i,j,n) = gcp*exp(kappa*pout(n)) * (wz(i,j,km-2) - wz(i,j,km))  /   &
-                               ( exp(kappa*pe(i,km,j)) - exp(kappa*pe(i,km-2,j)) )
-            else
+!            if ( iv==1 ) then    ! Temperature
+!! lower than the bottom surface:
+!! mean (hydro) potential temp based on lowest 2-3 layers (NCEP method)
+!! temp = ptm * p**cappa = ptm * exp(cappa*log(pout))
+!               qout(i,j,n) = gcp*exp(kappa*pout(n)) * (wz(i,j,km-2) - wz(i,j,km))  /   &
+!                               ( exp(kappa*pe(i,km,j)) - exp(kappa*pe(i,km-2,j)) )
+!            else
                qout(i,j,n) = qe(i,km+1)
-            endif
+!            endif
           else
             do k=k1,km
                if ( pout(n)>=pe(i,k,j) .and. pout(n) <= pe(i,k+1,j) ) then
