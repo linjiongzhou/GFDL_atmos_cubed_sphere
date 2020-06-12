@@ -25,7 +25,7 @@
 module cld_eff_rad_mod
     
     use gfdl_cld_mp_mod, only: rdgas, grav, pi, zvir, t_ice, ql0_max, &
-        ccn_o, ccn_l, rhow, rhor, rhos, rhog
+        rhow, rhor, rhos, rhog
     
     implicit none
     
@@ -59,6 +59,10 @@ module cld_eff_rad_mod
     real :: betas = 1.0
     real :: betag = 1.0
     
+    real :: ccn_o = 90. ! ccn over ocean (cm^ - 3)
+    real :: ccn_l = 270. ! ccn over land (cm^ - 3)
+    
+    logical :: prog_ccn = .false. ! do prognostic ccn (separated from gfdl_mp)
     logical :: liq_ice_combine = .true.
     logical :: snow_grauple_combine = .false.
     
@@ -76,7 +80,7 @@ module cld_eff_rad_mod
     namelist / cld_eff_rad_nml / &
         qi0_rei, qmin, beta, liq_ice_combine, rewflag, reiflag, rewmin, rewmax, reimin, &
         reimax, rermin, rermax, resmin, resmax, regmin, regmax, betaw, betai, betar, betas, &
-        betag
+        betag, ccn_o, ccn_l, prog_ccn
     
 contains
 
@@ -85,7 +89,7 @@ contains
 ! =======================================================================
 
 subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
-        qcw, qci, qcr, qcs, qcg, rew, rei, rer, res, reg, &
+        qa, qcw, qci, qcr, qcs, qcg, rew, rei, rer, res, reg, &
         cld, cloud, snowd, cnvw, cnvi, cnvc)
     
     implicit none
@@ -98,7 +102,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
     
     real, intent (in), dimension (is:ie, ks:ke) :: delp, t, p
     real, intent (in), dimension (is:ie, ks:ke) :: cloud ! cloud fraction
-    real, intent (in), dimension (is:ie, ks:ke) :: qw, qi, qr, qs, qg ! mass mixing ratio (kg / kg)
+    real, intent (in), dimension (is:ie, ks:ke) :: qw, qi, qr, qs, qg, qa ! mass mixing ratio (kg / kg)
     
     real, intent (in), dimension (is:ie, ks:ke), optional :: cnvw, cnvi ! convective cloud water / ice mass mixing ratio (kg / kg)
     real, intent (in), dimension (is:ie, ks:ke), optional :: cnvc ! convective cloud fraction
@@ -274,13 +278,21 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 ! -----------------------------------------------------------------------
                 ! cloud water (martin et al., 1994)
                 ! -----------------------------------------------------------------------
-                
+
+                if (prog_ccn) then
+                    ! boucher and lohmann (1995)
+                    ccnw = (1.0 - abs (mask - 1.0)) * &
+                         (10. ** 2.24 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.257) + &
+                         abs (mask - 1.0) * &
+                         (10. ** 2.06 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.48)
+                else
 #ifndef MARTIN_CCN
-                ccnw = ccn_o * abs (mask - 1.0) + ccn_l * (1.0 - abs (mask - 1.0))
+                    ccnw = ccn_o * abs (mask - 1.0) + ccn_l * (1.0 - abs (mask - 1.0))
 #else
-                ccnw = 0.80 * (- 1.15e-3 * (ccn_o ** 2) + 0.963 * ccn_o + 5.30) * abs (mask - 1.0) + &
-                    0.67 * (- 2.10e-4 * (ccn_l ** 2) + 0.568 * ccn_l - 27.9) * (1.0 - abs (mask - 1.0))
+                    ccnw = 0.80 * (- 1.15e-3 * (ccn_o ** 2) + 0.963 * ccn_o + 5.30) * abs (mask - 1.0) + &
+                        0.67 * (- 2.10e-4 * (ccn_l ** 2) + 0.568 * ccn_l - 27.9) * (1.0 - abs (mask - 1.0))
 #endif
+                endif
                 
                 if (qmw (i, k) .gt. qmin) then
                     qcw (i, k) = betaw * dpg * qmw (i, k) * 1.0e3
@@ -299,7 +311,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 ! cloud water (martin et al., 1994, gfdl revision)
                 ! -----------------------------------------------------------------------
                 
-                ccnw = 1.077 * ccn_o * abs (mask - 1.0) + 1.143 * ccn_l * (1.0 - abs (mask - 1.0))
+                if (prog_ccn) then
+                    ! boucher and lohmann (1995)
+                    ccnw = (1.0 - abs (mask - 1.0)) * &
+                         (10. ** 2.24 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.257) + &
+                         abs (mask - 1.0) * &
+                         (10. ** 2.06 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.48)
+                else
+                    ccnw = 1.077 * ccn_o * abs (mask - 1.0) + 1.143 * ccn_l * (1.0 - abs (mask - 1.0))
+                endif
                 
                 if (qmw (i, k) .gt. qmin) then
                     qcw (i, k) = betaw * dpg * qmw (i, k) * 1.0e3
