@@ -2477,6 +2477,9 @@ contains
 
        if (.not. allocated(wz)) allocate ( wz(isc:iec,jsc:jec,npz+1) )
 
+       call get_height_field(isc, iec, jsc, jec, ngc, npz, Atm(n)%flagstruct%hydrostatic, Atm(n)%delz,  &
+                             wz, Atm(n)%pt, Atm(n)%q, Atm(n)%peln, zvir)
+
        if ( do_cs_intp ) then  ! log(pe) as the coordinaite for temp re-construction
           if(.not. allocated (a3) ) allocate( a3(isc:iec,jsc:jec,nplev) )
           call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%pt(isc:iec,jsc:jec,:), nplev,    &
@@ -4589,11 +4592,11 @@ contains
  real, parameter:: gcp = grav / cp_air
  real:: qe(is:ie,km+1)
  real, dimension(is:ie,km):: q2, dp
- real:: s0, a6
+ real:: s0, a6, alpha, pbot, ts, t0, tmp
  integer:: i,j,k, n, k1
 
 !$OMP parallel do default(none) shared(iv,id,is,ie,js,je,km,kd,pout,qin,qout,pe,wz) &
-!$OMP             private(k1,s0,a6,q2,dp,qe)
+!$OMP             private(k1,s0,a6,q2,dp,qe,pbot,alpha,ts,t0,tmp)
  do j=js,je
 
    do i=is,ie
@@ -4614,15 +4617,36 @@ contains
               qout(i,j,n) = qe(i,1)
           elseif ( pout(n) >= pe(i,km+1,j) ) then
 ! lower than the bottom surface:
-!            if ( iv==1 ) then    ! Temperature
-!! lower than the bottom surface:
-!! mean (hydro) potential temp based on lowest 2-3 layers (NCEP method)
-!! temp = ptm * p**cappa = ptm * exp(cappa*log(pout))
+            if ( iv==1 ) then    ! Temperature
+!-----------------------------------------------------------------------
+! Linjiong Zhou: this idea is good, but the formula is wrong.
+! lower than the bottom surface:
+! mean (hydro) potential temp based on lowest 2-3 layers (NCEP method)
+! temp = ptm * p**cappa = ptm * exp(cappa*log(pout))
 !               qout(i,j,n) = gcp*exp(kappa*pout(n)) * (wz(i,j,km-2) - wz(i,j,km))  /   &
 !                               ( exp(kappa*pe(i,km,j)) - exp(kappa*pe(i,km-2,j)) )
-!            else
+!-----------------------------------------------------------------------
+! ECMWF Method: Trenberth et al., 1993
+               alpha = 0.0065*rdgas/grav
+               pbot = (exp(pe(i,km+1,j))-exp(pe(i,km,j)))/(pe(i,km+1,j)-pe(i,km,j))
+               ts = (q2(i,km)+alpha*q2(i,km)*(exp(pe(i,km+1,j))/pbot-1))
+               t0 = ts+0.0065*wz(i,j,km+1)
+               tmp = min(t0,298.0)
+               if (wz(i,j,km+1).ge.2000.0) then
+                   if (wz(i,j,km+1).le.2500.0) then
+                       tmp = 0.002*((2500-wz(i,j,km+1))*t0+(wz(i,j,km+1)-2000)*tmp)
+                   endif
+                   if (tmp-ts.lt.0) then
+                       alpha = 0
+                   else
+                       alpha = rdgas*(tmp-ts)/(wz(i,j,km+1)*grav)
+                   endif
+               endif
+               qout(i,j,n) = ts*exp(alpha*(pout(n)-pe(i,km+1,j)))
+!-----------------------------------------------------------------------
+            else
                qout(i,j,n) = qe(i,km+1)
-!            endif
+            endif
           else
             do k=k1,km
                if ( pout(n)>=pe(i,k,j) .and. pout(n) <= pe(i,k+1,j) ) then
