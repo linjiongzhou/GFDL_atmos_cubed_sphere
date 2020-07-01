@@ -307,6 +307,9 @@ module gfdl_mp_mod
     real :: rh_thres = 0.75
     real :: rhc_cevap = 0.85 ! cloud water
     real :: rhc_revap = 0.85 ! cloud water
+
+	real :: f_dq_p = 1.0
+	real :: f_dq_m = 1.0
     
     integer :: inflag = 1 ! ice nucleation scheme
     ! 1: hong et al., 2004
@@ -332,7 +335,8 @@ module gfdl_mp_mod
         do_sedi_heat, sedi_transport, do_sedi_w, icloud_f, irain_f, &
         ntimes, disp_heat, do_hail, use_xr_cloud, xr_a, xr_b, xr_c, tau_revp, tice_mlt, hd_icefall, &
         do_cond_timescale, mp_time, consv_checker, te_err, use_park_cloud, &
-        use_gi_cloud, use_rhc_cevap, use_rhc_revap, inflag, do_warm_rain_mp
+        use_gi_cloud, use_rhc_cevap, use_rhc_revap, inflag, do_warm_rain_mp, &
+        rh_thres, f_dq_p, f_dq_m
     
     public &
         t_min, t_sub, tau_r2g, tau_smlt, tau_g2r, dw_land, dw_ocean, &
@@ -347,7 +351,8 @@ module gfdl_mp_mod
         do_sedi_heat, sedi_transport, do_sedi_w, icloud_f, irain_f, &
         ntimes, disp_heat, do_hail, use_xr_cloud, xr_a, xr_b, xr_c, tau_revp, tice_mlt, hd_icefall, &
         do_cond_timescale, mp_time, consv_checker, te_err, use_park_cloud, &
-        use_gi_cloud, use_rhc_cevap, use_rhc_revap, inflag, do_warm_rain_mp
+        use_gi_cloud, use_rhc_cevap, use_rhc_revap, inflag, do_warm_rain_mp, &
+        rh_thres, f_dq_p, f_dq_m
     
 contains
 
@@ -2331,6 +2336,7 @@ subroutine subgrid_z_proc (ks, ke, p1, den, denfac, dts, rh_adj, tz, qv, ql, qr,
         ! icloud_f = 0: bug - fixed
         ! icloud_f = 1: old fvgfs gfdl) mp implementation
         ! icloud_f = 2: binary cloud scheme (0 / 1)
+        ! icloud_f = 3: revision of icloud = 0
         ! -----------------------------------------------------------------------
         
         if (use_xr_cloud) then ! xu and randall cloud scheme (1996)
@@ -2377,24 +2383,39 @@ subroutine subgrid_z_proc (ks, ke, p1, den, denfac, dts, rh_adj, tz, qv, ql, qr,
             if (rh > rh_thres .and. qpz > 1.e-6) then
                 
                 dq = h_var * qpz
-                q_plus = qpz + dq
-                q_minus = qpz - dq
+                q_plus = qpz + dq * f_dq_p
+                q_minus = qpz - dq * f_dq_m
                 
-                if (icloud_f == 2) then
+                if (icloud_f .eq. 2) then
                     if (qstar < qpz) then
                         qa (k) = 1.
                     else
                         qa (k) = 0.
+                    endif
+                elseif (icloud_f .eq. 3) then
+                    if (qstar < qpz) then
+                        qa (k) = 1.
+                    else
+                        if (qstar < q_plus) then
+                            qa (k) = (q_plus - qstar) / (dq * f_dq_p)
+                        else
+                            qa (k) = 0.
+                        endif
+                        ! impose minimum cloudiness if substantial q_cond (k) exist
+                        if (q_cond (k) > 1.e-6) then
+                            qa (k) = max (cld_min, qa (k))
+                        endif
+                        qa (k) = min (1., qa (k))
                     endif
                 else
                     if (qstar < q_minus) then
                         qa (k) = 1.
                     else
                         if (qstar < q_plus) then
-                            if (icloud_f == 0) then
-                                qa (k) = (q_plus - qstar) / (dq + dq)
+                            if (icloud_f .eq. 0) then
+                                qa (k) = (q_plus - qstar) / (dq * f_dq_p + dq * f_dq_m)
                             else
-                                qa (k) = (q_plus - qstar) / (2. * dq * (1. - q_cond (k)))
+                                qa (k) = (q_plus - qstar) / ((dq * f_dq_p + dq * f_dq_m) * (1. - q_cond (k)))
                             endif
                         else
                             qa (k) = 0.
@@ -3597,7 +3618,7 @@ subroutine gfdl_mp_init (me, master, nlunit, input_nml_file, logunit, fn_nml)
     
     ! write version number and namelist to log file
     
-    if (me == master) then
+    if (me .eq. master) then
         write (logunit, *) " ================================================================== "
         write (logunit, *) "gfdl_mp_mod"
         write (logunit, nml = gfdl_mp_nml)

@@ -60,6 +60,7 @@ module fv_regional_mod
    use fms_mod,           only: check_nml_error
    use fms_io_mod,        only: read_data
    use boundary_mod,      only: fv_nest_BC_type_3D
+   use gfdl_mp_mod,       only: c_liq, c_ice
 
       private
 
@@ -163,10 +164,6 @@ module fv_regional_mod
 
       real,parameter :: tice=273.16                                     &
                        ,t_i0=15.
-      !real, parameter :: c_liq = 4185.5 ! gfdl: heat capacity of liquid at 15 deg c
-      !real, parameter :: c_ice = 1972.0 ! gfdl: heat capacity of ice at - 15 deg c
-      real, parameter :: c_liq = 4218.0 ! gfdl: heat capacity of liquid at 0 deg c
-      real, parameter :: c_ice = 2106.0 ! gfdl: heat capacity of ice at 0 deg c
       real, parameter :: zvir = rvgas/rdgas - 1.                        &
                         ,cv_air = cp_air - rdgas                        &
                         ,cv_vap = cp_vapor - rvgas

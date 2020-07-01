@@ -45,6 +45,7 @@ module fv_nesting_mod
    use fv_diagnostics_mod,  only: sphum_ll_fix, range_check
    use sw_core_mod,         only: divergence_corner, divergence_corner_nest
    use time_manager_mod,    only: time_type
+   use gfdl_mp_mod,         only: c_liq, c_ice
 
 implicit none
    logical :: RF_initialized = .false.
@@ -1394,10 +1395,6 @@ contains
    integer, intent(IN) :: npx, npy, npz
    real, intent(IN) :: zvir
 
-    !real, parameter:: c_liq = 4185.5      ! heat capacity of water at 0C
-    !real, parameter:: c_ice = 1972.       ! heat capacity of ice at 0C: c=c_ice+7.3*(T-Tice)
-    real, parameter:: c_liq = 4218.0      ! heat capacity of water at 0C
-    real, parameter:: c_ice = 2106.       ! heat capacity of ice at 0C: c=c_ice+7.3*(T-Tice)
     real, parameter:: cv_vap = cp_vapor - rvgas  ! 1384.5
 
    real, dimension(:,:,:), pointer :: liq_watBC_west, ice_watBC_west, rainwatBC_west, snowwatBC_west, graupelBC_west
@@ -1644,10 +1641,6 @@ contains
    integer :: i,j,k
    real :: dp1, q_con, q_sol, q_liq, cvm, pkz, rdg, cv_air
 
-   !real, parameter:: c_liq = 4185.5      ! heat capacity of water at 0C
-   real, parameter:: c_liq = 4218.0      ! heat capacity of water at 0C
-   !real, parameter:: c_ice = 1972.       ! heat capacity of ice at 0C: c=c_ice+7.3*(T-Tice)
-   real, parameter:: c_ice = 2106.       ! heat capacity of ice at 0C: c=c_ice+7.3*(T-Tice)
    real, parameter:: cv_vap = cp_vapor - rvgas  ! 1384.5
    real, parameter:: tice = 273.16 ! For GFS Partitioning
    real, parameter:: t_i0 = 15.
