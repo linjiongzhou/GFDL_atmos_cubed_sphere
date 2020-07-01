@@ -28,7 +28,7 @@
 module fast_sat_adj_mod
     
     use fv_arrays_mod, only: r_grid
-    use gfdl_cld_mp_mod, only: rvgas, rdgas, grav, hlv, hlf, cp_air, ql_gen, qi_gen, qi0_max, &
+    use gfdl_mp_mod, only: rvgas, rdgas, grav, hlv, hlf, cp_air, ql_gen, qi_gen, qi0_max, &
         ql_mlt, ql0_max, qi_lim, qs_mlt, icloud_f, sat_adj0, t_sub, cld_min, tau_r2g, tau_smlt, &
         tau_i2s, tau_v2l, tau_l2v, tau_imlt, tau_l2r, rad_rain, rad_snow, rad_graupel, &
         dw_ocean, dw_land, cp_vap, cv_air, cv_vap, c_ice, c_liq, dc_vap, dc_ice, t_ice, &

@@ -23,7 +23,7 @@ module rad_ref_mod
     
     use constants_mod, only: grav, rdgas, pi => pi_8
     use fv_arrays_mod, only: fv_grid_bounds_type, r_grid
-    use gfdl_cld_mp_mod, only : do_hail, rhor, rhos, rhog, rhoh, rnzr, rnzs, rnzg, rnzh
+    use gfdl_mp_mod, only: do_hail, rhor, rhos, rhog, rhoh, rnzr, rnzs, rnzg, rnzh
     use gfdl_mp_mod, only: do_hail_inline => do_hail ! assuming same densities and numbers in both inline and traditional gfdl mp
     
 contains

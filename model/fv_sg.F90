@@ -27,7 +27,7 @@ module fv_sg_mod
   use constants_mod,      only: rdgas, rvgas, cp_air, cp_vapor, hlv, hlf, kappa, grav
   use tracer_manager_mod, only: get_tracer_index
   use field_manager_mod,  only: MODEL_ATMOS
-  use gfdl_cld_mp_mod,    only: wqs1, wqs2, wqsat2_moist
+  use gfdl_mp_mod,        only: wqs1, wqs2, wqsat2_moist, c_liq, c_ice
   use fv_mp_mod,          only: mp_reduce_min, is_master
   use mpp_mod,            only: mpp_pe
 
@@ -38,10 +38,6 @@ public  fv_subgrid_z, qsmith, neg_adj3
 
   real, parameter:: esl = 0.621971831
   real, parameter:: tice = 273.16
-  real, parameter:: c_ice = 2106.  ! Emanuel table, page 566
-! real, parameter:: c_ice = 1972.  !  -15 C
-! real, parameter:: c_liq = 4.1855e+3    ! GFS
-  real, parameter:: c_liq = 4218.        ! ECMWF-IFS
   real, parameter:: cv_vap = cp_vapor - rvgas  ! 1384.5
   real, parameter:: c_con = c_ice
 
