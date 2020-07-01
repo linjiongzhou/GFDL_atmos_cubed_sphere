@@ -310,6 +310,7 @@ module gfdl_mp_mod
 
 	real :: f_dq_p = 1.0
 	real :: f_dq_m = 1.0
+    logical :: do_cld_adj = .false.
     
     integer :: inflag = 1 ! ice nucleation scheme
     ! 1: hong et al., 2004
@@ -336,7 +337,7 @@ module gfdl_mp_mod
         ntimes, disp_heat, do_hail, use_xr_cloud, xr_a, xr_b, xr_c, tau_revp, tice_mlt, hd_icefall, &
         do_cond_timescale, mp_time, consv_checker, te_err, use_park_cloud, &
         use_gi_cloud, use_rhc_cevap, use_rhc_revap, inflag, do_warm_rain_mp, &
-        rh_thres, f_dq_p, f_dq_m
+        rh_thres, f_dq_p, f_dq_m, do_cld_adj
     
     public &
         t_min, t_sub, tau_r2g, tau_smlt, tau_g2r, dw_land, dw_ocean, &
@@ -352,7 +353,7 @@ module gfdl_mp_mod
         ntimes, disp_heat, do_hail, use_xr_cloud, xr_a, xr_b, xr_c, tau_revp, tice_mlt, hd_icefall, &
         do_cond_timescale, mp_time, consv_checker, te_err, use_park_cloud, &
         use_gi_cloud, use_rhc_cevap, use_rhc_revap, inflag, do_warm_rain_mp, &
-        rh_thres, f_dq_p, f_dq_m
+        rh_thres, f_dq_p, f_dq_m, do_cld_adj
     
 contains
 
@@ -2383,7 +2384,11 @@ subroutine subgrid_z_proc (ks, ke, p1, den, denfac, dts, rh_adj, tz, qv, ql, qr,
             if (rh > rh_thres .and. qpz > 1.e-6) then
                 
                 dq = h_var * qpz
-                q_plus = qpz + dq * f_dq_p
+                if (do_cld_adj) then
+                    q_plus = qpz + dq * f_dq_p * min(1.0, max(0.0, (p1 (k) - 200.e2) / (1000.e2 - 200.e2)))
+                else
+                    q_plus = qpz + dq * f_dq_p
+                endif
                 q_minus = qpz - dq * f_dq_m
                 
                 if (icloud_f .eq. 2) then
