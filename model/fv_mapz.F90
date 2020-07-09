@@ -53,7 +53,7 @@ module fv_mapz_mod
 
   real, parameter :: w_max = 90.
   real, parameter :: w_min = -60.
-  logical, parameter :: w_limiter = .False.
+  logical, parameter :: w_limiter = .True.
 
   real(kind=4) :: E_Flux = 0.
   private
