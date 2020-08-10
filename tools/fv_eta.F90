@@ -40,7 +40,7 @@ module fv_eta_mod
       integer,  intent(in)::  km           ! vertical dimension
       integer,  intent(out):: ks           ! number of pure p layers
       real:: a60(61),b60(61)
-! Thfollowing L63 setting is the same as NCEP GFS's L64 except the top
+! The following L63 setting is the same as NCEP GFS's L64 except the top
 ! 3 layers
       data a60/300.0000,     430.00000,     558.00000,    &
               700.00000,     863.05803,    1051.07995,    &
@@ -584,6 +584,15 @@ module fv_eta_mod
             enddo
 
          endif
+
+         ! xi chen's l65
+      case (65)
+         ks = 29
+         do k=1,km+1
+            ak(k) = a65(k)
+            bk(k) = b65(k)
+         enddo
+
          !-->cjg
       case (68)
          ks = 27
@@ -638,6 +647,14 @@ module fv_eta_mod
             bk(k) = b96(k)
          enddo
          !<--cjg
+
+      ! kgao   
+      case (88)
+         ks = 19 
+         do k=1,km+1
+            ak(k) = a88(k)
+            bk(k) = b88(k)
+         enddo
 
       case (100)
          ks = 38
