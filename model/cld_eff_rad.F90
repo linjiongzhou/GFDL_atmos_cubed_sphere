@@ -25,7 +25,7 @@
 module cld_eff_rad_mod
     
     use gfdl_cld_mp_mod, only: rdgas, grav, pi, zvir, t_ice, ql0_max, &
-        ccn_o, ccn_l, prog_ccn, rhow, rhor, rhos, rhog
+        ccn_o, ccn_l, prog_ccn, rhow, rhor, rhos, rhog, qi0_max
     
     implicit none
     
