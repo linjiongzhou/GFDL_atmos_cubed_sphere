@@ -250,6 +250,7 @@ module fv_control_mod
      logical , pointer :: mountain
      logical , pointer :: remap_t
      logical , pointer :: z_tracer
+     logical , pointer :: w_limiter
 
      logical , pointer :: old_divg_damp
      logical , pointer :: fv_land
@@ -786,6 +787,7 @@ module fv_control_mod
        reproduce_sum                 => Atm%flagstruct%reproduce_sum
        adjust_dry_mass               => Atm%flagstruct%adjust_dry_mass
        fv_debug                      => Atm%flagstruct%fv_debug
+       w_limiter                     => Atm%flagstruct%w_limiter
        srf_init                      => Atm%flagstruct%srf_init
        mountain                      => Atm%flagstruct%mountain
        remap_t                       => Atm%flagstruct%remap_t
@@ -961,7 +963,7 @@ module fv_control_mod
             nestbctype, nestupdate, nsponge, s_weight, &
             check_negative, nudge_ic, halo_update_type, gfs_phil, agrid_vel_rst,     &
             do_uni_zfull, adj_mass_vmr, update_blend, regional,&
-            bc_update_interval, restart_resolution, fsbm_bin, fsbm_dx, fsbm_dy
+            bc_update_interval, restart_resolution, fsbm_bin, fsbm_dx, fsbm_dy, w_limiter
 
 #ifdef INTERNAL_FILE_NML
        ! Read FVCORE namelist

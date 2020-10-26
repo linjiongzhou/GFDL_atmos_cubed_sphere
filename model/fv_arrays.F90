@@ -553,6 +553,8 @@ module fv_arrays_mod
   real :: fsbm_dx = 1.e3
   real :: fsbm_dy = 1.e3
 
+  logical :: w_limiter = .true. ! Fix excessive w - momentum conserving --- sjl
+
   end type fv_flags_type
 
   type fv_nest_BC_type_3D
