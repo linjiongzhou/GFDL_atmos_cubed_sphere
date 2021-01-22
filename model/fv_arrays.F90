@@ -69,8 +69,10 @@ module fv_arrays_mod
  integer :: id_srh1, id_srh3, id_ustm, id_vstm
 ! NGGPS 31-level diag
  integer, allocatable :: id_u(:), id_v(:), id_t(:), id_h(:), id_q(:), id_omg(:)
+ integer, allocatable :: id_ql(:), id_qi(:), id_qr(:), id_qs(:), id_qg(:), id_cf(:)
 
  integer:: id_u_plev, id_v_plev, id_t_plev, id_h_plev, id_q_plev, id_omg_plev
+ integer:: id_ql_plev, id_qi_plev, id_qr_plev, id_qs_plev, id_qg_plev, id_cf_plev
 ! IPCC diag
  integer :: id_rh10,  id_rh50,  id_rh100, id_rh200,  id_rh250, id_rh300, &
             id_rh500, id_rh700, id_rh850, id_rh925,  id_rh1000
