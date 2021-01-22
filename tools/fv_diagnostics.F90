@@ -551,12 +551,24 @@ contains
     allocate(idiag%id_t(nplev))
     allocate(idiag%id_h(nplev))
     allocate(idiag%id_q(nplev))
+    allocate(idiag%id_ql(nplev))
+    allocate(idiag%id_qi(nplev))
+    allocate(idiag%id_qr(nplev))
+    allocate(idiag%id_qs(nplev))
+    allocate(idiag%id_qg(nplev))
+    allocate(idiag%id_cf(nplev))
     allocate(idiag%id_omg(nplev))
     idiag%id_u(:)   = 0
     idiag%id_v(:)   = 0
     idiag%id_t(:)   = 0
     idiag%id_h(:)   = 0
     idiag%id_q(:)   = 0
+    idiag%id_ql(:)   = 0
+    idiag%id_qi(:)   = 0
+    idiag%id_qr(:)   = 0
+    idiag%id_qs(:)   = 0
+    idiag%id_qg(:)   = 0
+    idiag%id_cf(:)   = 0
     idiag%id_omg(:) = 0
 
 !    do n = 1, ntileMe
