@@ -705,6 +705,24 @@ contains
 ! specific humidity:
         idiag%id_q(i)   = register_diag_field(trim(field), 'q'//trim(adjustl(plev)), axes(1:2), Time, &
                                     trim(adjustl(plev))//'-mb specific humidity', 'kg/kg', missing_value=missing_value)
+! cloud water mass mixing ratio:
+        idiag%id_ql(i)   = register_diag_field(trim(field), 'ql'//trim(adjustl(plev)), axes(1:2), Time, &
+                                    trim(adjustl(plev))//'-mb cloud water mass mixing ratio', 'kg/kg', missing_value=missing_value)
+! cloud ice mass mixing ratio:
+        idiag%id_qi(i)   = register_diag_field(trim(field), 'qi'//trim(adjustl(plev)), axes(1:2), Time, &
+                                    trim(adjustl(plev))//'-mb cloud ice mass mixing ratio', 'kg/kg', missing_value=missing_value)
+! rain mass mixing ratio:
+        idiag%id_qr(i)   = register_diag_field(trim(field), 'qr'//trim(adjustl(plev)), axes(1:2), Time, &
+                                    trim(adjustl(plev))//'-mb rain mass mixing ratio', 'kg/kg', missing_value=missing_value)
+! snow mass mixing ratio:
+        idiag%id_qs(i)   = register_diag_field(trim(field), 'qs'//trim(adjustl(plev)), axes(1:2), Time, &
+                                    trim(adjustl(plev))//'-mb snow mass mixing ratio', 'kg/kg', missing_value=missing_value)
+! graupel mass mixing ratio:
+        idiag%id_qg(i)   = register_diag_field(trim(field), 'qg'//trim(adjustl(plev)), axes(1:2), Time, &
+                                    trim(adjustl(plev))//'-mb graupel mass mixing ratio', 'kg/kg', missing_value=missing_value)
+! cloud fraction:
+        idiag%id_cf(i)   = register_diag_field(trim(field), 'cf'//trim(adjustl(plev)), axes(1:2), Time, &
+                                    trim(adjustl(plev))//'-mb cloud fraction', '1', missing_value=missing_value)
 ! Omega (Pa/sec)
         idiag%id_omg(i) = register_diag_field(trim(field), 'omg'//trim(adjustl(plev)), axes(1:2), Time, &
                                     trim(adjustl(plev))//'-mb omega', 'Pa/s', missing_value=missing_value)
@@ -721,6 +739,18 @@ contains
                'height', 'm', missing_value=missing_value )
           idiag%id_q_plev = register_diag_field ( trim(field), 'q_plev', axe2(1:3), Time,        &
                'specific humidity', 'kg/kg', missing_value=missing_value )
+          idiag%id_ql_plev = register_diag_field ( trim(field), 'ql_plev', axe2(1:3), Time,        &
+               'cloud water mass mixing ratio', 'kg/kg', missing_value=missing_value )
+          idiag%id_qi_plev = register_diag_field ( trim(field), 'qi_plev', axe2(1:3), Time,        &
+               'cloud ice mass mixing ratio', 'kg/kg', missing_value=missing_value )
+          idiag%id_qr_plev = register_diag_field ( trim(field), 'qr_plev', axe2(1:3), Time,        &
+               'rain mass mixing ratio', 'kg/kg', missing_value=missing_value )
+          idiag%id_qs_plev = register_diag_field ( trim(field), 'qs_plev', axe2(1:3), Time,        &
+               'snow mass mixing ratio', 'kg/kg', missing_value=missing_value )
+          idiag%id_qg_plev = register_diag_field ( trim(field), 'qg_plev', axe2(1:3), Time,        &
+               'graupel mass mixing ratio', 'kg/kg', missing_value=missing_value )
+          idiag%id_cf_plev = register_diag_field ( trim(field), 'cf_plev', axe2(1:3), Time,        &
+               'cloud fraction', '1', missing_value=missing_value )
           idiag%id_omg_plev = register_diag_field ( trim(field), 'omg_plev', axe2(1:3), Time,        &
                'omega', 'Pa/s', missing_value=missing_value )
        endif
@@ -3439,6 +3469,168 @@ contains
          call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,sphum), nplev, &
                               pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), id1, a3, 0)
          used=send_data(idiag%id_q_plev, a3(isc:iec,jsc:jec,:), Time)
+       endif
+
+! cloud water mass mixing ratio
+       idg(:) = idiag%id_ql(:)
+
+       do_cs_intp = .false.
+       do i=1,nplev
+          if ( idg(i)>0 ) then
+               do_cs_intp = .true.
+               exit
+          endif
+       enddo
+
+       if ( do_cs_intp ) then
+          call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,liq_wat), nplev, &
+                               pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), idg, a3, 0)
+!                              plevs(1:nplev), Atm(n)%peln, idg, a3, 0)
+          do i=1,nplev
+             if (idg(i)>0) used=send_data(idg(i), a3(isc:iec,jsc:jec,i), Time)
+          enddo
+       endif
+
+       if (idiag%id_ql_plev>0) then
+         id1(:) = 1
+         call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,liq_wat), nplev, &
+                              pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), id1, a3, 0)
+         used=send_data(idiag%id_ql_plev, a3(isc:iec,jsc:jec,:), Time)
+       endif
+
+! cloud ice mass mixing ratio
+       idg(:) = idiag%id_qi(:)
+
+       do_cs_intp = .false.
+       do i=1,nplev
+          if ( idg(i)>0 ) then
+               do_cs_intp = .true.
+               exit
+          endif
+       enddo
+
+       if ( do_cs_intp ) then
+          call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,ice_wat), nplev, &
+                               pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), idg, a3, 0)
+!                              plevs(1:nplev), Atm(n)%peln, idg, a3, 0)
+          do i=1,nplev
+             if (idg(i)>0) used=send_data(idg(i), a3(isc:iec,jsc:jec,i), Time)
+          enddo
+       endif
+
+       if (idiag%id_qi_plev>0) then
+         id1(:) = 1
+         call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,ice_wat), nplev, &
+                              pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), id1, a3, 0)
+         used=send_data(idiag%id_qi_plev, a3(isc:iec,jsc:jec,:), Time)
+       endif
+
+! rain mass mixing ratio
+       idg(:) = idiag%id_qr(:)
+
+       do_cs_intp = .false.
+       do i=1,nplev
+          if ( idg(i)>0 ) then
+               do_cs_intp = .true.
+               exit
+          endif
+       enddo
+
+       if ( do_cs_intp ) then
+          call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,rainwat), nplev, &
+                               pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), idg, a3, 0)
+!                              plevs(1:nplev), Atm(n)%peln, idg, a3, 0)
+          do i=1,nplev
+             if (idg(i)>0) used=send_data(idg(i), a3(isc:iec,jsc:jec,i), Time)
+          enddo
+       endif
+
+       if (idiag%id_qr_plev>0) then
+         id1(:) = 1
+         call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,rainwat), nplev, &
+                              pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), id1, a3, 0)
+         used=send_data(idiag%id_qr_plev, a3(isc:iec,jsc:jec,:), Time)
+       endif
+
+! snow mass mixing ratio
+       idg(:) = idiag%id_qs(:)
+
+       do_cs_intp = .false.
+       do i=1,nplev
+          if ( idg(i)>0 ) then
+               do_cs_intp = .true.
+               exit
+          endif
+       enddo
+
+       if ( do_cs_intp ) then
+          call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,snowwat), nplev, &
+                               pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), idg, a3, 0)
+!                              plevs(1:nplev), Atm(n)%peln, idg, a3, 0)
+          do i=1,nplev
+             if (idg(i)>0) used=send_data(idg(i), a3(isc:iec,jsc:jec,i), Time)
+          enddo
+       endif
+
+       if (idiag%id_qs_plev>0) then
+         id1(:) = 1
+         call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,snowwat), nplev, &
+                              pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), id1, a3, 0)
+         used=send_data(idiag%id_qs_plev, a3(isc:iec,jsc:jec,:), Time)
+       endif
+
+! graupel mass mixing ratio
+       idg(:) = idiag%id_qg(:)
+
+       do_cs_intp = .false.
+       do i=1,nplev
+          if ( idg(i)>0 ) then
+               do_cs_intp = .true.
+               exit
+          endif
+       enddo
+
+       if ( do_cs_intp ) then
+          call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,graupel), nplev, &
+                               pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), idg, a3, 0)
+!                              plevs(1:nplev), Atm(n)%peln, idg, a3, 0)
+          do i=1,nplev
+             if (idg(i)>0) used=send_data(idg(i), a3(isc:iec,jsc:jec,i), Time)
+          enddo
+       endif
+
+       if (idiag%id_qg_plev>0) then
+         id1(:) = 1
+         call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,graupel), nplev, &
+                              pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), id1, a3, 0)
+         used=send_data(idiag%id_qg_plev, a3(isc:iec,jsc:jec,:), Time)
+       endif
+
+! cloud fraction
+       idg(:) = idiag%id_cf(:)
+
+       do_cs_intp = .false.
+       do i=1,nplev
+          if ( idg(i)>0 ) then
+               do_cs_intp = .true.
+               exit
+          endif
+       enddo
+
+       if ( do_cs_intp ) then
+          call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,cld_amt), nplev, &
+                               pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), idg, a3, 0)
+!                              plevs(1:nplev), Atm(n)%peln, idg, a3, 0)
+          do i=1,nplev
+             if (idg(i)>0) used=send_data(idg(i), a3(isc:iec,jsc:jec,i), Time)
+          enddo
+       endif
+
+       if (idiag%id_cf_plev>0) then
+         id1(:) = 1
+         call cs3_interpolator(isc,iec,jsc,jec,npz, Atm(n)%q(isc:iec,jsc:jec,:,cld_amt), nplev, &
+                              pout(1:nplev), wz, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), id1, a3, 0)
+         used=send_data(idiag%id_cf_plev, a3(isc:iec,jsc:jec,:), Time)
        endif
 
 ! Omega
