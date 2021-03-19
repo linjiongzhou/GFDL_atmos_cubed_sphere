@@ -84,6 +84,7 @@ use mpp_domains_mod, only:  mpp_get_data_domain, mpp_get_compute_domain
 use gfdl_mp_mod,        only: gfdl_mp_init, gfdl_mp_end
 use cld_eff_rad_mod,    only: cld_eff_rad_init
 use diag_manager_mod,   only: send_data
+use external_aero_mod,  only: load_aero, read_aero, clean_aero
 use coarse_graining_mod, only: coarse_graining_init
 use coarse_grained_diagnostics_mod, only: fv_coarse_diag_init, fv_coarse_diag
 use coarse_grained_restart_files_mod, only: fv_coarse_restart_init
@@ -298,6 +299,11 @@ contains
        !I've had trouble getting this to work with multiple grids at a time; worth revisiting?
    call fv_diag_init(Atm(mygrid:mygrid), Atm(mygrid)%atmos_axes, Time, npx, npy, npz, Atm(mygrid)%flagstruct%p_ref)
 
+   if (Atm(mygrid)%flagstruct%do_aerosol) then
+     call load_aero(Atm(mygrid), Time)
+     call read_aero(isc, iec, jsc, jec, npz, nq, Time, Atm(mygrid)%pe(isc:iec,:,jsc:jec), &
+       Atm(mygrid)%peln(isc:iec,:,jsc:jec), Atm(mygrid)%q(isc:iec,jsc:jec,:,:))
+   endif
 
    if (Atm(mygrid)%coarse_graining%write_coarse_diagnostics) then
       call fv_coarse_diag_init(Atm, Time, Atm(mygrid)%atmos_axes(3), &
@@ -343,7 +349,6 @@ contains
       call mpp_error(NOTE, 'NWP nudging is active')
    endif
    call fv_io_register_nudge_restart ( Atm )
-
 
    if ( Atm(mygrid)%flagstruct%na_init>0 ) then
       call nullify_domain ( )
@@ -455,6 +460,12 @@ contains
      call read_new_bc_data(Atm(n), Time, Time_step_atmos, p_split, &
                            isd, ied, jsd, jed )
    endif
+
+   if (Atm(mygrid)%flagstruct%do_aerosol) then
+     call read_aero(isc, iec, jsc, jec, npz, nq, Time, Atm(mygrid)%pe(isc:iec,:,jsc:jec), &
+	     Atm(mygrid)%peln(isc:iec,:,jsc:jec), Atm(mygrid)%q(isc:iec,jsc:jec,:,:))
+   endif
+
    do psc=1,abs(p_split)
       p_step = psc
                     call timing_on('fv_dynamics')
@@ -564,6 +575,9 @@ contains
 
    if ( Atm(mygrid)%flagstruct%nudge ) call fv_nwp_nudge_end
 
+   if (Atm(mygrid)%flagstruct%do_aerosol) then
+     call clean_aero()
+   endif
 
    if (Atm(mygrid)%flagstruct%do_inline_mp) then
      call gfdl_mp_end ( )
