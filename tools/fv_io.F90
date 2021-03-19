@@ -517,6 +517,12 @@ contains
                            domain=fv_domain, mandatory=.false., tile_count=n)
           endif
        endif
+       if (Atm(n)%flagstruct%do_fsbm) then
+          id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'pt_old', Atm(n)%pt_old, &
+                        domain=fv_domain, mandatory=.false., tile_count=n)
+          id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'q_old', Atm(n)%q_old, &
+                        domain=fv_domain, mandatory=.false., tile_count=n)
+       endif
        id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'T', Atm(n)%pt, &
                      domain=fv_domain, tile_count=n)
        id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'delp', Atm(n)%delp, &
