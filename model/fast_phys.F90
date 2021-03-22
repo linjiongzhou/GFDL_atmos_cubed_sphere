@@ -112,7 +112,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
     ! -----------------------------------------------------------------------
 
     integer :: i, j, k, kmp, n_chem, num_sbmradar, itimestep, unit, n
-    integer :: sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, cld_amt, ccn_cm3, cin_cm3
+    integer :: sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, cld_amt, ccn_cm3, cin_cm3, aerosol
     integer :: ql_num, qr_num, qi_num, qs_num, qg_num, qa_num, qn_num
 
     integer, dimension (fsbm_bin) :: qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind
@@ -164,6 +164,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
     qg_num = get_tracer_index (MODEL_ATMOS, 'qg_num')
     qa_num = get_tracer_index (MODEL_ATMOS, 'qa_num')
     qn_num = get_tracer_index (MODEL_ATMOS, 'qn_num')
+    aerosol = get_tracer_index (model_atmos, 'aerosol')
 
     rrg = - rdgas / grav
 
@@ -193,14 +194,16 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
 !$OMP                                    liq_wat, ice_wat, snowwat, graupel, q_con, &
 !$OMP                                    sphum, pkz, last_step, consv, te0_2d, gridstruct, &
 !$OMP                                    q, mdt, cld_amt, cappa, rrg, akap, ccn_cm3, &
-!$OMP                                    cin_cm3, inline_mp) &
+!$OMP                                    cin_cm3, aerosol, inline_mp) &
 !$OMP                           private (q2, q3, gsize, dz)
 
         do j = js, je
 
             gsize (is:ie) = sqrt (gridstruct%area_64 (is:ie, j))
 
-            if (ccn_cm3 .gt. 0) then
+            if (aerosol .gt. 0) then
+                q2 (is:ie, kmp:km) = q (is:ie, j, kmp:km, aerosol)
+            elseif (ccn_cm3 .gt. 0) then
                 q2 (is:ie, kmp:km) = q (is:ie, j, kmp:km, ccn_cm3)
             else
                 q2 (is:ie, kmp:km) = 0.0
@@ -316,14 +319,16 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
 !$OMP                                    rainwat, liq_wat, ice_wat, snowwat, graupel, q_con, &
 !$OMP                                    sphum, w, pk, pkz, last_step, consv, te0_2d, &
 !$OMP                                    gridstruct, q, mdt, cld_amt, cappa, rrg, akap, &
-!$OMP                                    ccn_cm3, cin_cm3, inline_mp, do_inline_mp, ps) &
+!$OMP                                    ccn_cm3, cin_cm3, inline_mp, do_inline_mp, ps, aerosol) &
 !$OMP                           private (u_dt, v_dt, q2, q3, gsize, dz, wa)
 
         do j = js, je
 
             gsize (is:ie) = sqrt (gridstruct%area_64 (is:ie, j))
 
-            if (ccn_cm3 .gt. 0) then
+            if (aerosol .gt. 0) then
+                q2 (is:ie, kmp:km) = q (is:ie, j, kmp:km, aerosol)
+            elseif (ccn_cm3 .gt. 0) then
                 q2 (is:ie, kmp:km) = q (is:ie, j, kmp:km, ccn_cm3)
             else
                 q2 (is:ie, kmp:km) = 0.0
@@ -687,12 +692,23 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
 !$OMP                                    chem_new, te, sphum, liq_wat, ice_wat, rainwat, &
 !$OMP                                    snowwat, graupel, ma, lh_rate, ce_rate, ds_rate, melt_rate, &
 !$OMP                                    frz_rate, consv, f, qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind, a_step, &
-!$OMP                                    fsbm_bin, r_vir, warm_start, itimestep) &
+!$OMP                                    fsbm_bin, r_vir, warm_start, itimestep, aerosol, nl) &
 !$OMP                           private (qliq, qsol, cvm)
 
         do k = 1, km
             do j = js, je
                 do i = is, ie
+
+                    ! Boucher and Lohmann (1995)
+                    if (aerosol .gt. 0) then
+                        nl = xland (i, j) * &
+                            (10. ** 2.24 * (0.7273 * q (i, j, km+1-k, aerosol) * rho_phy (i, k, j) * 1.e9) ** 0.257) + &
+                            (1. - xland (i, j)) * &
+                            (10. ** 2.06 * (0.7273 * q (i, j, km+1-k, aerosol) * rho_phy (i, k, j) * 1.e9) ** 0.48)
+                        nl = max (10.0, nl) * 1.e6 / rho_phy (i, k, j)
+                    else
+                        nl = 1.e8
+                    endif
 
                     do n = 1, fsbm_bin
                         if (.not. warm_start .and. a_step .eq. 1) then
@@ -702,7 +718,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
                             chem_new (i, k, j, fsbm_bin*1+n) = (q (i, j, km+1-k, ice_wat) + &
                                 q (i, j, km+1-k, snowwat)) * f (n)
                             chem_new (i, k, j, fsbm_bin*2+n) = q (i, j, km+1-k, graupel) * f (n)
-                            chem_new (i, k, j, fsbm_bin*3+n) = 1.e8
+                            chem_new (i, k, j, fsbm_bin*3+n) = nl * f (n)
                             chem_new (i, k, j, fsbm_bin*4+n) = 0.0
                         else
                             itimestep = 2

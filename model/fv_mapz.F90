@@ -165,7 +165,7 @@ contains
   real, allocatable, dimension(:,:) :: vulcan_pe3
   integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
-  integer:: ccn_cm3, cin_cm3
+  integer:: ccn_cm3, cin_cm3, aerosol
 
        k1k = rdgas/cv_air   ! akap / (1.-akap) = rg/Cv=0.4
         rg = rdgas
@@ -180,6 +180,7 @@ contains
        cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
        ccn_cm3 = get_tracer_index (MODEL_ATMOS, 'ccn_cm3')
        cin_cm3 = get_tracer_index (MODEL_ATMOS, 'cin_cm3')
+       aerosol = get_tracer_index (MODEL_ATMOS, 'aerosol')
 
        if (allocated(lagrangian_tendency_of_hydrostatic_pressure)) allocate(vulcan_pe3(is:ie+1,km+1))
 

@@ -882,7 +882,7 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, &
     integer :: i, k, n
     
     real :: rh_adj, rh_rain, r1, s1, i1, g1, ccn0, cin0, cond, dep, reevap, sub
-    real :: convt, dts, q_cond, t_lnd, t_ocn, h_var, tmp
+    real :: convt, dts, q_cond, t_lnd, t_ocn, h_var, tmp, nl, ni
     
     real, dimension (ks:ke) :: q_liq, q_sol, vtr, vti, vts, vtg, dp, dz
     real, dimension (ks:ke) :: qvz, qlz, qrz, qiz, qsz, qgz, qaz
@@ -1031,8 +1031,14 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, &
         
         if (prog_ccn) then
             do k = ks, ke
-                ccn (k) = max (10.0, qnl (i, k)) * 1.e6
-                cin (k) = max (10.0, qni (i, k)) * 1.e6
+                ! boucher and lohmann (1995)
+                nl = min (1., abs (hs (i)) / (10. * grav)) * &
+                     (10. ** 2.24 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.257) + &
+                     (1. - min (1., abs (hs (i)) / (10. * grav))) * &
+                     (10. ** 2.06 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.48)
+                ni = qni (i, k)
+                ccn (k) = max (10.0, nl) * 1.e6
+                cin (k) = max (10.0, ni) * 1.e6
                 ccn (k) = ccn (k) / den (k)
                 cin (k) = cin (k) / den (k)
             enddo
@@ -5136,7 +5142,7 @@ end subroutine psaut_simp
 ! cloud radii diagnosis built for gfdl cloud microphysics
 ! =======================================================================
 
-subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
+subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, qa, &
         qcw, qci, qcr, qcs, qcg, rew, rei, rer, res, reg, cld, cloud, snowd, &
         cnvw, cnvi, cnvc)
     
@@ -5151,7 +5157,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
     real, intent (in), dimension (is:ie) :: lsm, snowd
     
     real, intent (in), dimension (is:ie, ks:ke) :: delp, t, p, cloud
-    real, intent (in), dimension (is:ie, ks:ke) :: qw, qi, qr, qs, qg
+    real, intent (in), dimension (is:ie, ks:ke) :: qw, qi, qr, qs, qg, qa
     
     real, intent (in), dimension (is:ie, ks:ke), optional :: cnvw, cnvi, cnvc
     
@@ -5274,12 +5280,20 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 ! cloud water (Martin et al. 1994)
                 ! -----------------------------------------------------------------------
                 
+                if (prog_ccn) then
+                    ! boucher and lohmann (1995)
+                    ccnw = (1.0 - abs (mask - 1.0)) * &
+                         (10. ** 2.24 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.257) + &
+                        abs (mask - 1.0) * &
+                         (10. ** 2.06 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.48)
+                else
 #ifdef MARTIN_CCN
-                ccnw = 0.80 * (- 1.15e-3 * (ccno ** 2) + 0.963 * ccno + 5.30) * abs (mask - 1.0) + &
-                    0.67 * (- 2.10e-4 * (ccnl ** 2) + 0.568 * ccnl - 27.9) * (1.0 - abs (mask - 1.0))
+                    ccnw = 0.80 * (- 1.15e-3 * (ccno ** 2) + 0.963 * ccno + 5.30) * abs (mask - 1.0) + &
+                        0.67 * (- 2.10e-4 * (ccnl ** 2) + 0.568 * ccnl - 27.9) * (1.0 - abs (mask - 1.0))
 #else
-                ccnw = ccno * abs (mask - 1.0) + ccnl * (1.0 - abs (mask - 1.0))
+                    ccnw = ccno * abs (mask - 1.0) + ccnl * (1.0 - abs (mask - 1.0))
 #endif
+                endif
                 
                 if (qmw (i, k) .gt. qcmin) then
                     qcw (i, k) = dpg * qmw (i, k) * 1.0e3
@@ -5299,7 +5313,15 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, &
                 ! cloud water (Martin et al. 1994, gfdl revision)
                 ! -----------------------------------------------------------------------
                 
-                ccnw = 1.077 * ccno * abs (mask - 1.0) + 1.143 * ccnl * (1.0 - abs (mask - 1.0))
+                if (prog_ccn) then
+                    ! boucher and lohmann (1995)
+                    ccnw = (1.0 - abs (mask - 1.0)) * &
+                         (10. ** 2.24 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.257) + &
+                        abs (mask - 1.0) * &
+                         (10. ** 2.06 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.48)
+                else
+                    ccnw = 1.077 * ccno * abs (mask - 1.0) + 1.143 * ccnl * (1.0 - abs (mask - 1.0))
+                endif
                 
                 if (qmw (i, k) .gt. qcmin) then
                     qcw (i, k) = dpg * qmw (i, k) * 1.0e3

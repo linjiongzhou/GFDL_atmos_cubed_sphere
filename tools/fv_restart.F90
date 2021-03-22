@@ -121,7 +121,7 @@ contains
     character(len=120):: fname_ne, fname_sw
     character(len=3) :: gn
 
-    integer :: npts, sphum
+    integer :: npts, sphum, aero_id
     integer, allocatable :: pelist(:), smoothed_topo(:)
     real    :: sumpertn
     real    :: zvir
@@ -565,6 +565,13 @@ contains
            Atm(n)%q(isc:iec,jsc:jec,:,qa_ind) = 0.0
            Atm(n)%q(isc:iec,jsc:jec,:,qn_ind) = 0.0
         enddo
+     endif
+
+     if (Atm(n)%flagstruct%do_aerosol) then
+       aero_id = get_tracer_index(MODEL_ATMOS, 'aerosol')
+       if (aero_id .gt. 0) then
+         Atm(n)%q(isc:iec,jsc:jec,:,aero_id) = 0.0
+       endif
      endif
 
      if (Atm(n)%flagstruct%add_noise > 0.) then
