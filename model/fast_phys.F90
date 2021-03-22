@@ -119,7 +119,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
 
     logical :: diagflag = .false.
 
-    real :: rrg, dqv, dql, dqr, dqi, dqs, dqg, ps_dt, cvm
+    real :: rrg, dqv, dql, dqr, dqi, dqs, dqg, ps_dt, cvm, nl
     real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
 
     real, parameter :: xr_a = 0.25 ! p value in Xu and Randall (1996)
@@ -692,7 +692,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
 !$OMP                                    chem_new, te, sphum, liq_wat, ice_wat, rainwat, &
 !$OMP                                    snowwat, graupel, ma, lh_rate, ce_rate, ds_rate, melt_rate, &
 !$OMP                                    frz_rate, consv, f, qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind, a_step, &
-!$OMP                                    fsbm_bin, r_vir, warm_start, itimestep, aerosol, nl) &
+!$OMP                                    fsbm_bin, r_vir, warm_start, itimestep, aerosol, nl, xland) &
 !$OMP                           private (qliq, qsol, cvm)
 
         do k = 1, km
