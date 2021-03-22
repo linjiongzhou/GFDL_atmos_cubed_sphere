@@ -67,9 +67,12 @@ contains
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, do_omega, adiabatic, do_adiabatic_init, &
                       do_inline_mp, inline_mp, c2l_ord, bd, fv_debug, &
-                      moist_phys, w_limiter, lagrangian_tendency_of_hydrostatic_pressure)
+                      moist_phys, w_limiter, &
+                      do_fsbm, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start, &
+                      lagrangian_tendency_of_hydrostatic_pressure)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
+  logical, intent(in):: warm_start
   logical, intent(in):: w_limiter
   real,    intent(in):: mdt                   ! remap time step
   real,    intent(in):: pdt                   ! phys time step
@@ -86,7 +89,11 @@ contains
   integer, intent(in):: kord_tr(nq)           ! Mapping order for tracers
   integer, intent(in):: kord_tm               ! Mapping order for thermodynamics
   integer, intent(in):: c2l_ord
+  integer, intent(in):: a_step
+  integer, intent(in):: fsbm_bin
 
+  real, intent(in):: fsbm_dx
+  real, intent(in):: fsbm_dy
   real, intent(in):: consv                 ! factor for TE conservation
   real, intent(in):: r_vir
   real, intent(in):: cp
@@ -97,6 +104,7 @@ contains
 
   logical, intent(in):: do_sat_adj
   logical, intent(in):: do_inline_mp
+  logical, intent(in):: do_fsbm
   logical, intent(in):: fill                  ! fill negative tracers
   logical, intent(in):: reproduce_sum
   logical, intent(in):: do_omega, adiabatic, do_adiabatic_init
@@ -121,6 +129,8 @@ contains
   real, intent(inout)::  w(isd:     ,jsd:     ,1:)   ! vertical velocity (m/s)
   real, intent(inout):: pt(isd:ied  ,jsd:jed  ,km)   ! cp*virtual potential temperature
                                                      ! as input; output: temperature
+  real, intent(inout):: pt_old(isd:  ,jsd:  ,1:)   ! temperature at the previous time step (K), used in fsbm
+  real, intent(inout):: q_old(isd:,jsd:,1:) ! specific humidity at the previous time step, used in fsbm
   real, intent(inout), dimension(isd:,jsd:,1:)::q_con, cappa
   real, intent(inout), dimension(is:,js:,1:)::delz
   logical, intent(in):: hydrostatic
@@ -727,7 +737,8 @@ endif        ! end last_step check
              c2l_ord, mdt, consv, akap, pfull, hs, te0_2d, ua, va, u, &
              v, w, pt, delp, delz, q_con, cappa, q, pkz, te, peln, pe, pk, ps, &
              inline_mp, gridstruct, domain, bd, hydrostatic, do_adiabatic_init, &
-             do_inline_mp, do_sat_adj, last_step)
+             do_inline_mp, do_sat_adj, last_step, omga, r_vir, &
+             do_fsbm, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start)
 
 !-----------------------------------------------------------------------
 ! <<< Fast Physics

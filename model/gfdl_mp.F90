@@ -72,7 +72,7 @@ module gfdl_mp_mod
     public :: gfdl_mp_driver
     public :: gfdl_mp_end
     public :: fast_sat_adj, cld_eff_rad, rad_ref
-    public :: qs_init, wqs, mqs, mqs3d
+    public :: qs_init, wqs, mqs, iqs, mqs3d, cv_air, cv_vap
     public :: c_liq, c_ice, rhow, wet_bulb
     
     ! -----------------------------------------------------------------------
