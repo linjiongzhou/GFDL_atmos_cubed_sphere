@@ -292,6 +292,8 @@ module gfdl_cld_mp_mod
     
     logical :: do_warm_rain_mp = .false. ! do warm rain cloud microphysics only
     
+    logical :: do_wbf = .false. ! do Wegener Bergeron Findeisen process
+    
     real :: mp_time = 150.0 ! maximum microphysics time step (s)
     
     real :: tice_mlt = 273.16 ! can set ice melting temperature to 268 based on observation (Kay et al. 2016) (K)
@@ -312,6 +314,7 @@ module gfdl_cld_mp_mod
     real :: tau_imlt = 1200.0 ! cloud ice melting time scale (s)
     real :: tau_smlt = 900.0 ! snow melting time scale (s)
     real :: tau_gmlt = 600.0 ! graupel melting time scale (s)
+    real :: tau_wbf = 300.0 ! graupel melting time scale (s)
     
     real :: dw_land = 0.20 ! base value for subgrid deviation / variability over land
     real :: dw_ocean = 0.10 ! base value for subgrid deviation / variability over ocean
@@ -416,12 +419,12 @@ module gfdl_cld_mp_mod
         prog_ccn, c_pracw, c_praci, rad_snow, rad_graupel, rad_rain, cld_min, &
         use_ppm, mono_prof, do_sedi_uv, do_sedi_w, do_sedi_heat, icloud_f, &
         irain_f, xr_a, xr_b, xr_c, ntimes, tau_revp, tice_mlt, do_cond_timescale, &
-        mp_time, consv_checker, te_err, use_rhc_cevap, use_rhc_revap, &
+        mp_time, consv_checker, te_err, use_rhc_cevap, use_rhc_revap, tau_wbf, &
         do_warm_rain_mp, rh_thres, f_dq_p, f_dq_m, do_cld_adj, rhc_cevap, &
         rhc_revap, beta, liq_ice_combine, rewflag, reiflag, rerflag, resflag, &
         regflag, rewmin, rewmax, reimin, reimax, rermin, rermax, resmin, &
         resmax, regmin, regmax, fs2g_fac, fi2s_fac, fi2g_fac, do_sedi_melt, &
-        radr_flag, rads_flag, radg_flag
+        radr_flag, rads_flag, radg_flag, do_wbf
     
 contains
 
@@ -1561,7 +1564,14 @@ subroutine mp_fast (ks, ke, tz, qv, ql, qr, qi, qs, qg, dtm, dp, den, &
             lcpk, icpk, tcpk, tcp3)
         
         ! -----------------------------------------------------------------------
-        ! bigg freezing mechanism
+        ! Wegener Bergeron Findeisen process
+        ! -----------------------------------------------------------------------
+        
+        call pwbf (ks, ke, dtm, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, &
+            lcpk, icpk, tcpk, tcp3)
+        
+        ! -----------------------------------------------------------------------
+        ! Bigg freezing mechanism
         ! -----------------------------------------------------------------------
         
         call pbigg (ks, ke, dtm, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, &
@@ -3372,7 +3382,13 @@ subroutine subgrid_z_proc (ks, ke, den, denfac, dts, rh_adj, tz, qv, ql, qr, &
         call pcomp (ks, ke, qv, ql, qr, qi, qs, qg, tz, cvm, te8, lcpk, icpk, tcpk, tcp3)
         
         ! -----------------------------------------------------------------------
-        ! bigg freezing mechanism
+        ! Wegener Bergeron Findeisen process
+        ! -----------------------------------------------------------------------
+        
+        call pwbf (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, lcpk, icpk, tcpk, tcp3)
+        
+        ! -----------------------------------------------------------------------
+        ! Bigg freezing mechanism
         ! -----------------------------------------------------------------------
         
         call pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, lcpk, icpk, tcpk, tcp3)
@@ -3605,7 +3621,69 @@ subroutine pcomp (ks, ke, qv, ql, qr, qi, qs, qg, tz, cvm, te8, lcpk, icpk, tcpk
 end subroutine pcomp
 
 ! =======================================================================
-! bigg freezing mechanism, Bigg (1953)
+! Wegener Bergeron Findeisen process, Storelvmo and Tan (2015)
+! =======================================================================
+
+subroutine pwbf (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, lcpk, icpk, tcpk, tcp3)
+    
+    implicit none
+    
+    ! -----------------------------------------------------------------------
+    ! input / output arguments
+    ! -----------------------------------------------------------------------
+    
+    integer, intent (in) :: ks, ke
+    
+    real, intent (in) :: dts
+    
+    real, intent (in), dimension (ks:ke) :: den
+    
+    real (kind = r8), intent (in), dimension (ks:ke) :: te8
+    
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg
+    real, intent (inout), dimension (ks:ke) :: lcpk, icpk, tcpk, tcp3
+    
+    real (kind = r8), intent (inout), dimension (ks:ke) :: cvm, tz
+    
+    ! -----------------------------------------------------------------------
+    ! local variables
+    ! -----------------------------------------------------------------------
+    
+    integer :: k
+    
+    real :: tc, tin, sink, dqdt, qsw, qsi, qim, tmp, fac_wbf
+
+    if (.not. do_wbf) return
+    
+    fac_wbf = 1. - exp (- dts / tau_wbf)
+    
+    do k = ks, ke
+        
+        tc = tice - tz (k)
+        
+        tin = tz (k)
+        qsw = wqs (tin, den (k), dqdt)
+        qsi = iqs (tin, den (k), dqdt)
+
+        if (tc .gt. 0. .and. ql (k) .gt. qcmin .and. qi (k) .gt. qcmin .and. &
+			qv (k) .gt. qsi .and. qv (k) .lt. qsw) then
+
+            sink = min (fac_wbf * ql (k), tc / icpk (k))
+            qim = qi0_crt / den (k)
+            tmp = min (sink, dim (qim, qi (k)))
+            
+            call update_qt (qv (k), ql (k), qr (k), qi (k), qs (k), qg (k), &
+                0., - sink, 0., tmp, sink - tmp, 0., te8 (k), cvm (k), tz (k), &
+                lcpk (k), icpk (k), tcpk (k), tcp3 (k))
+            
+        endif
+        
+    enddo
+    
+end subroutine pwbf
+
+! =======================================================================
+! Bigg freezing mechanism, Bigg (1953)
 ! =======================================================================
 
 subroutine pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, lcpk, icpk, tcpk, tcp3)
