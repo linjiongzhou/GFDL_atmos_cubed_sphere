@@ -884,10 +884,10 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, &
     
     integer :: i, k, n
     
-    real :: rh_adj, rh_rain, r1, s1, i1, g1, ccn0, cin0, cond, dep, reevap, sub
+    real :: rh_adj, rh_rain, ccn0, cin0, cond
     real :: convt, dts, q_cond, t_lnd, t_ocn, h_var, tmp
     
-    real, dimension (ks:ke) :: q_liq, q_sol, vtr, vti, vts, vtg, dp, dz
+    real, dimension (ks:ke) :: q_liq, q_sol, dp, dz
     real, dimension (ks:ke) :: qvz, qlz, qrz, qiz, qsz, qgz, qaz
     real, dimension (ks:ke) :: den, pz, denfac, ccn, cin
     real, dimension (ks:ke) :: u, v, w
@@ -2377,12 +2377,7 @@ subroutine pracw (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, denfac)
     
     integer :: k
     
-    real :: dqv, qsat, dqdt, tmp, t2, qden, q_plus, q_minus, sink
-    real :: qpz, dq, dqh, tin, fac_revp, rh_tem
-    
-    real, dimension (ks:ke) :: q_liq, q_sol, lcpk, icpk, tcpk, tcp3
-    
-    real (kind = r8), dimension (ks:ke) :: cvm, te8
+    real :: qden, sink
     
     do k = ks, ke
         
@@ -3146,20 +3141,14 @@ subroutine pgacs (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, den, vts, vtg)
     
     integer :: k
     
-    real :: tc, factor, sink
+    real :: sink
     
     do k = ks, ke
         
-        tc = tz (k) - tice
-        
-        if (tc .lt. 0. .and. qs (k) .gt. qcmin) then
+        if (tz (k) .lt. tice .and. qs (k) .gt. qcmin .and. qg (k) .gt. qcmin) then
             
-            sink = 0
-            if (qg (k) .gt. qcmin) then
-                sink = dts * acr3d (vtg (k), vts (k), qs (k), qg (k), cgacs, acco (:, 4), &
-                    acc (7), acc (8), den (k))
-            endif
-            
+            sink = dts * acr3d (vtg (k), vts (k), qs (k), qg (k), cgacs, acco (:, 4), &
+                acc (7), acc (8), den (k))
             sink = min (fs2g_fac * qs (k), sink)
             
             call update_qq (qv (k), ql (k), qr (k), qi (k), qs (k), qg (k), &
