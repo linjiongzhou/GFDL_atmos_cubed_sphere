@@ -590,6 +590,8 @@ contains
 !-------------------
 ! Precipitation from GFDL MP
 !-------------------
+       id_prew = register_diag_field ( trim(field), 'prew', axes(1:2), Time,           &
+            'water precipitation', 'mm/day', missing_value=missing_value )
        id_prer = register_diag_field ( trim(field), 'prer', axes(1:2), Time,           &
             'rain precipitation', 'mm/day', missing_value=missing_value )
        id_prei = register_diag_field ( trim(field), 'prei', axes(1:2), Time,           &
@@ -1668,6 +1670,7 @@ contains
 #endif
        if(id_ps > 0) used=send_data(id_ps, Atm(n)%ps(isc:iec,jsc:jec), Time)
 
+       if(id_prew > 0) used=send_data(id_prew, Atm(n)%inline_mp%prew(isc:iec,jsc:jec), Time)
        if(id_prer > 0) used=send_data(id_prer, Atm(n)%inline_mp%prer(isc:iec,jsc:jec), Time)
        if(id_prei > 0) used=send_data(id_prei, Atm(n)%inline_mp%prei(isc:iec,jsc:jec), Time)
        if(id_pres > 0) used=send_data(id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)

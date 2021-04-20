@@ -1622,6 +1622,7 @@ contains
          do ix = 1, blen
            i = Atm_block%index(nb)%ii(ix)
            j = Atm_block%index(nb)%jj(ix)
+           IPD_Data(nb)%Statein%prew(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prew(i,j)))
            IPD_Data(nb)%Statein%prer(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prer(i,j)))
            IPD_Data(nb)%Statein%prei(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prei(i,j)))
            IPD_Data(nb)%Statein%pres(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%pres(i,j)))

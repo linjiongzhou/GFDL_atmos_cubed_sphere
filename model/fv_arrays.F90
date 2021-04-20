@@ -597,6 +597,7 @@ module fv_arrays_mod
   end type fv_nest_type
 
   type inline_mp_type
+    real, _ALLOCATABLE :: prew(:,:)     _NULL
     real, _ALLOCATABLE :: prer(:,:)     _NULL
     real, _ALLOCATABLE :: prei(:,:)     _NULL
     real, _ALLOCATABLE :: pres(:,:)     _NULL
@@ -1057,6 +1058,7 @@ contains
     allocate (  Atm%ak(npz_2d+1) )
     allocate (  Atm%bk(npz_2d+1) )
 
+    allocate ( Atm%inline_mp%prew(is:ie,js:je) )
     allocate ( Atm%inline_mp%prer(is:ie,js:je) )
     allocate ( Atm%inline_mp%prei(is:ie,js:je) )
     allocate ( Atm%inline_mp%pres(is:ie,js:je) )
@@ -1145,6 +1147,7 @@ contains
      enddo
      do j=js, je
         do i=is, ie
+           Atm%inline_mp%prew(i,j) = real_big
            Atm%inline_mp%prer(i,j) = real_big
            Atm%inline_mp%prei(i,j) = real_big
            Atm%inline_mp%pres(i,j) = real_big
@@ -1404,6 +1407,7 @@ contains
     deallocate (  Atm%ak )
     deallocate (  Atm%bk )
 
+    deallocate ( Atm%inline_mp%prew )
     deallocate ( Atm%inline_mp%prer )
     deallocate ( Atm%inline_mp%prei )
     deallocate ( Atm%inline_mp%pres )
