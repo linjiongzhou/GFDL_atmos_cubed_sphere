@@ -346,7 +346,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
             ! note: hs is geopotential height (m^2/s^2)
             ! note: the unit of q2 or q3 is #/cm^3
             ! note: the unit of area is m^2
-            ! note: the unit of prer, prei, pres, preg is mm/day
+            ! note: the unit of prew, prer, prei, pres, preg is mm/day
             ! note: the unit of cond, dep, reevap, sub is mm/day
 
             ! save ua, va for wind tendency calculation
@@ -393,9 +393,9 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
                      q3 (is:ie, kmp:km), pt (is:ie, j, kmp:km), wa (is:ie, kmp:km), &
                      ua (is:ie, j, kmp:km), va (is:ie, j, kmp:km), dz (is:ie, kmp:km), &
                      delp (is:ie, j, kmp:km), gsize, abs (mdt), hs (is:ie, j), &
-                     inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), &
-                     inline_mp%prei (is:ie, j), inline_mp%preg (is:ie, j), hydrostatic, &
-                     is, ie, kmp, km, &
+                     inline_mp%prew (is:ie, j), inline_mp%prer (is:ie, j), &
+                     inline_mp%prei (is:ie, j), inline_mp%pres (is:ie, j), &
+                     inline_mp%preg (is:ie, j), hydrostatic, is, ie, kmp, km, &
 #ifdef USE_COND
                      q_con (is:ie, j, kmp:km), &
 #else

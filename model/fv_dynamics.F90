@@ -426,6 +426,7 @@ contains
 
   ! Initialize rain, ice, snow and graupel precipitaiton
   if (flagstruct%do_inline_mp) then
+      inline_mp%prew = 0.0
       inline_mp%prer = 0.0
       inline_mp%prei = 0.0
       inline_mp%pres = 0.0
@@ -670,6 +671,7 @@ contains
 
   ! Initialize rain, ice, snow and graupel precipitaiton
   if (flagstruct%do_inline_mp) then
+      inline_mp%prew = inline_mp%prew / k_split
       inline_mp%prer = inline_mp%prer / k_split
       inline_mp%prei = inline_mp%prei / k_split
       inline_mp%pres = inline_mp%pres / k_split
