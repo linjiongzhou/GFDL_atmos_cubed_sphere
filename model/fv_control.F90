@@ -663,6 +663,11 @@ module fv_control_mod
 !!$     Atm(this_grid)%inline_mp%prei = too_big
 !!$     Atm(this_grid)%inline_mp%pres = too_big
 !!$     Atm(this_grid)%inline_mp%preg = too_big
+!!$     Atm(this_grid)%inline_mp%prefluxw = too_big
+!!$     Atm(this_grid)%inline_mp%prefluxr = too_big
+!!$     Atm(this_grid)%inline_mp%prefluxi = too_big
+!!$     Atm(this_grid)%inline_mp%prefluxs = too_big
+!!$     Atm(this_grid)%inline_mp%prefluxg = too_big
 !!$     Atm(this_grid)%inline_mp%cond = too_big
 !!$     Atm(this_grid)%inline_mp%dep = too_big
 !!$     Atm(this_grid)%inline_mp%reevap = too_big

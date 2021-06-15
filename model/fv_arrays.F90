@@ -602,6 +602,11 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: prei(:,:)     _NULL
     real, _ALLOCATABLE :: pres(:,:)     _NULL
     real, _ALLOCATABLE :: preg(:,:)     _NULL
+    real, _ALLOCATABLE :: prefluxw(:,:,:)     _NULL
+    real, _ALLOCATABLE :: prefluxr(:,:,:)     _NULL
+    real, _ALLOCATABLE :: prefluxi(:,:,:)     _NULL
+    real, _ALLOCATABLE :: prefluxs(:,:,:)     _NULL
+    real, _ALLOCATABLE :: prefluxg(:,:,:)     _NULL
     real, _ALLOCATABLE :: cond(:,:)     _NULL
     real, _ALLOCATABLE :: dep(:,:)     _NULL
     real, _ALLOCATABLE :: reevap(:,:)     _NULL
@@ -1063,6 +1068,11 @@ contains
     allocate ( Atm%inline_mp%prei(is:ie,js:je) )
     allocate ( Atm%inline_mp%pres(is:ie,js:je) )
     allocate ( Atm%inline_mp%preg(is:ie,js:je) )
+    allocate ( Atm%inline_mp%prefluxw(is:ie,js:je,npz) )
+    allocate ( Atm%inline_mp%prefluxr(is:ie,js:je,npz) )
+    allocate ( Atm%inline_mp%prefluxi(is:ie,js:je,npz) )
+    allocate ( Atm%inline_mp%prefluxs(is:ie,js:je,npz) )
+    allocate ( Atm%inline_mp%prefluxg(is:ie,js:je,npz) )
     allocate ( Atm%inline_mp%cond(is:ie,js:je) )
     allocate ( Atm%inline_mp%dep(is:ie,js:je) )
     allocate ( Atm%inline_mp%reevap(is:ie,js:je) )
@@ -1152,6 +1162,11 @@ contains
            Atm%inline_mp%prei(i,j) = real_big
            Atm%inline_mp%pres(i,j) = real_big
            Atm%inline_mp%preg(i,j) = real_big
+           Atm%inline_mp%prefluxw(i,j,:) = real_big
+           Atm%inline_mp%prefluxr(i,j,:) = real_big
+           Atm%inline_mp%prefluxi(i,j,:) = real_big
+           Atm%inline_mp%prefluxs(i,j,:) = real_big
+           Atm%inline_mp%prefluxg(i,j,:) = real_big
            Atm%inline_mp%cond(i,j) = real_big
            Atm%inline_mp%dep(i,j) = real_big
            Atm%inline_mp%reevap(i,j) = real_big
@@ -1412,6 +1427,11 @@ contains
     deallocate ( Atm%inline_mp%prei )
     deallocate ( Atm%inline_mp%pres )
     deallocate ( Atm%inline_mp%preg )
+    deallocate ( Atm%inline_mp%prefluxw )
+    deallocate ( Atm%inline_mp%prefluxr )
+    deallocate ( Atm%inline_mp%prefluxi )
+    deallocate ( Atm%inline_mp%prefluxs )
+    deallocate ( Atm%inline_mp%prefluxg )
     deallocate ( Atm%inline_mp%cond )
     deallocate ( Atm%inline_mp%dep )
     deallocate ( Atm%inline_mp%reevap )

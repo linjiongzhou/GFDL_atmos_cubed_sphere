@@ -1627,6 +1627,14 @@ contains
            IPD_Data(nb)%Statein%prei(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prei(i,j)))
            IPD_Data(nb)%Statein%pres(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%pres(i,j)))
            IPD_Data(nb)%Statein%preg(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%preg(i,j)))
+           do k = 1, npz
+             k1 = npz+1-k ! flipping the index
+             IPD_Data(nb)%Statein%prefluxw(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prefluxw(i,j,k1)))
+             IPD_Data(nb)%Statein%prefluxr(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prefluxr(i,j,k1)))
+             IPD_Data(nb)%Statein%prefluxi(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prefluxi(i,j,k1)))
+             IPD_Data(nb)%Statein%prefluxs(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prefluxs(i,j,k1)))
+             IPD_Data(nb)%Statein%prefluxg(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prefluxg(i,j,k1)))
+           enddo
          enddo
      endif
 
