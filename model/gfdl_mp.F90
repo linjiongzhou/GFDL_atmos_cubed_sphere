@@ -1345,9 +1345,13 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, &
             con_r8 = one_r8 - (qvz (k) + q_cond)
             c8 = mhc (con_r8, qvz (k), q_liq (k), q_sol (k)) * c_air
             
+#ifdef USE_COND
             q_con (i, k) = q_cond
+#endif
+#ifdef MOIST_CAPPA
             tmp = rdgas * (1. + zvir * qvz (k))
             cappa (i, k) = tmp / (tmp + c8)
+#endif
             
         enddo
         
