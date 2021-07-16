@@ -433,16 +433,13 @@ contains
     call get_ncdim1( ncid, 'levsp', levsp )
     call close_ncfile( ncid )
 
+    levp = levsp-1
 
-! read in gfs_data. If levp = 66, read only the lowest 65 level
-    if (levsp .eq. levp+2) then
-      call mpp_error(NOTE,'==> External_ic::get_nggps_ic: Correcting BAD IC')
-      call read_gfs_data_bad()
-    else
-      call mpp_error(NOTE,'==> External_ic::get_nggps_ic: Reading properly processed IC')
-      call read_gfs_data_original()
-    endif
 
+! read in GFS IC
+    call mpp_error(NOTE,'==> External_ic::get_nggps_ic: Reading processed IC')
+    call mpp_error(NOTE,'==> External_ic::get_nggps_ic: IC has ', levp ,' levels' )
+    call read_gfs_ic()
     !!! If a nested grid, save the filled coarse-grid topography for blending
     if (Atm%neststruct%nested) then
       allocate(phis_coarse(isd:ied,jsd:jed))
@@ -747,7 +744,7 @@ contains
 
     contains
 
-      subroutine read_gfs_data_original()
+      subroutine read_gfs_ic()
         !
         !--- read in ak and bk from the gfs control file using fms_io read_data ---
         !
@@ -810,107 +807,7 @@ contains
         call free_restart_type(GFS_restart)
 
 
-      endsubroutine read_gfs_data_original
-
-
-      subroutine read_gfs_data_bad()
-        ! local variables for reading the gfs_data
-        real, dimension(:), allocatable:: ak_tmp, bk_tmp
-        real, dimension(:,:), allocatable:: wk2_tmp
-        real, dimension(:,:,:), allocatable:: u_w_tmp, v_w_tmp, u_s_tmp, v_s_tmp, omga_tmp, temp_tmp, zh_tmp
-        real, dimension(:,:,:,:), allocatable:: q_tmp
-
-        allocate (wk2_tmp(levsp,2))
-        allocate (zh_tmp(is:ie,js:je,levsp))
-        allocate (omga_tmp(is:ie,js:je,levsp-1))
-        allocate (q_tmp (is:ie,js:je,levsp-1,ntracers))
-        allocate ( u_w_tmp(is:ie+1, js:je, 1:levsp-1) )
-        allocate ( v_w_tmp(is:ie+1, js:je, 1:levsp-1) )
-        allocate ( u_s_tmp(is:ie, js:je+1, 1:levsp-1) )
-        allocate ( v_s_tmp(is:ie, js:je+1, 1:levsp-1) )
-        allocate (temp_tmp(is:ie,js:je,1:levsp-1))
-
-
-        allocate (ps(is:ie,js:je))
-
-        allocate (ak(levp+1))
-        allocate (bk(levp+1))
-        allocate (zh(is:ie,js:je,levp+1))
-        allocate (omga(is:ie,js:je,levp))
-        allocate (q (is:ie,js:je,levp,ntracers))
-        allocate ( u_w(is:ie+1, js:je, 1:levp) )
-        allocate ( v_w(is:ie+1, js:je, 1:levp) )
-        allocate ( u_s(is:ie, js:je+1, 1:levp) )
-        allocate ( v_s(is:ie, js:je+1, 1:levp) )
-        allocate (temp(is:ie,js:je,1:levp))
-
-        !
-        !--- read in ak and bk from the gfs control file using fms_io read_data ---
-        !
-        ! put the lowest 64 levels into ak and bk
-        call read_data('INPUT/'//trim(fn_gfs_ctl),'vcoord',wk2_tmp, no_domain=.TRUE.)
-        ak(1:levp+1) = wk2_tmp(2:levsp,1)
-        bk(1:levp+1) = wk2_tmp(2:levsp,2)
-
-        deallocate (wk2_tmp)
-
-
-        if (.not. file_exist('INPUT/'//trim(fn_gfs_ics), domain=Atm%domain)) then
-          call mpp_error(FATAL,'==> Error in External_ic::get_nggps_ic: tiled file '//trim(fn_gfs_ics)//' for NGGPS IC does not exist')
-        endif
-        call mpp_error(NOTE,'==> External_ic::get_nggps_ic: using tiled data file '//trim(fn_gfs_ics)//' for NGGPS IC')
-
-        ! surface pressure (Pa)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ps', ps, domain=Atm%domain)
-
-
-        ! D-grid west  face tangential wind component (m/s)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'u_w', u_w_tmp, domain=Atm%domain,position=EAST)
-        ! D-grid west  face normal wind component (m/s)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'v_w', v_w_tmp, domain=Atm%domain,position=EAST)
-        ! D-grid south face tangential wind component (m/s)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'u_s', u_s_tmp, domain=Atm%domain,position=NORTH)
-        ! D-grid south face normal wind component (m/s)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'v_s', v_s_tmp, domain=Atm%domain,position=NORTH)
-        ! vertical velocity 'omega' (Pa/s)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'w', omga_tmp, domain=Atm%domain)
-        ! GFS grid height at edges (including surface height)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ZH', zh_tmp, domain=Atm%domain)
-        ! real temperature (K)
-        id_res = register_restart_field (GFS_restart, fn_gfs_ics, 't', temp_tmp, mandatory=.false., &
-          domain=Atm%domain)
-
-        ! prognostic tracers
-        do nt = 1, ntracers
-          call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
-          id_res = register_restart_field (GFS_restart, fn_gfs_ics, trim(tracer_name), q_tmp(:,:,:,nt), &
-            mandatory=.false.,domain=Atm%domain)
-        enddo
-
-
-        ! read in the gfs_data and free the restart type to be re-used by the nest
-        call restore_state(GFS_restart)
-        call free_restart_type(GFS_restart)
-
-
-        ! extract and return the lowest 64 levels of data
-        do nt = 1, ntracers
-          q(is:ie,js:je,1:levp,nt) = q_tmp(is:ie,js:je,2:levsp-1,nt)
-        enddo
-
-        zh  (is:ie,js:je,1:levp+1)      =   zh_tmp(is:ie,js:je,2:levsp)
-        omga(is:ie,js:je,1:levp)        = omga_tmp(is:ie,js:je,2:levsp-1)
-
-        u_w(is:ie+1, js:je, 1:levp)    =  u_w_tmp(is:ie+1, js:je  , 2:levsp-1)
-        v_w(is:ie+1, js:je, 1:levp)    =  v_w_tmp(is:ie+1, js:je  , 2:levsp-1)
-        u_s(is:ie, js:je+1, 1:levp)    =  u_s_tmp(is:ie  , js:je+1, 2:levsp-1)
-        v_s(is:ie, js:je+1, 1:levp)    =  v_s_tmp(is:ie  , js:je+1, 2:levsp-1)
-        temp(is:ie,js:je,1:levp)        = temp_tmp(is:ie ,js:je   , 2:levsp-1)
-
-        deallocate(u_w_tmp, v_w_tmp, u_s_tmp, v_s_tmp, omga_tmp, zh_tmp, temp_tmp, q_tmp)
-
-
-      endsubroutine read_gfs_data_bad
+      endsubroutine read_gfs_ic
 
 
   end subroutine get_nggps_ic
@@ -974,6 +871,8 @@ contains
       integer:: liq_wat, ice_wat, rainwat, snowwat, graupel, tke, ntclamt
       namelist /external_ic_nml/ filtered_terrain, levp, gfs_dwinds, &
                                  checker_tr, nt_checker
+      ! variables for reading the dimension from the hrrr_ctrl
+      integer ncid, levsp
 
       call mpp_error(NOTE,'Using external_IC::get_hrrr_ic which is valid only for data which has been &
                           &horizontally interpolated to the current lambert grid')
@@ -1034,6 +933,12 @@ contains
                                  &than defined in field_table '//trim(fn_hrr_ctl)//' for HRRR IC')
 
 !--- read in ak and bk from the HRRR control file using fms_io read_data ---
+      call open_ncfile( 'INPUT/'//trim(fn_hrr_ctl), ncid )        ! open the file
+      call get_ncdim1( ncid, 'levsp', levsp )
+      call close_ncfile( ncid )
+
+      levp = levsp-1
+
       allocate (wk2(levp+1,2))
       allocate (ak(levp+1))
       allocate (bk(levp+1))

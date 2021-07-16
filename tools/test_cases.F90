@@ -42,10 +42,8 @@
       use mpp_parameter_mod, only: AGRID_PARAM=>AGRID,CGRID_NE_PARAM=>CGRID_NE, &
                                    SCALAR_PAIR
       use fv_sg_mod,         only: qsmith
-      use fv_diagnostics_mod, only: prt_maxmin, ppme, eqv_pot, qcly0
-!!! DEBUG CODE
-     use mpp_mod, only: mpp_pe, mpp_chksum, stdout
-!!! END DEBUG CODE
+      use fv_diagnostics_mod, only: prt_maxmin, ppme, eqv_pot, qcly0, is_ideal_case
+      use mpp_mod, only: mpp_pe, mpp_chksum, stdout
       use fv_arrays_mod,         only: fv_grid_type, fv_flags_type, fv_grid_bounds_type, R_GRID
       use tracer_manager_mod,    only: get_tracer_index
       use field_manager_mod,     only: MODEL_ATMOS
@@ -55,21 +53,22 @@
 !!! A NOTE ON TEST CASES
 !!! If you have a DRY test case with no physics, be sure to set adiabatic = .TRUE. in your runscript.
 !!!! This is especially important for nonhydrostatic cases in which delz will be initialized with the
-!!!!  virtual temperature effect.
+!!!!  virtual temperature effect. 
 
 ! Test Case Number (cubed-sphere domain)
+!                  SHALLOW WATER TESTS:
 !                   -1 = Divergence conservation test
 !                    0 = Idealized non-linear deformational flow
-!                    1 = Cosine Bell advection
+!                    1 = Cosine Bell advection (not implemented)
 !                    2 = Zonal geostrophically balanced flow
 !                    3 = non-rotating potential flow
 !                    4 = Tropical cyclones (merger of Rankine vortices)
-!                    5 = Zonal geostrophically balanced flow over an isolated mountain
+!                    5 = Zonal geostrophically balanced flow over an isolated mountain, with or without wind
 !                    6 = Rossby Wave number 4
 !                    7 = Barotropic instability
-!                    !   8 = Potential flow (as in 5 but no rotation and initially at rest)
 !                    8 = "Soliton" propagation twin-vortex along equator
-!                    9 = Polar vortex
+!                    9 = Bates and Li (1997, Atmos.-Ocn.) polar vortex
+!                  THREE-DIMENSIONAL TESTS
 !                   10 = hydrostatically balanced 3D test with idealized mountain
 !                   11 = Use this for cold starting the climate model with USGS terrain
 !                   12 = Jablonowski & Williamson Baroclinic test case (Steady State)
@@ -92,7 +91,7 @@
 !                   36 = HIWPP Super_Cell; no perturbation
 !                   37 = HIWPP Super_Cell; with the prescribed thermal
 !                   44 = Lock-exchange on the sphere; atm at rest with no mountain
-!                   45 = New test
+!                   45 = 3D Soliton
 !                   51 = 3D tracer advection (deformational nondivergent flow)
 !                   55 = TC
 !                  -55 = DCMIP 2016 TC test
@@ -108,8 +107,9 @@
       logical :: do_marine_sounding = .false.
       real    :: dt_amp = 2.1
       real    :: alpha = 0.0
-      integer :: Nsolitons = 1
+      integer :: Nsolitons = 2
       real    :: soliton_size = 750.e3, soliton_Umax = 50.
+      logical :: checker_tr
 
 ! Case 0 parameters
       real :: p0_c0 = 3.0
@@ -158,12 +158,12 @@
      integer, parameter :: interpOrder = 1
 
       public :: pz0, zz0
-      public :: read_namelist_test_case_nml, alpha
+      public :: read_namelist_test_case_nml, alpha, test_case
       public :: init_case
       public :: case9_forcing1, case9_forcing2, case51_forcing
       public :: init_double_periodic
       public :: checker_tracers
-
+      
   INTERFACE mp_update_dwinds
      MODULE PROCEDURE mp_update_dwinds_2d
      MODULE PROCEDURE mp_update_dwinds_3d
@@ -758,7 +758,7 @@
                                    sin(agrid(i  ,j  ,2))*cos(alpha) ) ** 2.0
             enddo
          enddo
-         call init_winds(UBar, u,v,ua,va,uc,vc, 1, npx, npy, ng, ndims, nregions, gridstruct%bounded_domain, gridstruct, domain, tile)
+         call init_winds(UBar, u,v,ua,va,uc,vc, 1, npx, npy, ng, ndims, nregions, gridstruct%bounded_domain, gridstruct, domain, tile,bd)
 
 ! Test Divergence operator at cell centers
          do j=js,je
@@ -780,8 +780,8 @@
      ! call mpp_update_domains( vor0, domain )
      ! call mpp_update_domains( divg, domain )
      ! call mpp_update_domains( vort, domain )
-      call get_scalar_stats( divg, div0, npx, npy, ndims, nregions, &
-                             pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile)
+!!$      call get_scalar_stats( divg, div0, npx, npy, ndims, nregions, &
+!!$                             pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile)
  200  format(i4.4,'x',i4.4,'x',i4.4,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14)
  201  format('          ',A,e21.14,' ',e21.14)
  202  format('          ',A,i4.4,'x',i4.4,'x',i4.4)
@@ -813,8 +813,8 @@
         ua0 = ua
         va0 = va
         div0(:,:) = 1.e-20
-      call get_scalar_stats( divg, div0, npx, npy, ndims, nregions, &
-                             pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile)
+!!$      call get_scalar_stats( divg, div0, npx, npy, ndims, nregions, &
+!!$                             pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile)
       if ( is_master() ) then
           write(*,*) ' Error Norms of Analytical Divergence field A-Winds initialized'
           write(*,201) 'Divergence MAX error     : ', pmax
@@ -843,8 +843,8 @@
            enddo
         enddo
         div0(:,:) = 1.e-20
-      call get_scalar_stats( divg, div0, npx, npy, ndims, nregions, &
-                             pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile)
+!!$      call get_scalar_stats( divg, div0, npx, npy, ndims, nregions, &
+!!$                             pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile)
       if ( is_master() ) then
           write(*,*) ' Error Norms of Analytical Divergence field D-Winds initialized'
           write(*,201) 'Divergence MAX error     : ', pmax
@@ -910,12 +910,6 @@
          enddo
          initWindsCase=initWindsCase1
       case(2)
-#ifdef TEST_TRACER
-!!$         do j=js2,je2
-!!$         do i=is2,ie2
-!!$            q(i,j,1,:) = 1.e-3*cos(agrid(i,j,2))!*(1.+cos(agrid(i,j,1)))
-!!$         enddo
-!!$         enddo
          gh0  = 1.0e-6
          r0 = radius/3. !RADIUS radius/3.
          p1(2) = 35./180.*pi !0.
@@ -926,14 +920,13 @@
             p2(2) = agrid(i,j,2)
             r = great_circle_dist( p1, p2, radius )
             if (r < r0 .and. .not.( abs(p1(2)-p2(2)) < 1./18. .and. p2(1)-p1(1) < 5./36.)) then
-               !q(i,j,k,1) = max(gh0*0.5*(1.0+cos(PI*r/r0))*exp(real(k-npz)),0.)
                q(i,j,1,1) = gh0
             else
                q(i,j,1,1) = 0.
             endif
          enddo
          enddo
-#endif
+
          Ubar = (2.0*pi*radius)/(12.0*86400.0)
          gh0  = 2.94e4
          phis = 0.0
@@ -962,7 +955,7 @@
                delp(i,j,1) = gh0 - (radius*omega*Ubar + (Ubar*Ubar)/2.) * &
                              ( -1.*cos(agrid(i  ,j  ,1))*cos(agrid(i  ,j  ,2))*sin(alpha) + &
                                    sin(agrid(i  ,j  ,2))*cos(alpha) ) ** 2.0
-#endif
+#endif FIVE_AVG
             enddo
          enddo
          initWindsCase=initWindsCase2
@@ -970,11 +963,11 @@
 !----------------------------
 ! Non-rotating potential flow
 !----------------------------
-#ifdef NO_WIND
-         ubar = 0.
-#else
-         ubar = 40.
-#endif
+         if (no_wind) then
+            ubar = 0.
+         else
+            ubar = 40.
+         endif
          gh0  = 1.0e3 * grav
          phis = 0.0
          r0 = radius/3. !RADIUS radius/3.
@@ -995,12 +988,12 @@
             enddo
          enddo
 
-#ifdef NO_WIND
-         u  = 0.;   v = 0.
-         f0 = 0.;  fC = 0.
-#else
+         if (no_wind) then
+            u  = 0.;   v = 0.
+            f0 = 0.;  fC = 0.
+         else
 
-         do j=js,je
+            do j=js,je
             do i=is,ie+1
                p1(:) = grid(i  ,j ,1:2)
                p2(:) = grid(i,j+1 ,1:2)
@@ -1011,8 +1004,8 @@
                vtmp = 0.
                v(i,j,1) = utmp*inner_prod(e2,ex) + vtmp*inner_prod(e2,ey)
             enddo
-         enddo
-         do j=js,je+1
+            enddo
+            do j=js,je+1
             do i=is,ie
                p1(:) = grid(i,  j,1:2)
                p2(:) = grid(i+1,j,1:2)
@@ -1023,20 +1016,22 @@
                vtmp = 0.
                u(i,j,1) = utmp*inner_prod(e1,ex) + vtmp*inner_prod(e1,ey)
             enddo
-         enddo
+            enddo
 
-         anti_rot = -ubar/ radius
-         do j=jsd,jed+1
+            anti_rot = -ubar/ radius
+            do j=jsd,jed+1
             do i=isd,ied+1
                fC(i,j) = 2.*anti_rot*sin(grid(i,j,2))
             enddo
-         enddo
-         do j=jsd,jed
+            enddo
+            do j=jsd,jed
             do i=isd,ied
                f0(i,j) = 2.*anti_rot*sin(agrid(i,j,2))
             enddo
-         enddo
-#endif
+            enddo
+
+         endif !no_wind
+         
          initWindsCase= -1
 
       case(4)
@@ -1070,7 +1065,6 @@
         p2(2) = pi/18.              ! 10 N
         call rankine_vortex(ubar, r0, p2, u, v, grid, bd)
 
-#ifndef SINGULAR_VORTEX
 !-----------
 ! Anti-pole:
 !-----------
@@ -1088,7 +1082,7 @@
         enddo
         call cart_to_latlon(1, e1, p4(1), p4(2))
         call rankine_vortex(ubar, r0, p4, u, v, grid, bd)
-#endif
+
         call mp_update_dwinds(u, v, npx, npy, npz, domain, bd)
         initWindsCase=-1   ! do nothing
 
@@ -1109,14 +1103,29 @@
                phis(i,j) = 2000.0*Grav*(1.0-(r/r0))
             enddo
          enddo
-         do j=js2,je2
+         if (no_wind) then
+            do j=js,je
+            do i=is,ie
+               delp(i,j,1) = gh0
+            enddo
+            enddo
+            u  = 0.;   v = 0.
+            f0 = 0.;  fC = 0.
+            initWindsCase= -1
+
+         else
+            do j=js2,je2
             do i=is2,ie2
                delp(i,j,1) =gh0 - (radius*omega*Ubar + (Ubar*Ubar)/2.) * &
                              ( -1.*cos(agrid(i  ,j  ,1))*cos(agrid(i  ,j  ,2))*sin(alpha) + &
                                    sin(agrid(i  ,j  ,2))*cos(alpha) ) ** 2  - phis(i,j)
             enddo
-         enddo
-         initWindsCase=initWindsCase5
+            enddo
+
+            initWindsCase=initWindsCase5
+         endif
+         
+         
       case(6)
          gh0  = 8.E3*Grav
          R    = 4.
@@ -1168,6 +1177,7 @@
          !call mpp_update_domains( ua, va, domain, gridtype=AGRID_PARAM)
          call atoc(ua,va,uc,vc,dx,dy,dxa,dya,npx,npy,ng, gridstruct%bounded_domain, domain, bd)
          initWindsCase=initWindsCase6
+
       case(7)
 ! Barotropically unstable jet
          gh0  = 10.E3*Grav
@@ -1198,13 +1208,11 @@
                pt8 = gh_jet(npy, grid(i+1,j+1,2))
                pt9 = gh_jet(npy, grid(i  ,j+1,2))
                ftmp = 0.25*pt1 + 0.125*(pt2+pt3+pt4+pt5) + 0.0625*(pt6+pt7+pt8+pt9)
-#ifndef NEW_PERT
-               delp(i,j,1) = ftmp + 120.*grav*cos(agrid(i,j,2)) *  &
-               exp( -(3.*(agrid(i,j,1)-pi))**2 ) * exp( -(15.*(agrid(i,j,2)-pi/4.))**2 )
-!              phis(i,j) = ftmp
-!              delp(i,j,1) = 10.E3*grav + 120.*grav*cos(agrid(i,j,2)) *  &
-!              exp( -(3.*(agrid(i,j,1)-pi))**2 ) * exp( -(15.*(agrid(i,j,2)-pi/4.))**2 )
-#else
+!!$               delp(i,j,1) = ftmp + 120.*grav*cos(agrid(i,j,2)) *  &
+!!$               exp( -(3.*(agrid(i,j,1)-pi))**2 ) * exp( -(15.*(agrid(i,j,2)-pi/4.))**2 )
+!!$!              phis(i,j) = ftmp
+!!$!              delp(i,j,1) = 10.E3*grav + 120.*grav*cos(agrid(i,j,2)) *  &
+!!$!              exp( -(3.*(agrid(i,j,1)-pi))**2 ) * exp( -(15.*(agrid(i,j,2)-pi/4.))**2 )
 ! Using great circle dist:
                p1(:) = agrid(i,j,1:2)
                delp(i,j,1) = ftmp
@@ -1212,7 +1220,6 @@
                if ( r < 3.*r0 ) then
                     delp(i,j,1) = delp(i,j,1) + 1000.*grav*exp(-(r/r0)**2)
                endif
-#endif
             enddo
          enddo
 
@@ -1228,7 +1235,6 @@
                vv2 = u_jet(pa(2))*(ew(2,i,j,2)*cos(pa(1)) - ew(1,i,j,2)*sin(pa(1)))
 ! 3-point average:
                v(i,j,1) = 0.25*(vv1 + 2.*vv2 + vv3)
-!              v(i,j,1) = vv2
             enddo
          enddo
 ! U-wind:
@@ -1243,7 +1249,6 @@
                uu2 = u_jet(pa(2))*(es(2,i,j,1)*cos(pa(1)) - es(1,i,j,1)*sin(pa(1)))
 ! 3-point average:
                u(i,j,1) = 0.25*(uu1 + 2.*uu2 + uu3)
-!              u(i,j,1) = uu2
             enddo
          enddo
          initWindsCase=initWindsCase6  ! shouldn't do anything with this
@@ -1267,39 +1272,10 @@
          do j=js,je
          do i=is,ie
             q(i,j,npz,1) = ( q(i,j,npz,1) + f0(i,j) ) / delp(i,j,npz) * 1.e6 ! PVU
-            !q(i,j,npz,1) = ( q(i,j,npz,1) + f0(i,j) ) * grav / delp(i,j,npz)
          enddo
          enddo
-!         call pv_entropy(is, ie, js, je, ng, npz, q(is:ie,js:je,:,2), f0, pt, pkz, delp, grav)
 
       case(8)
-#ifdef USE_OLD
-!----------------------------
-! Non-rotating potential flow
-!----------------------------
-         gh0  = 5960.*Grav
-         phis = 0.0
-         r0 = PI/9.
-         p1(1) = PI/2.
-         p1(2) = PI/6.
-         do j=js,je
-            do i=is,ie
-               p2(1) = agrid(i,j,1)
-               p2(2) = agrid(i,j,2)
-               r = MIN(r0*r0, (p2(1)-p1(1))*(p2(1)-p1(1)) + (p2(2)-p1(2))*(p2(2)-p1(2)) )
-               r = SQRT(r)
-               phis(i,j) = 2000.0*Grav*(1.0-(r/r0))
-            enddo
-         enddo
-         do j=js,je
-            do i=is,ie
-               delp(i,j,1) = gh0
-            enddo
-         enddo
-         u  = 0.;   v = 0.
-         f0 = 0.;  fC = 0.
-         initWindsCase= -1
-#endif
 !----------------------------
 ! Soliton twin-vortex
 !----------------------------
@@ -1320,7 +1296,7 @@
 !!$        r0 = 250.e3
 !!$        ubar = 50.       ! maxmium wind speed (m/s)
 !!$        r0 = 750.e3
-! #1 1: westerly
+        ! #1: westerly
         p0(1) = pi*0.5
         p0(2) = 0.
 
@@ -1349,7 +1325,8 @@
            enddo
         enddo
 
-! #1 2: easterly
+        ! #2: easterly
+        if (nsolitons > 0) then
         p0(1) = p0(1) + pi
         p0(2) = 0.
 
@@ -1377,10 +1354,12 @@
               u(i,j,1) = u(i,j,1) - utmp*inner_prod(e1,ex)
            enddo
         enddo
+        endif
          initWindsCase= -1
 
+
       case(9)
-#ifdef USE_OLD
+
          jm1 = jm - 1
          DDP = PI/DBLE(jm1)
          DP  = DDP
@@ -1452,60 +1431,21 @@
          call mp_update_dwinds(u, v, npx, npy, npz, domain, bd)
          initWindsCase=initWindsCase9
 
-
+         allocate(case9_B(isd:ied,jsd:jed))
          call get_case9_B(case9_B, agrid, isd, ied, jsd, jed)
          AofT(:) = 0.0
-#else
-!----------------------------
-! Soliton twin-vortex
-!----------------------------
-        if ( is_master() ) write(*,*) 'Initialzing case-9: soliton cyclones...'
-        f0 = 0.;  fC = 0.          ! non-rotating planet setup
-        phis = 0.0                 ! flat terrain
-        gh0  = 5.E3*Grav
-        do j=js,je
-           do i=is,ie
-              delp(i,j,1) = gh0
-           enddo
-        enddo
 
-! Initiate the westerly-wind-burst:
-        ubar = soliton_Umax
-        r0   = soliton_size
-!!$        ubar = 200.       ! maxmium wind speed (m/s)
-!!$        r0 = 250.e3
-!!$        ubar = 50.       ! maxmium wind speed (m/s)
-!!$        r0 = 750.e3
-        p0(1) = pi*0.5
-        p0(2) = 0.
-
-        do j=js,je
-           do i=is,ie+1
-              p1(:) = grid(i  ,j ,1:2)
-              p2(:) = grid(i,j+1 ,1:2)
-              call mid_pt_sphere(p1, p2, p3)
-              r = great_circle_dist( p0, p3, radius )
-              utmp = ubar*exp(-(r/r0)**2)
-              call get_unit_vect2(p1, p2, e2)
-              call get_latlon_vector(p3, ex, ey)
-              v(i,j,1) = utmp*inner_prod(e2,ex)
-           enddo
-        enddo
-        do j=js,je+1
-           do i=is,ie
-              p1(:) = grid(i,  j,1:2)
-              p2(:) = grid(i+1,j,1:2)
-              call mid_pt_sphere(p1, p2, p3)
-              r = great_circle_dist( p0, p3, radius )
-              utmp = ubar*exp(-(r/r0)**2)
-              call get_unit_vect2(p1, p2, e1)
-              call get_latlon_vector(p3, ex, ey)
-              u(i,j,1) = utmp*inner_prod(e1,ex)
-           enddo
-        enddo
-         initWindsCase= -1
-#endif
       end select
+
+
+      cl = get_tracer_index(MODEL_ATMOS, 'cl')
+      cl2 = get_tracer_index(MODEL_ATMOS, 'cl2')
+      if (cl > 0 .and. cl2 > 0) then
+         call terminator_tracers(is,ie,js,je,isd,ied,jsd,jed,npz, &
+              q, delp,ncnst,agrid(isd:ied,jsd:jed,1),agrid(isd:ied,jsd:jed,2),bd)
+         call mpp_update_domains(q,domain)
+      endif
+      
 !--------------- end s-w cases --------------------------
 
 ! Copy 3D data for Shallow Water Tests
@@ -1608,50 +1548,32 @@
 
       else if ( (test_case==12) .or. (test_case==13) ) then
 
-#ifdef HIWPP_TRACER
-         if (is_master()) print*, 'TEST TRACER enabled for this test case'
-#ifdef HIWPP
-         call checker_tracers(is,ie, js,je, isd,ied, jsd,jed,  &
-                              ncnst, npz, q, agrid(is:ie,js:je,1), agrid(is:ie,js:je,2), 9., 9.)
-#else
-              !For consistency with earlier single-grid simulations use gh0 = 1.0e-6 and p1(1) = 195.*pi/180.
-                 q(:,:,:,:) = 0.
-                 gh0  = 1.0e-3
-                 r0 = radius/3. !RADIUS radius/3.
-                 p1(2) = 51.*pi/180.
-                 p1(1) = 205.*pi/180. !231.*pi/180.
-                 do k=1,npz
-                 do j=jsd,jed
-                 do i=isd,ied
-                    p2(1) = agrid(i,j,1)
-                    p2(2) = agrid(i,j,2)
-                    r = great_circle_dist( p1, p2, radius )
-                    if (r < r0 .and. .not.( abs(p1(2)-p2(2)) < 1./18. .and. p2(1)-p1(1) < 5./36.) .and. k > 16) then
-                       q(i,j,k,1) = gh0
-                    else
-                       q(i,j,k,1) = 0.
-                    endif
-                 enddo
-                 enddo
-                 enddo
-#endif
 
-#else
-
+         !For consistency with earlier single-grid simulations use gh0 = 1.0e-6 and p1(1) = 195.*pi/180.
          q(:,:,:,:) = 0.
 
-   cl = get_tracer_index(MODEL_ATMOS, 'cl')
-   cl2 = get_tracer_index(MODEL_ATMOS, 'cl2')
-   if (cl > 0 .and. cl2 > 0) then
-      call terminator_tracers(is,ie,js,je,isd,ied,jsd,jed,npz, &
-           q, delp,ncnst,agrid(isd:ied,jsd:jed,1),agrid(isd:ied,jsd:jed,2),bd)
-      call mpp_update_domains(q,domain)
-   endif
-
-#endif
+!!$         gh0  = 1.0e-3
+!!$         r0 = radius/3. !RADIUS radius/3.
+!!$         p1(2) = 51.*pi/180.
+!!$         p1(1) = 205.*pi/180. !231.*pi/180.
+!!$         do k=1,npz
+!!$         do j=jsd,jed
+!!$         do i=isd,ied
+!!$            p2(1) = agrid(i,j,1)
+!!$            p2(2) = agrid(i,j,2)
+!!$            r = great_circle_dist( p1, p2, radius )
+!!$            if (r < r0 .and. .not.( abs(p1(2)-p2(2)) < 1./18. .and. p2(1)-p1(1) < 5./36.) .and. k > 16) then
+!!$               q(i,j,k,1) = gh0
+!!$            else
+!!$               q(i,j,k,1) = 0.
+!!$            endif
+!!$         enddo
+!!$         enddo
+!!$         enddo
+         
     ! Initialize surface Pressure
          ps(:,:) = 1.e5
-    ! Initialize detla-P
+    ! Initialize delta-P
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,delp,ak,ps,bk)
          do z=1,npz
             do j=js,je
@@ -1704,13 +1626,8 @@
          do k=1,npz
          do j=js,je
          do i=is,ie
-            !r = great_circle_dist(pcen, agrid(i,j,:), radius)
-            !ptmp = 0.5*(pe(i,k,j)+pe(i,k+1,j)) - 100000.
-            !q(i,j,k,1) = 0.021*exp(-(agrid(i,j,2)/pcen(2))**4.)*exp(-(ptmp/34000.)**2.)
             ptmp = delp(i,j,k)/(peln(i,k+1,j)-peln(i,k,j)) - 100000.
             q(i,j,k,sphum) = 0.021*exp(-(agrid(i,j,2)/pcen(2))**4.)*exp(-(ptmp/34000.)**2.)
-! SJL:
-!           q(i,j,k,sphum) = max(1.e-25, q(i,j,k,sphum))
          enddo
          enddo
          enddo
@@ -1722,13 +1639,8 @@
          pcen(1) = PI/9.
          pcen(2) = 2.0*PI/9.
          if (test_case == 13) then
-#ifdef ALT_PERT
-             u1 = 0.0
-            pt0 = 3.0
-#else
              u1 = 1.0
             pt0 = 0.0
-#endif
              r0 = radius/10.0
          endif
 
@@ -1866,13 +1778,6 @@
                   pt(i,j,z) = 0.25*pt1 + 0.125*(pt2+pt3+pt4+pt5) + 0.0625*(pt6+pt7+pt8+pt9)
 #else
                   pt(i,j,z) = pt1
-#endif
-
-#ifdef ALT_PERT
-                  r = great_circle_dist( pcen, agrid(i,j,1:2), radius )
-                  if ( (r/r0)**2 < 40. ) then
-                        pt(i,j,z) = pt(i,j,z) + pt0*exp(-(r/r0)**2)
-                  endif
 #endif
 
                enddo
@@ -2058,23 +1963,14 @@
          p1(2) = 0.
 
          do k=1,npz
-#ifndef STD_BUBBLE
             r0 = 0.5*(ze1(k)+ze1(k+1)) - 3.2E3
-#else
-            r0 = (0.5*(ze1(k)+ze1(k+1)) - 3.0E3) / 2.E3
-#endif
             do j=js,je
                do i=is,ie
 ! Impose perturbation in potential temperature: pturb
                p2(1) = agrid(i,j,1)
                p2(2) = agrid(i,j,2)
-#ifndef STD_BUBBLE
                r = great_circle_dist( p1, p2, radius )
                dist = sqrt( r**2 + r0**2 ) / 3.2E3
-#else
-               r = great_circle_dist( p1, p2, radius ) / 4.E3
-               dist = sqrt( r**2 + r0**2 )
-#endif
                   if ( dist<=1. ) then
                        q(i,j,k,1) =      pk0 * pturb/pkz(i,j,k)*(cos(pi*dist)+1.)/2.
                        pt(i,j,k) = pt(i,j,k) - pturb/pkz(i,j,k)*(cos(pi*dist)+1.)/2.
@@ -3699,31 +3595,27 @@
                 moist_phys, hydrostatic, nwat, domain, adiabatic, .not.hydrostatic)
 #endif
 
-#ifdef COLUMN_TRACER
-      if( ncnst>1 ) q(:,:,:,2:ncnst) = 0.0
-   ! Initialize a dummy Column Tracer
-         pcen(1) = PI/9.
-         pcen(2) = 2.0*PI/9.
-         r0 = radius/10.0
-         do z=1,npz
-            do j=js,je
-               do i=is,ie
-                  p1(:) = grid(i  ,j ,1:2)
-                  p2(:) = grid(i,j+1 ,1:2)
-                  call mid_pt_sphere(p1, p2, pa)
-                  call get_unit_vect2(p1, p2, e2)
-                  call get_latlon_vector(pa, ex, ey)
-             ! Perturbation Location Case==13
-                  r = great_circle_dist( pcen, pa, radius )
-                  if (-(r/r0)**2.0 > -40.0) q(i,j,z,1) = EXP(-(r/r0)**2.0)
-               enddo
-            enddo
-         enddo
-#endif
+     !Initialize tracers
 
-#endif
+     if (checker_tr) then
+         if (is_master()) print*, 'TEST TRACER enabled for this test case'
+         call checker_tracers(is,ie, js,je, isd,ied, jsd,jed,  &
+              ncnst, npz, q, agrid(is:ie,js:je,1), agrid(is:ie,js:je,2), 9., 9.)
+      endif
+
+      cl = get_tracer_index(MODEL_ATMOS, 'cl')
+      cl2 = get_tracer_index(MODEL_ATMOS, 'cl2')
+      if (cl > 0 .and. cl2 > 0) then
+         call terminator_tracers(is,ie,js,je,isd,ied,jsd,jed,npz, &
+              q, delp,ncnst,agrid(isd:ied,jsd:jed,1),agrid(isd:ied,jsd:jed,2),bd)
+         call mpp_update_domains(q,domain)
+      endif
+
+#endif SW_DYNAMICS
+         
     call mp_update_dwinds(u, v, npx, npy, npz, domain, bd)
 
+    is_ideal_case = .true.
 
     nullify(agrid)
     nullify(grid)
@@ -4507,469 +4399,6 @@ end subroutine terminator_tracers
 
    end subroutine case51_forcing
 
-!!$!-------------------------------------------------------------------------------
-!!$!
-!!$!      get_stats :: get L-1, L-2, and L-inf norms and other stats as defined
-!!$!                                                in Williamson, 1994 (p.16)
-!!$       subroutine get_stats(dt, dtout, nt, maxnt, ndays, u,v,pt,delp,q,phis, ps, &
-!!$                            uc,vc, ua,va, npx, npy, npz, ncnst, ndims, nregions,    &
-!!$                            gridstruct, stats_lun, consv_lun, monitorFreq, tile, &
-!!$                            domain, bounded_domain, bd)
-!!$         type(fv_grid_bounds_type), intent(IN) :: bd
-!!$         integer,      intent(IN) :: nt, maxnt
-!!$         real  ,    intent(IN) :: dt, dtout, ndays
-!!$         real ,      intent(INOUT) ::    u(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz)
-!!$         real ,      intent(INOUT) ::    v(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz)
-!!$         real ,      intent(INOUT) ::   pt(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)
-!!$         real ,      intent(INOUT) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)
-!!$         real ,      intent(INOUT) ::    q(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst)
-!!$         real ,      intent(INOUT) :: phis(bd%isd:bd%ied  ,bd%jsd:bd%jed  )
-!!$         real ,      intent(INOUT) ::   ps(bd%isd:bd%ied  ,bd%jsd:bd%jed  )
-!!$         real ,      intent(INOUT) ::   uc(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz)
-!!$         real ,      intent(INOUT) ::   vc(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz)
-!!$         real ,      intent(INOUT) ::   ua(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)
-!!$         real ,      intent(INOUT) ::   va(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)
-!!$         integer,      intent(IN) :: npx, npy, npz, ncnst, tile
-!!$         integer,      intent(IN) :: ndims
-!!$         integer,      intent(IN) :: nregions
-!!$         integer,      intent(IN) :: stats_lun
-!!$         integer,      intent(IN) :: consv_lun
-!!$         integer,      intent(IN) :: monitorFreq
-!!$         type(fv_grid_type), target :: gridstruct
-!!$         type(domain2d), intent(INOUT) :: domain
-!!$         logical, intent(IN) :: bounded_domain
-!!$
-!!$         real   :: L1_norm
-!!$         real   :: L2_norm
-!!$         real   :: Linf_norm
-!!$         real   :: pmin, pmin1, uamin1, vamin1
-!!$         real   :: pmax, pmax1, uamax1, vamax1
-!!$         real(kind=4) :: arr_r4(5)
-!!$         real   :: tmass0, tvort0, tener0, tKE0
-!!$         real   :: tmass, tvort, tener, tKE
-!!$         real   :: temp(bd%is:bd%ie,bd%js:bd%je)
-!!$         integer :: i0, j0, k0, n0
-!!$         integer :: i, j, k, n, iq
-!!$
-!!$         real :: psmo, Vtx, p, w_p, p0
-!!$         real :: x1,y1,z1,x2,y2,z2,ang
-!!$
-!!$         real   :: p1(2), p2(2), p3(2), r, r0, dist, heading
-!!$
-!!$         real :: uc0(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz)
-!!$         real :: vc0(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz)
-!!$
-!!$         real :: myDay
-!!$         integer :: myRec
-!!$
-!!$         real, save, allocatable, dimension(:,:,:) :: u0, v0
-!!$         real  ::    up(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz)
-!!$         real  ::    vp(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz)
-!!$
-!!$         real, dimension(:,:,:), pointer :: grid, agrid
-!!$         real, dimension(:,:),   pointer :: area, f0, dx, dy, dxa, dya, dxc, dyc
-!!$
-!!$        integer :: is,  ie,  js,  je
-!!$        integer :: isd, ied, jsd, jed
-!!$
-!!$        is  = bd%is
-!!$        ie  = bd%ie
-!!$        js  = bd%js
-!!$        je  = bd%je
-!!$        isd = bd%isd
-!!$        ied = bd%ied
-!!$        jsd = bd%jsd
-!!$        jed = bd%jed
-!!$
-!!$         grid => gridstruct%grid
-!!$         agrid=> gridstruct%agrid
-!!$
-!!$         area  => gridstruct%area
-!!$         f0    => gridstruct%f0
-!!$
-!!$         dx      => gridstruct%dx
-!!$         dy      => gridstruct%dy
-!!$         dxa     => gridstruct%dxa
-!!$         dya     => gridstruct%dya
-!!$         dxc     => gridstruct%dxc
-!!$         dyc     => gridstruct%dyc
-!!$
-!!$         !!! DEBUG CODE
-!!$         if (nt == 0 .and. is_master()) print*, 'INITIALIZING GET_STATS'
-!!$         !!! END DEBUG CODE
-!!$
-!!$         myDay = ndays*((FLOAT(nt)/FLOAT(maxnt)))
-!!$
-!!$#if defined(SW_DYNAMICS)
-!!$      if (test_case==0) then
-!!$         phi0 = 0.0
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               x1 = agrid(i,j,1)
-!!$               y1 = agrid(i,j,2)
-!!$               z1 = radius
-!!$               p = p0_c0 * cos(y1)
-!!$               Vtx = ((3.0*SQRT(2.0))/2.0) * (( 1.0/cosh(p) )**2.0) * tanh(p)
-!!$               w_p = 0.0
-!!$               if (p /= 0.0) w_p = Vtx/p
-!!$              ! delp(i,j,1) = 1.0 - tanh( (p/rgamma) * sin(x1 - w_p*(nt*dt/86400.0)) )
-!!$               phi0(i,j,1) = 1.0 - tanh( (p/rgamma) * sin(x1 - w_p*(nt*dt/86400.0)) )
-!!$            enddo
-!!$         enddo
-!!$      elseif (test_case==1) then
-!!$! Get Current Height Field "Truth"
-!!$         p1(1) = pi/2.  + pi_shift
-!!$         p1(2) = 0.
-!!$         p2(1) = 3.*pi/2.  + pi_shift
-!!$         p2(2) = 0.
-!!$         r0 = radius/3. !RADIUS 3.
-!!$         dist = 2.0*pi*radius* ((FLOAT(nt)/FLOAT(maxnt)))
-!!$         heading = 3.0*pi/2.0 - alpha !5.0*pi/2.0 - alpha
-!!$         call get_pt_on_great_circle( p1, p2, dist, heading, p3)
-!!$         phi0 = 0.0
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               p2(1) = agrid(i,j,1)
-!!$               p2(2) = agrid(i,j,2)
-!!$               r = great_circle_dist( p3, p2, radius )
-!!$               if (r < r0) then
-!!$                  phi0(i,j,1) = phis(i,j) + gh0*0.5*(1.0+cos(PI*r/r0))
-!!$               else
-!!$                  phi0(i,j,1) = phis(i,j)
-!!$               endif
-!!$            enddo
-!!$         enddo
-!!$     endif
-!!$
-!!$! Get Height Field Stats
-!!$         call pmxn(delp(:,:,1), npx, npy, nregions, tile, gridstruct, pmin1, pmax1, i0, j0, n0)
-!!$         pmin1=pmin1/Grav
-!!$         pmax1=pmax1/Grav
-!!$         if (test_case <= 2) then
-!!$            call get_scalar_stats( delp(:,:,1), phi0(:,:,1), npx, npy, ndims, nregions, &
-!!$                                   pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile, bd)
-!!$            pmin=pmin/Grav
-!!$            pmax=pmax/Grav
-!!$            arr_r4(1) = pmin1
-!!$            arr_r4(2) = pmax1
-!!$            arr_r4(3) = L1_norm
-!!$            arr_r4(4) = L2_norm
-!!$            arr_r4(5) = Linf_norm
-!!$            !if (is_master()) write(stats_lun,rec=(nt)*2 + 1) arr_r4
-!!$         else
-!!$            arr_r4(1) = pmin1
-!!$            arr_r4(2) = pmax1
-!!$            arr_r4(3:5) = 0.
-!!$            pmin      = 0.
-!!$            pmax      = 0.
-!!$            L1_norm   = 0.
-!!$            L2_norm   = 0.
-!!$            Linf_norm = 0.
-!!$         endif
-!!$
-!!$ 200  format(i6.6,A,i6.6,A,e21.14)
-!!$ 201  format('          ',A,e21.14,' ',e21.14)
-!!$ 202  format('          ',A,i4.4,'x',i4.4,'x',i4.4)
-!!$
-!!$         if ( (is_master()) .and. MOD(nt,monitorFreq)==0 ) then
-!!$             write(*,200) nt, ' step of ', maxnt, ' DAY ', myDay
-!!$             write(*,201) 'Height MAX        : ', pmax1
-!!$             write(*,201) 'Height MIN        : ', pmin1
-!!$             write(*,202) 'HGT MAX location  : ', i0, j0, n0
-!!$             if (test_case <= 2) then
-!!$                write(*,201) 'Height L1_norm    : ', L1_norm
-!!$                write(*,201) 'Height L2_norm    : ', L2_norm
-!!$                write(*,201) 'Height Linf_norm  : ', Linf_norm
-!!$             endif
-!!$         endif
-!!$
-!!$! Get UV Stats
-!!$         call dtoa(u , v , ua, va, dx,dy,dxa,dya,dxc,dyc,npx, npy, ng)
-!!$         call pmxn(ua(:,:,1), npx, npy, nregions, tile, gridstruct, pmin1, pmax1, i0, j0, n0)
-!!$         if (test_case <= 2) then
-!!$            call get_vector_stats( ua(:,:,1), ua0(:,:,1), va(:,:,1), va0(:,:,1), npx, npy, ndims, nregions, &
-!!$                                   pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile)
-!!$         endif
-!!$         arr_r4(1) = pmin1
-!!$         arr_r4(2) = pmax1
-!!$         arr_r4(3) = L1_norm
-!!$         arr_r4(4) = L2_norm
-!!$         arr_r4(5) = Linf_norm
-!!$         !if (is_master()) write(stats_lun,rec=(nt)*2 + 2) arr_r4
-!!$         if ( (is_master()) .and. MOD(nt,monitorFreq)==0) then
-!!$             write(*,201) 'UV     MAX        : ', pmax1
-!!$             write(*,201) 'UV     MIN        : ', pmin1
-!!$             write(*,202) 'UV  MAX location  : ', i0, j0, n0
-!!$             if (test_case <= 2) then
-!!$                write(*,201) 'UV     L1_norm    : ', L1_norm
-!!$                write(*,201) 'UV     L2_norm    : ', L2_norm
-!!$                write(*,201) 'UV     Linf_norm  : ', Linf_norm
-!!$             endif
-!!$         endif
-!!$#else
-!!$
-!!$ 200  format(i6.6,A,i6.6,A,e10.4)
-!!$ 201  format('          ',A,e10.4,' ',e10.4,' ',i4.4,'x',i4.4,'x',i4.4,'x',i4.4)
-!!$ 202  format('          ',A,e10.4,' ',e10.4,' ',i4.4,'x',i4.4,'x',i4.4,'x',i4.4,' ',e10.4)
-!!$ 203  format('          ',A,i3.3,A,e10.4,' ',e10.4,' ',i4.4,'x',i4.4,'x',i4.4,'x',i4.4)
-!!$
-!!$      if(is_master()) write(*,200) nt, ' step of ', maxnt, ' DAY ', myDay
-!!$
-!!$! Surface Pressure
-!!$     psmo = globalsum(ps(is:ie,js:je), npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$     if(is_master()) write(*,*) '         Total surface pressure =', 0.01*psmo
-!!$     call pmxn(ps, npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$     if (is_master()) then
-!!$        write(*,201) 'PS   MAX|MIN      : ', 0.01*pmax, 0.01*pmin, i0, j0, n0
-!!$     endif
-!!$
-!!$! Get PT Stats
-!!$         pmax1 = -1.e25
-!!$         pmin1 =  1.e25
-!!$         i0=-999
-!!$         j0=-999
-!!$         k0=-999
-!!$         n0=-999
-!!$         do k=1,npz
-!!$            call pmxn(pt(:,:,k), npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$            pmin1 = min(pmin, pmin1)
-!!$            pmax1 = max(pmax, pmax1)
-!!$            if (pmax1 == pmax) k0 = k
-!!$         enddo
-!!$         if (is_master()) then
-!!$             write(*,201) 'PT   MAX|MIN      : ', pmax1, pmin1, i0, j0, k0, n0
-!!$         endif
-!!$
-!!$#if defined(DEBUG_TEST_CASES)
-!!$     if(is_master()) write(*,*) ' '
-!!$         do k=1,npz
-!!$            pmax1 = -1.e25
-!!$            pmin1 =  1.e25
-!!$            i0=-999
-!!$            j0=-999
-!!$            k0=-999
-!!$            n0=-999
-!!$            call pmxn(pt(:,:,k), npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$            pmin1 = min(pmin, pmin1)
-!!$            pmax1 = max(pmax, pmax1)
-!!$            if (is_master()) then
-!!$                write(*,202) 'PT   MAX|MIN      : ', pmax1, pmin1, i0, j0, k, n0, 0.5*( (ak(k)+ak(k+1))/1.e5 + bk(k)+bk(k+1) )
-!!$            endif
-!!$         enddo
-!!$     if(is_master()) write(*,*) ' '
-!!$#endif
-!!$
-!!$! Get DELP Stats
-!!$         pmax1 = -1.e25
-!!$         pmin1 =  1.e25
-!!$         i0=-999
-!!$         j0=-999
-!!$         k0=-999
-!!$         n0=-999
-!!$         do k=1,npz
-!!$            call pmxn(delp(:,:,k), npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$            pmin1 = min(pmin, pmin1)
-!!$            pmax1 = max(pmax, pmax1)
-!!$            if (pmax1 == pmax) k0 = k
-!!$         enddo
-!!$         if (is_master()) then
-!!$             write(*,201) 'Delp MAX|MIN      : ', pmax1, pmin1, i0, j0, k0, n0
-!!$         endif
-!!$
-!!$! Get UV Stats
-!!$         uamax1 = -1.e25
-!!$         uamin1 =  1.e25
-!!$         i0=-999
-!!$         j0=-999
-!!$         k0=-999
-!!$         n0=-999
-!!$         do k=1,npz
-!!$            call dtoa(u(isd,jsd,k), v(isd,jsd,k), ua(isd,jsd,k), va(isd,jsd,k), dx,dy,dxa,dya,dxc,dyc,npx, npy, bd%ng)
-!!$            call pmxn(ua(:,:,k), npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$            uamin1 = min(pmin, uamin1)
-!!$            uamax1 = max(pmax, uamax1)
-!!$            if (uamax1 == pmax) k0 = k
-!!$         enddo
-!!$         if (is_master()) then
-!!$             write(*,201) 'U    MAX|MIN      : ', uamax1, uamin1, i0, j0, k0, n0
-!!$         endif
-!!$
-!!$         vamax1 = -1.e25
-!!$         vamin1 =  1.e25
-!!$         i0=-999
-!!$         j0=-999
-!!$         k0=-999
-!!$         n0=-999
-!!$         do k=1,npz
-!!$            call pmxn(va(:,:,k), npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$            vamin1 = min(pmin, vamin1)
-!!$            vamax1 = max(pmax, vamax1)
-!!$            if (vamax1 == pmax) k0 = k
-!!$         enddo
-!!$         if (is_master()) then
-!!$             write(*,201) 'V    MAX|MIN      : ', vamax1, vamin1, i0, j0, k0, n0
-!!$         endif
-!!$
-!!$! Get Q Stats
-!!$         pmax1 = -1.e25
-!!$         pmin1 =  1.e25
-!!$         i0=-999
-!!$         j0=-999
-!!$         k0=-999
-!!$         n0=-999
-!!$         do k=1,npz
-!!$            call pmxn(q(isd,jsd,k,1), npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$            pmin1 = min(pmin, pmin1)
-!!$            pmax1 = max(pmax, pmax1)
-!!$            if (pmax1 == pmax) k0 = k
-!!$         enddo
-!!$         if (is_master()) then
-!!$             write(*,201) 'Q    MAX|MIN      : ', pmax1, pmin1, i0, j0, k0, n0
-!!$         endif
-!!$
-!!$! Get tracer Stats
-!!$       do iq=2,ncnst
-!!$         pmax1 = -1.e25
-!!$         pmin1 =  1.e25
-!!$         i0=-999
-!!$         j0=-999
-!!$         k0=-999
-!!$         n0=-999
-!!$         do k=1,npz
-!!$            call pmxn(q(isd,jsd,k,iq), npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$            pmin1 = min(pmin, pmin1)
-!!$            pmax1 = max(pmax, pmax1)
-!!$            if (pmax1 == pmax) k0 = k
-!!$         enddo
-!!$         if (is_master()) then
-!!$             write(*,203) 'TR',iq-1,' MAX|MIN      : ', pmax1, pmin1, i0, j0, k0, n0
-!!$         endif
-!!$       enddo
-!!$
-!!$#endif
-!!$
-!!$      if (test_case == 12) then
-!!$! Get UV Stats
-!!$          call get_vector_stats( ua(:,:,22), ua0(:,:,22), va(:,:,22), va0(:,:,22), npx, npy, ndims, nregions, &
-!!$                                 pmin, pmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile, bd)
-!!$          if (is_master()) then
-!!$             write(*,201) 'UV(850) L1_norm    : ', L1_norm
-!!$             write(*,201) 'UV(850) L2_norm    : ', L2_norm
-!!$             write(*,201) 'UV(850) Linf_norm  : ', Linf_norm
-!!$          endif
-!!$      endif
-!!$
-!!$      tmass = 0.0
-!!$      tKE   = 0.0
-!!$      tener = 0.0
-!!$      tvort = 0.0
-!!$#if defined(SW_DYNAMICS)
-!!$      do k=1,1
-!!$#else
-!!$      do k=1,npz
-!!$#endif
-!!$! Get conservation Stats
-!!$
-!!$! Conservation of Mass
-!!$         temp(:,:) = delp(is:ie,js:je,k)
-!!$         tmass0 = globalsum(temp, npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         tmass = tmass + tmass0
-!!$
-!!$         !if (.not. allocated(u0, v0)) then
-!!$         if (nt == 0) then
-!!$            allocate(u0(isd:ied,jsd:jed+1,npz))
-!!$            allocate(v0(isd:ied+1,jsd:jed,npz))
-!!$            u0 = u
-!!$            v0 = v
-!!$         endif
-!!$
-!!$         !! UA is the PERTURBATION now
-!!$         up = u - u0
-!!$         vp = v - v0
-!!$
-!!$         call dtoa(up(isd,jsd,k), vp(isd,jsd,k), ua, va, dx,dy, dxa, dya, dxc, dyc, npx, npy, bd%ng)
-!!$         call atoc(ua(isd,jsd,k),va(isd,jsd,k),uc0(isd,jsd,k),vc0(isd,jsd,k),dx,dy,dxa,dya,npx,npy,bd%ng,bounded_domain, domain, noComm=.true.)
-!!$! Conservation of Kinetic Energy
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$                  temp(i,j) = ( uc0(i,j,k)*uc0(i,j,k) + uc0(i+1,j,k)*uc0(i+1,j,k) + &
-!!$                                vc0(i,j,k)*vc0(i,j,k) + vc0(i,j+1,k)*vc0(i,j+1,k) )
-!!$            enddo
-!!$         enddo
-!!$         tKE0 = globalsum(temp, npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         tKE = tKE + tKE0
-!!$
-!!$! Conservation of Energy
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$                  temp(i,j) = 0.5 * (delp(i,j,k)/Grav) * temp(i,j)  ! Include Previously calcullated KE
-!!$                  temp(i,j) = temp(i,j) + &
-!!$                          Grav*((delp(i,j,k)/Grav + phis(i,j))*(delp(i,j,k)/Grav + phis(i,j))) - &
-!!$                          phis(i,j)*phis(i,j)
-!!$            enddo
-!!$         enddo
-!!$         tener0 = globalsum(temp, npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         tener = tener + tener0
-!!$
-!!$! Conservation of Potential Enstrophy
-!!$         if (test_case>1) then
-!!$            do j=js,je
-!!$               do i=is,ie
-!!$                  temp(i,j) =  f0(i,j) + (1./area(i,j)) * ( (v(i+1,j,k)*dy(i+1,j) - v(i,j,k)*dy(i,j)) - &
-!!$                                                            (u(i,j+1,k)*dx(i,j+1) - u(i,j,k)*dx(i,j)) )
-!!$                  temp(i,j) = ( Grav*(temp(i,j)*temp(i,j))/delp(i,j,k) )
-!!$               enddo
-!!$            enddo
-!!$            tvort0 = globalsum(temp, npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$            tvort = tvort + tvort0
-!!$         else
-!!$            tvort=1.
-!!$         endif
-!!$      enddo
-!!$
-!!$         if (nt == 0) then
-!!$            tmass_orig = tmass
-!!$            tener_orig = tener
-!!$            tvort_orig = tvort
-!!$         endif
-!!$         arr_r4(1) = (tmass-tmass_orig)/tmass_orig
-!!$         arr_r4(2) = (tener-tener_orig)/tener_orig
-!!$         arr_r4(3) = (tvort-tvort_orig)/tvort_orig
-!!$         arr_r4(4) = tKE
-!!$         if (test_case==12) arr_r4(4) = L2_norm
-!!$#if defined(SW_DYNAMICS)
-!!$         myRec = nt+1
-!!$#else
-!!$         myRec = myDay*86400.0/dtout + 1
-!!$#endif
-!!$         if (is_master()) write(consv_lun,rec=myRec) arr_r4(1:4)
-!!$#if defined(SW_DYNAMICS)
-!!$         if ( (is_master()) .and. MOD(nt,monitorFreq)==0) then
-!!$#else
-!!$         if ( (is_master()) ) then
-!!$#endif
-!!$             write(*,201) 'MASS TOTAL        : ', tmass
-!!$             write(*,201) 'NORMALIZED MASS   : ', (tmass-tmass_orig)/tmass_orig
-!!$             if (test_case >= 2) then
-!!$                write(*,201) 'Kinetic Energy KE : ', tKE
-!!$                write(*,201) 'ENERGY TOTAL      : ', tener
-!!$                write(*,201) 'NORMALIZED ENERGY : ', (tener-tener_orig)/tener_orig
-!!$                write(*,201) 'ENSTR TOTAL       : ', tvort
-!!$                write(*,201) 'NORMALIZED ENSTR  : ', (tvort-tvort_orig)/tvort_orig
-!!$             endif
-!!$             write(*,*) ' '
-!!$         endif
-!!$
-!!$         nullify(grid)
-!!$         nullify(agrid)
-!!$         nullify(area)
-!!$         nullify(f0)
-!!$         nullify(dx)
-!!$         nullify(dy)
-!!$
-!!$      end subroutine get_stats
-
-
 
    subroutine get_pt_on_great_circle(p1, p2, dist, heading, p3)
 !     get_pt_on_great_circle :: Get the mid-point on a great circle given:
@@ -4999,1093 +4428,6 @@ end subroutine terminator_tracers
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
 
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!
-!!$!      get_scalar_stats: get L-1, L-2, and L-inf norms and min/max stats as defined
-!!$!                                                in Williamson, 1994 (p.16)
-!!$!                     for any var
-!!$
-!!$       subroutine get_scalar_stats(var, varT, npx, npy, ndims, nregions, &
-!!$                            vmin, vmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile, bd)
-!!$         type(fv_grid_bounds_type), intent(IN) :: bd
-!!$         integer,      intent(IN) :: npx, npy
-!!$         integer,      intent(IN) :: ndims
-!!$         integer,      intent(IN) :: nregions, tile
-!!$         real  ,    intent(IN) ::  var(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real  ,    intent(IN) :: varT(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real  ,   intent(OUT) :: vmin
-!!$         real  ,   intent(OUT) :: vmax
-!!$         real  ,   intent(OUT) :: L1_norm
-!!$         real  ,   intent(OUT) :: L2_norm
-!!$         real  ,   intent(OUT) :: Linf_norm
-!!$
-!!$         type(fv_grid_type), target :: gridstruct
-!!$
-!!$         real   :: vmean
-!!$         real   :: vvar
-!!$         real   :: vmin1
-!!$         real   :: vmax1
-!!$         real   :: pdiffmn
-!!$         real   :: pdiffmx
-!!$
-!!$         real   :: varSUM, varSUM2, varMAX
-!!$         real   :: gsum
-!!$         real   :: vminT, vmaxT, vmeanT, vvarT
-!!$         integer :: i0, j0, n0
-!!$
-!!$         real, dimension(:,:,:), pointer :: grid, agrid
-!!$         real, dimension(:,:),   pointer :: area
-!!$
-!!$         integer :: is,  ie,  js,  je
-!!$         integer :: isd, ied, jsd, jed, ng
-!!$
-!!$         is  = bd%is
-!!$         ie  = bd%ie
-!!$         js  = bd%js
-!!$         je  = bd%je
-!!$         isd = bd%isd
-!!$         ied = bd%ied
-!!$         jsd = bd%jsd
-!!$         jed = bd%jed
-!!$         ng  = bd%ng
-!!$
-!!$         grid => gridstruct%grid
-!!$         agrid=> gridstruct%agrid
-!!$
-!!$         area  => gridstruct%area
-!!$
-!!$         varSUM = 0.
-!!$         varSUM2 = 0.
-!!$         varMAX = 0.
-!!$         L1_norm = 0.
-!!$         L2_norm = 0.
-!!$         Linf_norm = 0.
-!!$         vmean  = 0.
-!!$         vvar   = 0.
-!!$         vmax   = 0.
-!!$         vmin   = 0.
-!!$         pdiffmn= 0.
-!!$         pdiffmx= 0.
-!!$         vmeanT = 0.
-!!$         vvarT  = 0.
-!!$         vmaxT  = 0.
-!!$         vminT  = 0.
-!!$
-!!$         vmean   = globalsum(var(is:ie,js:je) , npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         vmeanT  = globalsum(varT(is:ie,js:je), npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         vmean  = vmean  / (4.0*pi)
-!!$         vmeanT = vmeanT / (4.0*pi)
-!!$
-!!$         call pmxn(var, npx, npy, nregions, tile, gridstruct, vmin , vmax , i0, j0, n0)
-!!$         call pmxn(varT, npx, npy, nregions, tile, gridstruct, vminT, vmaxT, i0, j0, n0)
-!!$         call pmxn(var-varT, npx, npy, nregions, tile, gridstruct, pdiffmn, pdiffmx, i0, j0, n0)
-!!$
-!!$         vmax = (vmax - vmaxT) / (vmaxT-vminT)
-!!$         vmin = (vmin - vminT) / (vmaxT-vminT)
-!!$
-!!$         varSUM  = globalsum(varT(is:ie,js:je), npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         varSUM2 = globalsum(varT(is:ie,js:je)**2., npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         L1_norm = globalsum(ABS(var(is:ie,js:je)-varT(is:ie,js:je)), npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         L2_norm = globalsum((var(is:ie,js:je)-varT(is:ie,js:je))**2., npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         L1_norm = L1_norm/varSUM
-!!$         L2_norm = SQRT(L2_norm)/SQRT(varSUM2)
-!!$
-!!$         call pmxn(ABS(varT), npx, npy, nregions, tile, gridstruct, vmin, vmax, i0, j0, n0)
-!!$         varMAX = vmax
-!!$         call pmxn(ABS(var-varT), npx, npy, nregions, tile, gridstruct, vmin, vmax, i0, j0, n0)
-!!$         Linf_norm = vmax/varMAX
-!!$
-!!$      end subroutine get_scalar_stats
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-!!$
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!
-!!$!      get_vector_stats: get L-1, L-2, and L-inf norms and min/max stats as defined
-!!$!                                                in Williamson, 1994 (p.16)
-!!$!                     for any var
-!!$
-!!$       subroutine get_vector_stats(varU, varUT, varV, varVT, &
-!!$                            npx, npy, ndims, nregions, &
-!!$                            vmin, vmax, L1_norm, L2_norm, Linf_norm, gridstruct, tile, bd)
-!!$         type(fv_grid_bounds_type), intent(IN) :: bd
-!!$         integer,      intent(IN) :: npx, npy
-!!$         integer,      intent(IN) :: ndims
-!!$         integer,      intent(IN) :: nregions, tile
-!!$         real  ,    intent(IN) ::  varU(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real  ,    intent(IN) :: varUT(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real  ,    intent(IN) ::  varV(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real  ,    intent(IN) :: varVT(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real  ,   intent(OUT) :: vmin
-!!$         real  ,   intent(OUT) :: vmax
-!!$         real  ,   intent(OUT) :: L1_norm
-!!$         real  ,   intent(OUT) :: L2_norm
-!!$         real  ,   intent(OUT) :: Linf_norm
-!!$
-!!$         real   ::  var(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real   :: varT(bd%isd:bd%ied,bd%jsd:bd%jed)
-!!$         real   :: vmean
-!!$         real   :: vvar
-!!$         real   :: vmin1
-!!$         real   :: vmax1
-!!$         real   :: pdiffmn
-!!$         real   :: pdiffmx
-!!$
-!!$         real   :: varSUM, varSUM2, varMAX
-!!$         real   :: gsum
-!!$         real   :: vminT, vmaxT, vmeanT, vvarT
-!!$         integer :: i,j,n
-!!$         integer :: i0, j0, n0
-!!$
-!!$         type(fv_grid_type), target :: gridstruct
-!!$
-!!$         real, dimension(:,:,:), pointer :: grid, agrid
-!!$         real, dimension(:,:),   pointer :: area
-!!$
-!!$         integer :: is,  ie,  js,  je
-!!$         integer :: isd, ied, jsd, jed, ng
-!!$
-!!$         is  = bd%is
-!!$         ie  = bd%ie
-!!$         js  = bd%js
-!!$         je  = bd%je
-!!$         isd = bd%isd
-!!$         ied = bd%ied
-!!$         jsd = bd%jsd
-!!$         jed = bd%jed
-!!$         ng  = bd%ng
-!!$
-!!$         grid => gridstruct%grid
-!!$         agrid=> gridstruct%agrid
-!!$
-!!$         area  => gridstruct%area
-!!$
-!!$         varSUM = 0.
-!!$         varSUM2 = 0.
-!!$         varMAX = 0.
-!!$         L1_norm = 0.
-!!$         L2_norm = 0.
-!!$         Linf_norm = 0.
-!!$         vmean  = 0.
-!!$         vvar   = 0.
-!!$         vmax   = 0.
-!!$         vmin   = 0.
-!!$         pdiffmn= 0.
-!!$         pdiffmx= 0.
-!!$         vmeanT = 0.
-!!$         vvarT  = 0.
-!!$         vmaxT  = 0.
-!!$         vminT  = 0.
-!!$
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               var(i,j) = SQRT( (varU(i,j)-varUT(i,j))**2. + &
-!!$                                (varV(i,j)-varVT(i,j))**2. )
-!!$               varT(i,j) = SQRT( varUT(i,j)*varUT(i,j) + &
-!!$                                 varVT(i,j)*varVT(i,j) )
-!!$            enddo
-!!$         enddo
-!!$         varSUM  = globalsum(varT(is:ie,js:je), npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         L1_norm = globalsum(var(is:ie,js:je) , npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         L1_norm = L1_norm/varSUM
-!!$
-!!$         call pmxn(varT, npx, npy, nregions, tile, gridstruct, vmin, vmax, i0, j0, n0)
-!!$         varMAX = vmax
-!!$         call pmxn(var, npx, npy, nregions, tile, gridstruct, vmin, vmax, i0, j0, n0)
-!!$         Linf_norm = vmax/varMAX
-!!$
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               var(i,j) = ( (varU(i,j)-varUT(i,j))**2. + &
-!!$                            (varV(i,j)-varVT(i,j))**2. )
-!!$              varT(i,j) = ( varUT(i,j)*varUT(i,j) + &
-!!$                            varVT(i,j)*varVT(i,j) )
-!!$            enddo
-!!$         enddo
-!!$         varSUM  = globalsum(varT(is:ie,js:je), npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         L2_norm = globalsum(var(is:ie,js:je) , npx, npy, is,ie, js,je, isd, ied, jsd, jed, gridstruct, tile)
-!!$         L2_norm = SQRT(L2_norm)/SQRT(varSUM)
-!!$
-!!$      end subroutine get_vector_stats
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!
-!!$!     check_courant_numbers ::
-!!$!
-!!$       subroutine check_courant_numbers(uc,vc, ndt, n_split, gridstruct, npx, npy, npz, tile, noPrint)
-!!$
-!!$       real, intent(IN) :: ndt
-!!$       integer, intent(IN) :: n_split
-!!$       integer, intent(IN) :: npx, npy, npz, tile
-!!$       logical, OPTIONAL, intent(IN) :: noPrint
-!!$       real ,      intent(IN) ::   uc(isd:ied+1,jsd:jed  ,npz)
-!!$       real ,      intent(IN) ::   vc(isd:ied  ,jsd:jed+1,npz)
-!!$
-!!$       real :: ideal_c=0.06
-!!$       real :: tolerance= 1.e-3
-!!$       real :: dt_inc, dt_orig
-!!$       real   :: meanCy, minCy, maxCy, meanCx, minCx, maxCx
-!!$
-!!$       real :: counter
-!!$       logical :: ideal
-!!$
-!!$       integer :: i,j,k
-!!$       real :: dt
-!!$
-!!$       type(fv_grid_type), intent(IN), target :: gridstruct
-!!$       real, dimension(:,:), pointer :: dxc, dyc
-!!$
-!!$       dxc => gridstruct%dxc
-!!$       dyc => gridstruct%dyc
-!!$
-!!$       dt = ndt/real(n_split)
-!!$
-!!$ 300  format(i4.4,' ',i4.4,' ',i4.4,' ',i4.4,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14,' ',e21.14)
-!!$
-!!$       dt_orig = dt
-!!$       dt_inc = 1
-!!$       ideal = .false.
-!!$
-!!$       do while(.not. ideal)
-!!$
-!!$         counter = 0
-!!$         minCy = missing
-!!$         maxCy = -1.*missing
-!!$         minCx = missing
-!!$         maxCx = -1.*missing
-!!$         meanCx = 0
-!!$         meanCy = 0
-!!$         do k=1,npz
-!!$         do j=js,je
-!!$            do i=is,ie+1
-!!$               minCx = MIN(minCx, ABS( (dt/dxc(i,j))*uc(i,j,k) ))
-!!$               maxCx = MAX(maxCx, ABS( (dt/dxc(i,j))*uc(i,j,k) ))
-!!$               meanCx = meanCx + ABS( (dt/dxc(i,j))*uc(i,j,k) )
-!!$
-!!$        if (ABS( (dt/dxc(i,j))*uc(i,j,k) ) > 1.0) then
-!!$           counter = counter+1
-!!$           write(*,300) i,j,k,tile, ABS( (dt/dxc(i,j))*uc(i,j,k) ), dt, dxc(i,j), uc(i,j,k), counter
-!!$           call exit(1)
-!!$        endif
-!!$
-!!$            enddo
-!!$         enddo
-!!$         do j=js,je+1
-!!$            do i=is,ie
-!!$               minCy = MIN(minCy, ABS( (dt/dyc(i,j))*vc(i,j,k) ))
-!!$               maxCy = MAX(maxCy, ABS( (dt/dyc(i,j))*vc(i,j,k) ))
-!!$               meanCy = meanCy + ABS( (dt/dyc(i,j))*vc(i,j,k) )
-!!$
-!!$        if (ABS( (dt/dyc(i,j))*vc(i,j,k) ) > 1.0) then
-!!$           counter = counter+1
-!!$           write(*,300) i,j,k,tile, ABS( (dt/dyc(i,j))*vc(i,j,k) ), dt, dyc(i,j), vc(i,j,k), counter
-!!$           call exit(1)
-!!$        endif
-!!$
-!!$            enddo
-!!$         enddo
-!!$         enddo
-!!$
-!!$         call mp_reduce_max(maxCx)
-!!$         call mp_reduce_max(maxCy)
-!!$         minCx = -minCx
-!!$         minCy = -minCy
-!!$         call mp_reduce_max(minCx)
-!!$         call mp_reduce_max(minCy)
-!!$         minCx = -minCx
-!!$         minCy = -minCy
-!!$         call mp_reduce_sum(meanCx)
-!!$         call mp_reduce_sum(meanCy)
-!!$         meanCx = meanCx/(6.0*DBLE(npx)*DBLE(npy-1))
-!!$         meanCy = meanCy/(6.0*DBLE(npx-1)*DBLE(npy))
-!!$
-!!$         !if ( (ABS(maxCy-ideal_c) <= tolerance) .and. (ABS(maxCx-ideal_c) <= tolerance) ) then
-!!$            ideal = .true.
-!!$         !elseif (maxCy-ideal_c > 0) then
-!!$         !   dt = dt - dt_inc
-!!$         !else
-!!$         !   dt = dt + dt_inc
-!!$         !endif
-!!$
-!!$      enddo
-!!$
-!!$         if ( (.not. present(noPrint)) .and. (is_master()) ) then
-!!$            print*, ''
-!!$            print*, '--------------------------------------------'
-!!$            print*, 'Y-dir Courant number MIN  : ', minCy
-!!$            print*, 'Y-dir Courant number MAX  : ', maxCy
-!!$            print*, ''
-!!$            print*, 'X-dir Courant number MIN  : ', minCx
-!!$            print*, 'X-dir Courant number MAX  : ', maxCx
-!!$            print*, ''
-!!$            print*, 'X-dir Courant number MEAN : ', meanCx
-!!$            print*, 'Y-dir Courant number MEAN : ', meanCy
-!!$            print*, ''
-!!$            print*, 'NDT: ', ndt
-!!$            print*, 'n_split: ', n_split
-!!$            print*, 'DT: ', dt
-!!$            print*, ''
-!!$            print*, '--------------------------------------------'
-!!$            print*, ''
-!!$         endif
-!!$
-!!$      end subroutine check_courant_numbers
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!
-!!$!     pmxn :: find max and min of field p
-!!$!
-!!$      subroutine pmxn(p, npx, npy, nregions, tile, gridstruct, pmin, pmax, i0, j0, n0)
-!!$         integer,      intent(IN) :: npx
-!!$         integer,      intent(IN) :: npy
-!!$         integer,      intent(IN) :: nregions, tile
-!!$         real  , intent(IN)  :: p(isd:ied,jsd:jed)
-!!$         type(fv_grid_type), intent(IN), target  :: gridstruct
-!!$         real  , intent(OUT) :: pmin
-!!$         real  , intent(OUT) :: pmax
-!!$         integer,      intent(OUT) :: i0
-!!$         integer,      intent(OUT) :: j0
-!!$         integer,      intent(OUT) :: n0
-!!$
-!!$         real   :: temp
-!!$         integer :: i,j,n
-!!$
-!!$
-!!$      real, pointer, dimension(:,:,:)   :: agrid, grid
-!!$      real, pointer, dimension(:,:)     :: area, rarea, fC, f0
-!!$      real(kind=R_GRID), pointer, dimension(:,:,:)   :: ee1, ee2, en1, en2
-!!$      real(kind=R_GRID), pointer, dimension(:,:,:,:) :: ew, es
-!!$      real, pointer, dimension(:,:)     :: dx,dy, dxa,dya, rdxa, rdya, dxc,dyc
-!!$
-!!$      logical, pointer :: cubed_sphere, latlon
-!!$
-!!$      logical, pointer :: have_south_pole, have_north_pole
-!!$
-!!$      integer, pointer :: ntiles_g
-!!$      real,    pointer :: acapN, acapS, globalarea
-!!$
-!!$      grid => gridstruct%grid
-!!$      agrid=> gridstruct%agrid
-!!$
-!!$      area  => gridstruct%area
-!!$      rarea => gridstruct%rarea
-!!$
-!!$      fC    => gridstruct%fC
-!!$      f0    => gridstruct%f0
-!!$
-!!$      ee1   => gridstruct%ee1
-!!$      ee2   => gridstruct%ee2
-!!$      ew    => gridstruct%ew
-!!$      es    => gridstruct%es
-!!$      en1   => gridstruct%en1
-!!$      en2   => gridstruct%en2
-!!$
-!!$      dx      => gridstruct%dx
-!!$      dy      => gridstruct%dy
-!!$      dxa     => gridstruct%dxa
-!!$      dya     => gridstruct%dya
-!!$      rdxa    => gridstruct%rdxa
-!!$      rdya    => gridstruct%rdya
-!!$      dxc     => gridstruct%dxc
-!!$      dyc     => gridstruct%dyc
-!!$
-!!$      cubed_sphere => gridstruct%cubed_sphere
-!!$      latlon       => gridstruct%latlon
-!!$
-!!$      have_south_pole               => gridstruct%have_south_pole
-!!$      have_north_pole               => gridstruct%have_north_pole
-!!$
-!!$      ntiles_g                      => gridstruct%ntiles_g
-!!$      acapN                         => gridstruct%acapN
-!!$      acapS                         => gridstruct%acapS
-!!$      globalarea                    => gridstruct%globalarea
-!!$
-!!$         pmax = -1.e25
-!!$         pmin =  1.e25
-!!$         i0 = -999
-!!$         j0 = -999
-!!$         n0 = tile
-!!$
-!!$            do j=js,je
-!!$               do i=is,ie
-!!$                  temp = p(i,j)
-!!$                  if (temp > pmax) then
-!!$                     pmax = temp
-!!$                     i0 = i
-!!$                     j0 = j
-!!$                  elseif (temp < pmin) then
-!!$                     pmin = temp
-!!$                  endif
-!!$            enddo
-!!$         enddo
-!!$
-!!$         temp = pmax
-!!$         call mp_reduce_max(temp)
-!!$         if (temp /= pmax) then
-!!$            i0 = -999
-!!$            j0 = -999
-!!$            n0 = -999
-!!$         endif
-!!$         pmax = temp
-!!$         call mp_reduce_max(i0)
-!!$         call mp_reduce_max(j0)
-!!$         call mp_reduce_max(n0)
-!!$
-!!$         pmin = -pmin
-!!$         call mp_reduce_max(pmin)
-!!$         pmin = -pmin
-!!$
-!!$      end subroutine pmxn
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-!!$
-!!$!! These routines are no longer used
-!!$#ifdef NCDF_OUTPUT
-!!$
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!
-!!$!     output_ncdf :: write out NETCDF fields
-!!$!
-!!$      subroutine output_ncdf(dt, nt, maxnt, nout, u,v,pt,delp,q,phis,ps, uc,vc, ua,va, &
-!!$                        omga, npx, npy, npz, ng, ncnst, ndims, nregions, ncid, &
-!!$                        npx_p1_id, npy_p1_id, npx_id, npy_id, npz_id, ntiles_id, ncnst_id, nt_id, &
-!!$                        phis_id, delp_id, ps_id, pt_id, pv_id, om_id, u_id, v_id, q_id, tracers_ids,  &
-!!$                        lats_id, lons_id, gridstruct, flagstruct)
-!!$      real,         intent(IN) :: dt
-!!$      integer,      intent(IN) :: nt, maxnt
-!!$      integer,      intent(INOUT) :: nout
-!!$
-!!$      real ,      intent(INOUT) ::    u(isd:ied  ,jsd:jed+1,npz)
-!!$      real ,      intent(INOUT) ::    v(isd:ied+1,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::   pt(isd:ied  ,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) :: delp(isd:ied  ,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::    q(isd:ied  ,jsd:jed  ,npz, ncnst)
-!!$
-!!$      real ,      intent(INOUT) :: phis(isd:ied  ,jsd:jed  )
-!!$      real ,      intent(INOUT) ::   ps(isd:ied  ,jsd:jed  )
-!!$
-!!$      real ,      intent(INOUT) ::   uc(isd:ied+1,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::   vc(isd:ied  ,jsd:jed+1,npz)
-!!$      real ,      intent(INOUT) ::   ua(isd:ied  ,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::   va(isd:ied  ,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) :: omga(isd:ied  ,jsd:jed  ,npz)
-!!$
-!!$      integer,      intent(IN) :: npx, npy, npz
-!!$      integer,      intent(IN) :: ng, ncnst
-!!$      integer,      intent(IN) :: ndims
-!!$      integer,      intent(IN) :: nregions
-!!$      integer,      intent(IN) :: ncid
-!!$      integer,      intent(IN) :: npx_p1_id, npy_p1_id, npx_id, npy_id, npz_id, ncnst_id
-!!$      integer,      intent(IN) :: ntiles_id, nt_id
-!!$      integer,      intent(IN) :: phis_id, delp_id, ps_id, pt_id, pv_id, u_id, v_id, q_id
-!!$      integer,      intent(IN) :: om_id          ! omega (dp/dt)
-!!$      integer,      intent(IN) :: tracers_ids(ncnst-1)
-!!$      integer,      intent(IN) :: lats_id, lons_id
-!!$
-!!$      type(fv_grid_type), target :: gridstruct
-!!$      type(fv_flags_type), intent(IN) :: flagstruct
-!!$
-!!$      real, allocatable :: tmp(:,:,:)
-!!$      real, allocatable :: tmpA(:,:,:)
-!!$#if defined(SW_DYNAMICS)
-!!$      real, allocatable :: ut(:,:,:)
-!!$      real, allocatable :: vt(:,:,:)
-!!$#else
-!!$      real, allocatable :: ut(:,:,:,:)
-!!$      real, allocatable :: vt(:,:,:,:)
-!!$      real, allocatable :: tmpA_3d(:,:,:,:)
-!!$#endif
-!!$      real, allocatable :: vort(:,:)
-!!$
-!!$      real   :: p1(2)      ! Temporary Point
-!!$      real   :: p2(2)      ! Temporary Point
-!!$      real   :: p3(2)      ! Temporary Point
-!!$      real   :: p4(2)      ! Temporary Point
-!!$      real   :: pa(2)      ! Temporary Point
-!!$      real   :: utmp, vtmp, r, r0, dist, heading
-!!$      integer   ::  i,j,k,n,iq,nreg
-!!$
-!!$      real :: Vtx, p, w_p
-!!$      real :: x1,y1,z1,x2,y2,z2,ang
-!!$
-!!$      real, pointer, dimension(:,:,:)   :: agrid, grid
-!!$      real, pointer, dimension(:,:)     :: area, rarea
-!!$      real, pointer, dimension(:,:)     :: dx,dy, dxa,dya, rdxa, rdya, dxc,dyc
-!!$
-!!$      grid =>  gridstruct%grid
-!!$      agrid => gridstruct%agrid
-!!$
-!!$      area  => gridstruct%area
-!!$      rarea => gridstruct%rarea
-!!$
-!!$      dx      => gridstruct%dx
-!!$      dy      => gridstruct%dy
-!!$      dxa     => gridstruct%dxa
-!!$      dya     => gridstruct%dya
-!!$      rdxa    => gridstruct%rdxa
-!!$      rdya    => gridstruct%rdya
-!!$      dxc     => gridstruct%dxc
-!!$      dyc     => gridstruct%dyc
-!!$
-!!$      allocate( tmp(npx  ,npy  ,nregions) )
-!!$      allocate( tmpA(npx-1,npy-1,nregions) )
-!!$#if defined(SW_DYNAMICS)
-!!$      allocate( ut(npx-1,npy-1,nregions) )
-!!$      allocate( vt(npx-1,npy-1,nregions) )
-!!$#else
-!!$      allocate( ut(npx-1,npy-1,npz,nregions) )
-!!$      allocate( vt(npx-1,npy-1,npz,nregions) )
-!!$      allocate( tmpA_3d(npx-1,npy-1,npz,nregions) )
-!!$#endif
-!!$      allocate( vort(isd:ied,jsd:jed) )
-!!$
-!!$      nout = nout + 1
-!!$
-!!$      if (nt==0) then
-!!$         tmp(is:ie+1,js:je+1,tile) = grid(is:ie+1,js:je+1,2)
-!!$         call wrtvar_ncdf(ncid, lats_id, nout, is,ie+1, js,je+1, npx+1, npy+1, 1, nregions, tmp(1:npx,1:npy,1:nregions), 3)
-!!$         tmp(is:ie+1,js:je+1,tile) = grid(is:ie+1,js:je+1,1)
-!!$         call wrtvar_ncdf(ncid, lons_id, nout, is,ie+1, js,je+1, npx+1, npy+1, 1, nregions, tmp(1:npx,1:npy,1:nregions), 3)
-!!$      endif
-!!$
-!!$#if defined(SW_DYNAMICS)
-!!$      if (test_case > 1) then
-!!$         tmpA(is:ie,js:je,tile) = delp(is:ie,js:je,1)/Grav
-!!$
-!!$         if ((nt==0) .and. (test_case==2)) then
-!!$         Ubar = (2.0*pi*radius)/(12.0*86400.0)
-!!$         gh0  = 2.94e4
-!!$         phis = 0.0
-!!$         do j=js,je+1
-!!$            do i=is,ie+1
-!!$               tmp(i,j,tile) = (gh0 - (radius*omega*Ubar + (Ubar*Ubar)/2.) * &
-!!$                           ( -1.*cos(grid(i  ,j  ,1))*cos(grid(i  ,j  ,2))*sin(alpha) + &
-!!$                                 sin(grid(i  ,j  ,2))*cos(alpha) ) ** 2.0) / Grav
-!!$            enddo
-!!$         enddo
-!!$         endif
-!!$
-!!$      else
-!!$
-!!$       if (test_case==1) then
-!!$! Get Current Height Field "Truth"
-!!$         p1(1) = pi/2. + pi_shift
-!!$         p1(2) = 0.
-!!$         p2(1) = 3.*pi/2. + pi_shift
-!!$         p2(2) = 0.
-!!$         r0 = radius/3. !RADIUS /3.
-!!$         dist = 2.0*pi*radius* ((FLOAT(nt)/FLOAT(maxnt)))
-!!$         heading = 5.0*pi/2.0 - alpha
-!!$         call get_pt_on_great_circle( p1, p2, dist, heading, p3)
-!!$            do j=jsd,jed
-!!$               do i=isd,ied
-!!$                  p2(1) = agrid(i,j,1)
-!!$                  p2(2) = agrid(i,j,2)
-!!$                  r = great_circle_dist( p3, p2, radius )
-!!$                  if (r < r0) then
-!!$                     phi0(i,j,1) = phis(i,j) + gh0*0.5*(1.0+cos(PI*r/r0))
-!!$                  else
-!!$                     phi0(i,j,1) = phis(i,j)
-!!$                  endif
-!!$               enddo
-!!$            enddo
-!!$         elseif (test_case == 0) then
-!!$           phi0 = 0.0
-!!$           do j=jsd,jed
-!!$              do i=isd,ied
-!!$               x1 = agrid(i,j,1)
-!!$               y1 = agrid(i,j,2)
-!!$               z1 = radius
-!!$               p = p0_c0 * cos(y1)
-!!$               Vtx = ((3.0*SQRT(2.0))/2.0) * (( 1.0/cosh(p) )**2.0) * tanh(p)
-!!$               w_p = 0.0
-!!$               if (p /= 0.0) w_p = Vtx/p
-!!$               phi0(i,j,1) = 1.0 - tanh( (p/rgamma) * sin(x1 - w_p*(nt*dt/86400.0)) )
-!!$              enddo
-!!$           enddo
-!!$         endif
-!!$
-!!$         tmpA(is:ie,js:je,tile) = phi0(is:ie,js:je,1)
-!!$         call wrtvar_ncdf(ncid, phis_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA, 3)
-!!$         tmpA(is:ie,js:je,tile) = delp(is:ie,js:je,1)
-!!$      endif
-!!$      call wrtvar_ncdf(ncid, ps_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA, 3)
-!!$
-!!$      if (test_case == 9) then
-!!$! Calc Vorticity
-!!$         do j=jsd,jed
-!!$            do i=isd,ied
-!!$               vort(i,j) = f0(i,j) + (1./area(i,j)) * ( (v(i+1,j,1)*dy(i+1,j) - v(i,j,1)*dy(i,j)) - &
-!!$                                                        (u(i,j+1,1)*dx(i,j+1) - u(i,j,1)*dx(i,j)) )
-!!$               vort(i,j) = Grav*vort(i,j)/delp(i,j,1)
-!!$            enddo
-!!$         enddo
-!!$         tmpA(is:ie,js:je,tile) = vort(is:ie,js:je)
-!!$         call wrtvar_ncdf(ncid, pv_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA, 3)
-!!$      endif
-!!$
-!!$      call cubed_to_latlon(u, v, ua, va, gridstruct, npx, npy, 1, 1, gridstruct%grid_type, gridstruct%bounded_domain, flagstruct%c2l_ord, bd)
-!!$      do j=js,je
-!!$         do i=is,ie
-!!$            ut(i,j,tile) = ua(i,j,1)
-!!$            vt(i,j,tile) = va(i,j,1)
-!!$         enddo
-!!$      enddo
-!!$
-!!$      call wrtvar_ncdf(ncid, u_id, nout, is,ie, js,je, npx, npy, npz, nregions, ut(1:npx-1,1:npy-1,1:nregions), 3)
-!!$      call wrtvar_ncdf(ncid, v_id, nout, is,ie, js,je, npx, npy, npz, nregions, vt(1:npx-1,1:npy-1,1:nregions), 3)
-!!$
-!!$      if ((test_case >= 2) .and. (nt==0) ) then
-!!$         tmpA(is:ie,js:je,tile) = phis(is:ie,js:je)/Grav
-!!$         call wrtvar_ncdf(ncid, phis_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA, 3)
-!!$      endif
-!!$#else
-!!$
-!!$! Write Moisture Data
-!!$      tmpA_3d(is:ie,js:je,1:npz,tile) = q(is:ie,js:je,1:npz,1)
-!!$      call wrtvar_ncdf(ncid, q_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA_3d, 4)
-!!$
-!!$! Write Tracer Data
-!!$      do iq=2,ncnst
-!!$         tmpA_3d(is:ie,js:je,1:npz,tile) = q(is:ie,js:je,1:npz,iq)
-!!$         call wrtvar_ncdf(ncid, tracers_ids(iq-1), nout, is,ie, js,je, npx, npy, npz, nregions, tmpA_3d, 4)
-!!$      enddo
-!!$
-!!$! Write Surface height data
-!!$      tmpA(is:ie,js:je,tile) = phis(is:ie,js:je)/Grav
-!!$      call wrtvar_ncdf(ncid, phis_id, nout, is,ie, js,je, npx, npy, 1, nregions, tmpA, 3)
-!!$
-!!$! Write Pressure Data
-!!$      tmpA(is:ie,js:je,tile) = ps(is:ie,js:je)
-!!$      call wrtvar_ncdf(ncid, ps_id, nout, is,ie, js,je, npx, npy, 1, nregions, tmpA, 3)
-!!$      do k=1,npz
-!!$         tmpA_3d(is:ie,js:je,k,tile) = delp(is:ie,js:je,k)/Grav
-!!$      enddo
-!!$      call wrtvar_ncdf(ncid, delp_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA_3d, 4)
-!!$
-!!$! Write PT Data
-!!$      do k=1,npz
-!!$         tmpA_3d(is:ie,js:je,k,tile) = pt(is:ie,js:je,k)
-!!$      enddo
-!!$      call wrtvar_ncdf(ncid, pt_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA_3d, 4)
-!!$
-!!$! Write U,V Data
-!!$      call cubed_to_latlon(u, v, ua, va, gridstruct, npx, npy, npz, gridstruct%grid_type, gridstruct%bounded_domain, flagstruct%c2l_ord)
-!!$      do k=1,npz
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               ut(i,j,k,tile) = ua(i,j,k)
-!!$               vt(i,j,k,tile) = va(i,j,k)
-!!$            enddo
-!!$         enddo
-!!$      enddo
-!!$      call wrtvar_ncdf(ncid, u_id, nout, is,ie, js,je, npx, npy, npz, nregions, ut(1:npx-1,1:npy-1,1:npz,1:nregions), 4)
-!!$      call wrtvar_ncdf(ncid, v_id, nout, is,ie, js,je, npx, npy, npz, nregions, vt(1:npx-1,1:npy-1,1:npz,1:nregions), 4)
-!!$
-!!$
-!!$! Calc Vorticity
-!!$      do k=1,npz
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               tmpA_3d(i,j,k,tile) = rarea(i,j) * ( (v(i+1,j,k)*dy(i+1,j) - v(i,j,k)*dy(i,j)) - &
-!!$                                                    (u(i,j+1,k)*dx(i,j+1) - u(i,j,k)*dx(i,j)) )
-!!$            enddo
-!!$         enddo
-!!$      enddo
-!!$      call wrtvar_ncdf(ncid, pv_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA_3d, 4)
-!!$!
-!!$! Output omega (dp/dt):
-!!$      do k=1,npz
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               tmpA_3d(i,j,k,tile) = omga(i,j,k)
-!!$            enddo
-!!$         enddo
-!!$      enddo
-!!$      call wrtvar_ncdf(ncid, om_id, nout, is,ie, js,je, npx, npy, npz, nregions, tmpA_3d, 4)
-!!$
-!!$#endif
-!!$
-!!$      deallocate( tmp )
-!!$      deallocate( tmpA )
-!!$#if defined(SW_DYNAMICS)
-!!$      deallocate( ut )
-!!$      deallocate( vt )
-!!$#else
-!!$      deallocate( ut )
-!!$      deallocate( vt )
-!!$      deallocate( tmpA_3d )
-!!$#endif
-!!$      deallocate( vort )
-!!$
-!!$      nullify(grid)
-!!$      nullify(agrid)
-!!$
-!!$      nullify(area)
-!!$
-!!$      nullify(dx)
-!!$      nullify(dy)
-!!$      nullify(dxa)
-!!$      nullify(dya)
-!!$      nullify(rdxa)
-!!$      nullify(rdya)
-!!$      nullify(dxc)
-!!$      nullify(dyc)
-!!$
-!!$      end subroutine output_ncdf
-!!$
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-!!$
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!
-!!$!     output :: write out fields
-!!$!
-!!$      subroutine output(dt, nt, maxnt, nout, u,v,pt,delp,q,phis,ps, uc,vc, ua,va, &
-!!$                        npx, npy, npz, ng, ncnst, ndims, nregions, phis_lun, phi_lun, &
-!!$                        pt_lun, pv_lun, uv_lun, gridstruct)
-!!$
-!!$      real,         intent(IN) :: dt
-!!$      integer,      intent(IN) :: nt, maxnt
-!!$      integer,      intent(INOUT) :: nout
-!!$
-!!$      real ,      intent(INOUT) ::    u(isd:ied  ,jsd:jed+1,npz)
-!!$      real ,      intent(INOUT) ::    v(isd:ied+1,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::   pt(isd:ied  ,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) :: delp(isd:ied  ,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::    q(isd:ied  ,jsd:jed  ,npz, ncnst)
-!!$
-!!$      real ,      intent(INOUT) :: phis(isd:ied  ,jsd:jed  )
-!!$      real ,      intent(INOUT) ::   ps(isd:ied  ,jsd:jed  )
-!!$
-!!$      real ,      intent(INOUT) ::   uc(isd:ied+1,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::   vc(isd:ied  ,jsd:jed+1,npz)
-!!$      real ,      intent(INOUT) ::   ua(isd:ied  ,jsd:jed  ,npz)
-!!$      real ,      intent(INOUT) ::   va(isd:ied  ,jsd:jed  ,npz)
-!!$
-!!$      integer,      intent(IN) :: npx, npy, npz
-!!$      integer,      intent(IN) :: ng, ncnst
-!!$      integer,      intent(IN) :: ndims
-!!$      integer,      intent(IN) :: nregions
-!!$      integer,      intent(IN) :: phis_lun, phi_lun, pt_lun, pv_lun, uv_lun
-!!$
-!!$      type(fv_grid_type), target :: gridstruct
-!!$
-!!$      real   ::  tmp(1-ng:npx  +ng,1-ng:npy  +ng,1:nregions)
-!!$      real   :: tmpA(1-ng:npx-1+ng,1-ng:npy-1+ng,1:nregions)
-!!$      real   :: p1(2)      ! Temporary Point
-!!$      real   :: p2(2)      ! Temporary Point
-!!$      real   :: p3(2)      ! Temporary Point
-!!$      real   :: p4(2)      ! Temporary Point
-!!$      real   :: pa(2)      ! Temporary Point
-!!$      real   :: ut(1:npx,1:npy,1:nregions)
-!!$      real   :: vt(1:npx,1:npy,1:nregions)
-!!$      real   :: utmp, vtmp, r, r0, dist, heading
-!!$      integer   ::  i,j,k,n,nreg
-!!$      real   :: vort(isd:ied,jsd:jed)
-!!$
-!!$      real :: Vtx, p, w_p
-!!$      real :: x1,y1,z1,x2,y2,z2,ang
-!!$
-!!$      real, pointer, dimension(:,:,:)   :: agrid, grid
-!!$      real, pointer, dimension(:,:)     :: area, rarea
-!!$      real, pointer, dimension(:,:)     :: dx,dy, dxa,dya, rdxa, rdya, dxc,dyc
-!!$
-!!$       grid => gridstruct%grid
-!!$      agrid => gridstruct%agrid
-!!$
-!!$      area  => gridstruct%area
-!!$
-!!$      dx      => gridstruct%dx
-!!$      dy      => gridstruct%dy
-!!$      dxa     => gridstruct%dxa
-!!$      dya     => gridstruct%dya
-!!$      rdxa    => gridstruct%rdxa
-!!$      rdya    => gridstruct%rdya
-!!$      dxc     => gridstruct%dxc
-!!$      dyc     => gridstruct%dyc
-!!$
-!!$      cubed_sphere => gridstruct%cubed_sphere
-!!$
-!!$      nout = nout + 1
-!!$
-!!$#if defined(SW_DYNAMICS)
-!!$      if (test_case > 1) then
-!!$         call atob_s(delp(:,:,1)/Grav, tmp(isd:ied+1,jsd:jed+1,tile), npx,npy, dxa, dya, gridstruct%bounded_domain) !, altInterp=1)
-!!$         tmpA(is:ie,js:je,tile) = delp(is:ie,js:je,1)/Grav
-!!$
-!!$         if ((nt==0) .and. (test_case==2)) then
-!!$         Ubar = (2.0*pi*radius)/(12.0*86400.0)
-!!$         gh0  = 2.94e4
-!!$         phis = 0.0
-!!$         do j=js,je+1
-!!$            do i=is,ie+1
-!!$               tmp(i,j,tile) = (gh0 - (radius*omega*Ubar + (Ubar*Ubar)/2.) * &
-!!$                           ( -1.*cos(grid(i  ,j  ,1))*cos(grid(i  ,j  ,2))*sin(alpha) + &
-!!$                                 sin(grid(i  ,j  ,2))*cos(alpha) ) ** 2.0) / Grav
-!!$            enddo
-!!$         enddo
-!!$         endif
-!!$
-!!$      else
-!!$
-!!$       if (test_case==1) then
-!!$! Get Current Height Field "Truth"
-!!$         p1(1) = pi/2. + pi_shift
-!!$         p1(2) = 0.
-!!$         p2(1) = 3.*pi/2. + pi_shift
-!!$         p2(2) = 0.
-!!$         r0 = radius/3. !RADIUS /3.
-!!$         dist = 2.0*pi*radius* ((FLOAT(nt)/FLOAT(maxnt)))
-!!$         heading = 5.0*pi/2.0 - alpha
-!!$         call get_pt_on_great_circle( p1, p2, dist, heading, p3)
-!!$            do j=jsd,jed
-!!$               do i=isd,ied
-!!$                  p2(1) = agrid(i,j,1)
-!!$                  p2(2) = agrid(i,j,2)
-!!$                  r = great_circle_dist( p3, p2, radius )
-!!$                  if (r < r0) then
-!!$                     phi0(i,j,1) = phis(i,j) + gh0*0.5*(1.0+cos(PI*r/r0))
-!!$                  else
-!!$                     phi0(i,j,1) = phis(i,j)
-!!$                  endif
-!!$               enddo
-!!$            enddo
-!!$         elseif (test_case == 0) then
-!!$           phi0 = 0.0
-!!$           do j=jsd,jed
-!!$              do i=isd,ied
-!!$               x1 = agrid(i,j,1)
-!!$               y1 = agrid(i,j,2)
-!!$               z1 = radius
-!!$               p = p0_c0 * cos(y1)
-!!$               Vtx = ((3.0*SQRT(2.0))/2.0) * (( 1.0/cosh(p) )**2.0) * tanh(p)
-!!$               w_p = 0.0
-!!$               if (p /= 0.0) w_p = Vtx/p
-!!$               phi0(i,j,1) = 1.0 - tanh( (p/rgamma) * sin(x1 - w_p*(nt*dt/86400.0)) )
-!!$              enddo
-!!$           enddo
-!!$         endif
-!!$
-!!$         call atob_s(phi0(:,:,1), tmp(isd:ied+1,jsd:jed+1,tile), npx,npy, dxa, dya, gridstruct%bounded_domain) !, altInterp=1)
-!!$         tmpA(is:ie,js:je,tile) = phi0(is:ie,js:je,1)
-!!$         call wrt2d(phis_lun, nout  , is,ie, js,je, npx, npy, nregions, tmpA(1:npx-1,1:npy-1,1:nregions))
-!!$         call atob_s(delp(:,:,1), tmp(isd:ied+1,jsd:jed+1,tile), npx,npy, dxa, dya, gridstruct%bounded_domain) !, altInterp=1)
-!!$         tmpA(is:ie,js:je,tile) = delp(is:ie,js:je,1)
-!!$      endif
-!!$   !   call wrt2d(phi_lun, nout, is,ie+1, js,je+1, npx+1, npy+1, nregions, tmp(1:npx,1:npy,1:nregions))
-!!$      call wrt2d(phi_lun, nout, is,ie, js,je, npx, npy, nregions, tmpA(1:npx-1,1:npy-1,1:nregions))
-!!$
-!!$      if (test_case == 9) then
-!!$! Calc Vorticity
-!!$         do j=jsd,jed
-!!$            do i=isd,ied
-!!$               vort(i,j) = f0(i,j) + (1./area(i,j)) * ( (v(i+1,j,1)*dy(i+1,j) - v(i,j,1)*dy(i,j)) - &
-!!$                                                        (u(i,j+1,1)*dx(i,j+1) - u(i,j,1)*dx(i,j)) )
-!!$               vort(i,j) = Grav*vort(i,j)/delp(i,j,1)
-!!$            enddo
-!!$         enddo
-!!$         call atob_s(vort, tmp(isd:ied+1,jsd:jed+1,tile), npx,npy, dxa, dya, gridstruct%bounded_domain) !, altInterp=1)
-!!$         call wrt2d(pv_lun, nout, is,ie+1, js,je+1, npx+1, npy+1, nregions, tmp(1:npx,1:npy,1:nregions))
-!!$      endif
-!!$
-!!$      call dtoa(u , v , ua, va, dx,dy,dxa,dya,dxc,dyc,npx, npy, ng)
-!!$! Rotate winds to standard Lat-Lon orientation
-!!$      if (cubed_sphere) then
-!!$         do j=js,je
-!!$            do i=is,ie
-!!$               call mid_pt_sphere(grid(i,j,1:2), grid(i,j+1,1:2), p1)
-!!$               call mid_pt_sphere(grid(i,j,1:2), grid(i+1,j,1:2), p2)
-!!$               call mid_pt_sphere(grid(i+1,j,1:2), grid(i+1,j+1,1:2), p3)
-!!$               call mid_pt_sphere(grid(i,j+1,1:2), grid(i+1,j+1,1:2), p4)
-!!$               utmp = ua(i,j,1)
-!!$               vtmp = va(i,j,1)
-!!$               if (cubed_sphere) call rotate_winds(utmp,vtmp, p1,p2,p3,p4, agrid(i,j,1:2), 2, 2)
-!!$               ut(i,j,tile) = utmp
-!!$               vt(i,j,tile) = vtmp
-!!$            enddo
-!!$         enddo
-!!$      endif
-!!$
-!!$      call wrt2d(uv_lun, 2*(nout-1) + 1, is,ie, js,je, npx, npy, nregions,   ut(1:npx-1,1:npy-1,1:nregions))
-!!$      call wrt2d(uv_lun, 2*(nout-1) + 2, is,ie, js,je, npx, npy, nregions,   vt(1:npx-1,1:npy-1,1:nregions))
-!!$
-!!$      if ((test_case >= 2) .and. (nt==0) ) then
-!!$         call atob_s(phis/Grav, tmp(isd:ied+1,jsd:jed+1,tile), npx,npy, dxa, dya, gridstruct%bounded_domain) !, altInterp=1)
-!!$       !  call wrt2d(phis_lun, nout  , is,ie+1, js,je+1, npx+1, npy+1, nregions, tmp(1:npx,1:npy,1:nregions))
-!!$         tmpA(is:ie,js:je,tile) = phis(is:ie,js:je)/Grav
-!!$         call wrt2d(phis_lun, nout  , is,ie, js,je, npx, npy, nregions, tmpA(1:npx-1,1:npy-1,1:nregions))
-!!$      endif
-!!$#else
-!!$
-!!$! Write Surface height data
-!!$      if (nt==0) then
-!!$         tmpA(is:ie,js:je,tile) = phis(is:ie,js:je)/Grav
-!!$         call wrt2d(phis_lun, nout  , is,ie, js,je, npx, npy, nregions, tmpA(1:npx-1,1:npy-1,1:nregions))
-!!$      endif
-!!$
-!!$! Write Pressure Data
-!!$
-!!$      !if (tile==2) then
-!!$      !   do i=is,ie
-!!$      !      print*, i, ps(i,35)
-!!$      !   enddo
-!!$      !endif
-!!$      tmpA(is:ie,js:je,tile) = ps(is:ie,js:je)
-!!$      call wrt2d(phi_lun, (nout-1)*(npz+1) + 1, is,ie, js,je, npx, npy, nregions, tmpA(1:npx-1,1:npy-1,1:nregions))
-!!$      do k=1,npz
-!!$         tmpA(is:ie,js:je,tile) = delp(is:ie,js:je,k)/Grav
-!!$         call wrt2d(phi_lun, (nout-1)*(npz+1) + 1 + k, is,ie, js,je, npx, npy, nregions, tmpA(1:npx-1,1:npy-1,1:nregions))
-!!$      enddo
-!!$
-!!$! Write PT Data
-!!$      do k=1,npz
-!!$         tmpA(is:ie,js:je,tile) = pt(is:ie,js:je,k)
-!!$         call wrt2d(pt_lun, (nout-1)*npz + (k-1) + 1, is,ie, js,je, npx, npy, nregions, tmpA(1:npx-1,1:npy-1,1:nregions))
-!!$      enddo
-!!$
-!!$! Write U,V Data
-!!$      do k=1,npz
-!!$         call dtoa(u(isd,jsd,k), v(isd,jsd,k), ua(isd,jsd,k), va(isd,jsd,k), dx,dy,dxa,dya,dxc,dyc,npx, npy, ng)
-!!$! Rotate winds to standard Lat-Lon orientation
-!!$         if (cubed_sphere) then
-!!$            do j=js,je
-!!$               do i=is,ie
-!!$                 call mid_pt_sphere(grid(i,j,1:2), grid(i,j+1,1:2), p1)
-!!$                 call mid_pt_sphere(grid(i,j,1:2), grid(i+1,j,1:2), p2)
-!!$                 call mid_pt_sphere(grid(i+1,j,1:2), grid(i+1,j+1,1:2), p3)
-!!$                 call mid_pt_sphere(grid(i,j+1,1:2), grid(i+1,j+1,1:2), p4)
-!!$                 utmp = ua(i,j,k)
-!!$                 vtmp = va(i,j,k)
-!!$                 if (cubed_sphere) call rotate_winds(utmp,vtmp, p1,p2,p3,p4, agrid(i,j,1:2), 2, 2)
-!!$                 ut(i,j,tile) = utmp
-!!$                 vt(i,j,tile) = vtmp
-!!$               enddo
-!!$            enddo
-!!$         endif
-!!$         call wrt2d(uv_lun, 2*((nout-1)*npz + (k-1)) + 1, is,ie, js,je, npx, npy, nregions,   ut(1:npx-1,1:npy-1,1:nregions))
-!!$         call wrt2d(uv_lun, 2*((nout-1)*npz + (k-1)) + 2, is,ie, js,je, npx, npy, nregions,   vt(1:npx-1,1:npy-1,1:nregions))
-!!$      enddo
-!!$#endif
-!!$
-!!$      nullify(grid)
-!!$      nullify(agrid)
-!!$
-!!$      nullify(area)
-!!$
-!!$      nullify(dx)
-!!$      nullify(dy)
-!!$      nullify(dxa)
-!!$      nullify(dya)
-!!$      nullify(rdxa)
-!!$      nullify(rdya)
-!!$      nullify(dxc)
-!!$      nullify(dyc)
-!!$
-!!$      nullify(cubed_sphere)
-!!$
-!!$      end subroutine output
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-!!$
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!     wrt2d_ncdf :: write out a 2d field
-!!$!
-!!$      subroutine wrtvar_ncdf(ncid, varid, nrec, i1,i2, j1,j2, npx, npy, npz, ntiles, p, ndims)
-!!$#include <netcdf.inc>
-!!$         integer,      intent(IN) :: ncid, varid
-!!$         integer,      intent(IN) :: nrec
-!!$         integer,      intent(IN) :: i1,i2,j1,j2
-!!$         integer,      intent(IN) :: npx
-!!$         integer,      intent(IN) :: npy
-!!$         integer,      intent(IN) :: npz
-!!$         integer,      intent(IN) :: ntiles
-!!$         real  , intent(IN)  :: p(npx-1,npy-1,npz,ntiles)
-!!$         integer,      intent(IN) :: ndims
-!!$
-!!$         integer :: error
-!!$         real(kind=4), allocatable :: p_R4(:,:,:,:)
-!!$         integer :: i,j,k,n
-!!$         integer :: istart(ndims+1), icount(ndims+1)
-!!$
-!!$         allocate( p_R4(npx-1,npy-1,npz,ntiles) )
-!!$
-!!$         p_R4(:,:,:,:) = missing
-!!$         p_R4(i1:i2,j1:j2,1:npz,tile) = p(i1:i2,j1:j2,1:npz,tile)
-!!$         call mp_gather(p_R4, i1,i2, j1,j2, npx-1, npy-1, npz, ntiles)
-!!$
-!!$         istart(:) = 1
-!!$         istart(ndims+1) = nrec
-!!$         icount(1) = npx-1
-!!$         icount(2) = npy-1
-!!$         icount(3) = npz
-!!$         if (ndims == 3) icount(3) = ntiles
-!!$         if (ndims == 4) icount(4) = ntiles
-!!$         icount(ndims+1) = 1
-!!$
-!!$         if (is_master()) then
-!!$            error = NF_PUT_VARA_REAL(ncid, varid, istart, icount, p_R4)
-!!$         endif ! masterproc
-!!$
-!!$         deallocate( p_R4 )
-!!$
-!!$      end subroutine wrtvar_ncdf
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-!!$
-!!$!-------------------------------------------------------------------------------
-!!$! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!!$!     wrt2d :: write out a 2d field
-!!$!
-!!$      subroutine wrt2d(iout, nrec, i1,i2, j1,j2, npx, npy, nregions, p)
-!!$         integer,      intent(IN) :: iout
-!!$         integer,      intent(IN) :: nrec
-!!$         integer,      intent(IN) :: i1,i2,j1,j2
-!!$         integer,      intent(IN) :: npx
-!!$         integer,      intent(IN) :: npy
-!!$         integer,      intent(IN) :: nregions
-!!$         real  , intent(IN)  :: p(npx-1,npy-1,nregions)
-!!$
-!!$         real(kind=4) :: p_R4(npx-1,npy-1,nregions)
-!!$         integer :: i,j,n
-!!$
-!!$         do n=tile,tile
-!!$            do j=j1,j2
-!!$               do i=i1,i2
-!!$                  p_R4(i,j,n) = p(i,j,n)
-!!$               enddo
-!!$            enddo
-!!$         enddo
-!!$
-!!$         call mp_gather(p_R4, i1,i2, j1,j2, npx-1, npy-1, nregions)
-!!$
-!!$         if (is_master()) then
-!!$            write(iout,rec=nrec) p_R4(1:npx-1,1:npy-1,1:nregions)
-!!$         endif ! masterproc
-!!$
-!!$      end subroutine wrt2d
-!!$!
-!!$! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
-!!$!-------------------------------------------------------------------------------
-!!$#endif
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
 !     init_double_periodic
@@ -6978,6 +5320,8 @@ end subroutine terminator_tracers
 
         character(*), intent(IN) :: nml_filename
         integer :: ierr, f_unit, unit, ios
+        namelist /test_case_nml/test_case, bubble_do, alpha, nsolitons, soliton_Umax, soliton_size, &
+             no_wind, gaussian_dt, dt_amp, do_marine_sounding, checker_tr
 
 #include<file_version.h>
 
@@ -6987,8 +5331,6 @@ end subroutine terminator_tracers
         alpha = 0.
         bubble_do = .false.
         test_case = 11   ! (USGS terrain)
-        namelist /test_case_nml/test_case, bubble_do, alpha, nsolitons, soliton_Umax, soliton_size, &
-								no_wind, gaussian_dt, dt_amp, do_marine_sounding
 
 #ifdef INTERNAL_FILE_NML
         ! Read Test_Case namelist
@@ -7354,12 +5696,6 @@ end subroutine terminator_tracers
  real:: dz0, zvir, fac_z, pk0, temp1, p2
  integer:: k, n, kk
 
-!#ifdef GFS_PHYS
-!
-! call mpp_error(FATAL, 'SuperCell sounding cannot perform with GFS Physics.')
-!
-!#else
-
  zvir = rvgas/rdgas - 1.
  pk0 = p00**kappa
  pp(ns) = ps
@@ -7458,8 +5794,6 @@ end subroutine terminator_tracers
     tp(k) = max(Tmin, tp(k))
  enddo
 
-!#endif
-
  end subroutine SuperCell_Sounding
 
 ! added by Linjiong Zhou
@@ -7485,12 +5819,6 @@ end subroutine terminator_tracers
  real, parameter:: pt0 = 300.    ! surface potential temperature
  real:: dz0, zvir, fac_z, pk0, temp1, p2
  integer:: k, n, kk
-
-!#ifdef GFS_PHYS
-!
-! call mpp_error(FATAL, 'SuperCell sounding cannot perform with GFS Physics.')
-!
-!#else
 
  zvir = rvgas/rdgas - 1.
  pk0 = p00**kappa
@@ -7590,8 +5918,6 @@ end subroutine terminator_tracers
     tp(k) = max(Tmin, tp(k))
  enddo
 
-!#endif
-
  end subroutine SuperCell_Sounding_Marine
 
  ! added by Linjiong Zhou
@@ -7618,11 +5944,6 @@ end subroutine terminator_tracers
  real:: dz0, zvir, fac_z, pk0, temp1, p2
  integer:: k, n, kk
 
-!#ifdef GFS_PHYS
-!
-! call mpp_error(FATAL, 'SuperCell sounding cannot perform with GFS Physics.')
-!
-!#else
 
  zvir = rvgas/rdgas - 1.
  pk0 = p00**kappa
@@ -7723,8 +6044,6 @@ end subroutine terminator_tracers
     tp(k) = tp(k)*pk1(k)    ! temperature
     tp(k) = max(Tmin, tp(k))
  enddo
-
-!#endif
 
  end subroutine Marine_Sounding
 
