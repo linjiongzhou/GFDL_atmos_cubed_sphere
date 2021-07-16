@@ -81,80 +81,92 @@ public :: fv_phys, fv_nudge
 #endif
   real, parameter:: Lv0 =  hlv - dc_vap*tice
 !            L = hlv + (Cp_vapor-C_liq)*(T-T_ice)
-
   real:: deg2rad = pi/180.
   real::  zvir
-  real:: tau_difz = 600.
   real:: area_ref = 6.25E8
   real:: solar_constant = 1367.
 ! Namelist for Sim_Phys
-  logical:: do_K_momentum = .false.
-  logical:: do_sedi_w = .false.
-  logical:: do_sedi_t = .false.
+
+  logical:: do_K_warm_rain = .false. !Enable Kessler
+  logical:: do_strat_HS_forcing = .true. !modified held-suarez
+  logical:: do_LS_cond       = .false. !A Simple LS condensation scheme
+  logical:: do_GFDL_sim_phys      = .false. !Enable GFDL simple physics
+  logical:: do_surf_drag     = .false. ! a simple surface drag (bottom friction) scheme
+  real   :: tau_surf_drag  = 1.   ! time-scale for the surface drag
+  logical:: do_reed_sim_phys     = .false.
+  logical:: do_terminator    = .false. 
+  logical:: term_fill_negative = .false.
+  integer:: print_freq = 6  ! hours
+  integer:: seconds, days
+  logical :: print_diag
+  integer :: istep = 0
+
+  !GFDL Simplified Physics (mostly Frierson)
   logical:: diurnal_cycle    = .false.
   logical:: mixed_layer      = .false.
   logical:: gray_rad         = .false.
   logical:: strat_rad        = .false.
   logical:: do_abl = .false.
   logical:: do_mon_obkv = .true.
-  logical:: do_gfdl_cld_mp = .false.
-  logical:: do_K_warm_rain = .false.
-  logical:: do_strat_forcing = .true.
-  logical:: prog_cloud       = .true.
-  logical:: zero_winds       = .false.  ! use this only for the doubly periodic domain
-  logical:: do_reed_phys     = .false.
-  logical:: do_reed_cond     = .false.
-  logical:: reed_cond_only   = .false.
-  logical:: reed_alt_mxg     = .false.
-  logical:: do_LS_cond       = .false.
-  logical:: do_sim_phys      = .false.
-  logical:: do_surf_drag     = .false.
-  logical:: do_fixed_cd      = .false. ! NJ, fixed drag option
-  logical:: do_terminator    = .false.
-  logical:: term_fill_negative = .false.
-  integer:: reed_test = 0   ! Constant SST
-  integer:: K_cycle = 0   ! K_warm-Rain cycles
-  real:: tau_zero  = 1.   ! time-scale to "zero" domain-averaged winds (days)
-  real:: tau_drag  = 1.   ! time-scale for the surface drag
-  real:: u_mean    = 0.     ! NJ, mean wind for enthalpy fluxes
-  real:: cd       = 1.5e-3  ! NJ, fixed drag coefficient
-  real:: s_fac  =  0.1
   real:: heating_rate =  0.5    ! deg K per day, stratosphere, for gray-radiation
   real:: cooling_rate =  0.     ! deg K per day (note sign convention)
-  real:: c0 = 6.285E7           ! Ocean heat capabicity 4190*depth*e3, depth = 15.
-  real:: low_c = 0.3            ! global mean *low* cloud fraction
-  real:: sw_abs = 0.            ! fraction of the solar absorbed/reflected by the atm
   logical:: uniform_sst = .true.
-  real:: sst0 = 302.15
-  real:: sst_restore_timescale = 5.
+  real:: sst0 = 302.15    ! K
+  real:: sst_restore_timescale = 5. !days
   real:: shift_n = 12.
   logical:: do_t_strat = .false.
   real:: p_strat = 50.E2
   real:: t_strat = 200.
   real:: tau_strat = 10.     ! days
-  real:: t_fac = 1.
-  integer:: print_freq = 6  ! hours
-  integer:: seconds, days
-  logical :: print_diag
-  integer :: istep = 0
+  real:: mo_t_fac = 1.
+  real:: tau_difz = 600. !prescribed surface roughness (?) if do_mon_obkv not set
+  logical:: prog_low_cloud       = .true.
+  real:: low_cf0 = 0.3            ! global mean *low* cloud fraction
+  logical:: zero_winds       = .false.  ! use this only for the doubly periodic domain
+  real:: tau_zero  = 1.   ! time-scale to "zero" domain-averaged winds (days)
+  logical:: do_mo_fixed_cd      = .false. ! NJ, fixed drag option
+  real:: mo_cd       = 1.5e-3  ! NJ, fixed drag coefficient
+  real:: mo_u_mean    = 0.     ! NJ, mean wind for enthalpy fluxes
+  real:: abl_s_fac  =  0.1
+  real:: ml_c0 = 6.285E7           ! Ocean heat capabicity 4190*depth*e3, depth = 15.
+  real:: sw_abs = 0.            ! fraction of the solar absorbed/reflected by the atm
 
+  
+  !Kessler parameters
+  logical:: K_sedi_transport = .false.
+  logical:: do_K_sedi_w = .false.
+  logical:: do_K_sedi_heat = .false.
+  integer:: K_cycle = 0   ! K_warm-Rain cycles
+
+  !Reed physics parameters
+  logical:: do_reed_cond     = .false. !Do reed condensation in addition to surface fluxes
+  logical:: reed_cond_only   = .false. !Do NOT do reed surface fluxes, only condensation scheme
+  logical:: reed_alt_mxg     = .false. !Use silly alternate mixing scheme to fix MPAS's problems
+  integer:: reed_test = 0   ! Constant SST
+
+  !Diagnostics
   integer :: id_vr_k, id_rain, id_rain_k, id_pblh
   integer :: id_dqdt, id_dTdt, id_dudt, id_dvdt
   integer :: id_qflux, id_hflux
   real, allocatable:: prec_total(:,:)
   real    :: missing_value = -1.e10
 
-namelist /sim_phys_nml/mixed_layer, gray_rad, strat_rad, do_gfdl_cld_mp,   &
-                       heating_rate, cooling_rate, uniform_sst, sst0, c0,    &
-                       sw_abs, prog_cloud, low_c, diurnal_cycle, &
-                       do_mon_obkv, do_t_strat, p_strat, t_strat, tau_strat, &
-                       do_abl, t_fac, tau_difz, do_strat_forcing, s_fac,     &
-                       shift_n, print_freq, zero_winds, tau_zero, tau_winds, &
-                       tau_temp, tau_press, sst_restore_timescale, K_cycle,  &
-                       do_K_warm_rain, do_K_momentum, do_sedi_w, do_sim_phys,&
-                       do_sedi_t, do_reed_phys, do_reed_cond, reed_cond_only,&
-                       reed_alt_mxg, reed_test, do_LS_cond, do_surf_drag,    &
-                       tau_drag, do_terminator, do_fixed_cd, cd, u_mean
+namelist /sim_phys_nml/do_strat_HS_forcing, &
+                       print_freq, tau_winds, &
+                       tau_temp, tau_press, sst_restore_timescale,  &
+                       do_K_warm_rain, do_GFDL_sim_phys,&
+                       do_reed_sim_phys, do_LS_cond, do_surf_drag,    &
+                       tau_surf_drag, do_terminator
+
+namelist /GFDL_sim_phys_nml/ diurnal_cycle, mixed_layer, gray_rad, strat_rad, do_abl, do_mon_obkv, &
+     heating_rate, cooling_rate, uniform_sst, sst0, shift_n, do_t_strat, p_strat, t_strat, tau_strat, &
+     mo_t_fac, tau_difz, prog_low_cloud, low_cf0, zero_winds, tau_zero, do_mo_fixed_cd, mo_cd, mo_u_mean, &
+     abl_s_fac, ml_c0, sw_abs
+
+namelist /Kessler_sim_phys_nml/ K_sedi_transport, do_K_sedi_w, do_K_sedi_heat, K_cycle
+
+namelist /reed_sim_phys_nml/ do_reed_cond, reed_cond_only,&
+                       reed_alt_mxg, reed_test
 
 contains
 
@@ -250,7 +262,7 @@ contains
    graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
    cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
 
-    rkv = pdt / (tau_drag*24.*3600.)
+    rkv = pdt / (tau_surf_drag*24.*3600.)
 
     isd = is-ng;   ied = ie + ng
     jsd = js-ng;   jed = je + ng
@@ -397,7 +409,7 @@ contains
                         w, u_dt, v_dt, q, pt, delp, delz, &
                         pe, peln, pk, ps, rain, Time, flagstruct%hydrostatic)
 
-       if( do_K_momentum )  no_tendency = .false.
+       if( K_sedi_transport )  no_tendency = .false.
        if (do_terminator) then
           do k=1,npz
           do j=js,je
@@ -433,24 +445,24 @@ contains
     endif
 
 
-    if ( do_sim_phys ) then
+    if ( do_GFDL_sim_phys ) then
        moist_phys = .true.
-                                             call timing_on('SIM_PHYS')
-       call sim_phys(npx, npy, npz, is, ie, js, je, ng, nq, nwat, pk, pkz, &
+                                             call timing_on('GFDL_SIM_PHYS')
+       call GFDL_sim_phys(npx, npy, npz, is, ie, js, je, ng, nq, nwat, pk, pkz, &
                      u_dt, v_dt, t_dt, q_dt, u, v, w, ua, va, pt, delz, q, &
                      pe, delp, peln, ts, oro, hydrostatic, pdt, grid, ak, bk, &
-                     p_ref, Time, time_total, gridstruct)
-                                            call timing_off('SIM_PHYS')
+                     p_ref, Time, time_total, flagstruct%grid_type, gridstruct)
+                                            call timing_off('GFDL_SIM_PHYS')
        no_tendency = .false.
     endif
 
-    if ( do_reed_phys ) then
+    if ( do_reed_sim_phys ) then
        moist_phys = .true.
        zvir = rvgas/rdgas - 1.
        rgrav = 1./grav
 !$omp parallel do default(shared) private(den,u2,v2,t2,q2,dp2,pm,rdelp,du2, dv2, dt2, dq2)
        do j=js,je
-! Input to Reed_phys are hydrostatic
+! Input to Reed_phys are hydrostatic and probably don't understand total mass either
           do k=1,npz
              do i=is,ie
                 dp2(i,k) = delp(i,j,k)
@@ -524,7 +536,7 @@ contains
                               u, v, pt, q, pe, delp, peln, pkz, pdt,  &
                               ua, va, u_dt, v_dt, t_dt, q_dt, grid,   &
                               delz, phis, hydrostatic, ak, bk, ks,    &
-                              do_strat_forcing, .false., master, Time, time_total)
+                              do_strat_HS_forcing, .false., master, Time, time_total)
        no_tendency = .false.
     elseif ( do_surf_drag ) then
 ! Bottom friction:
@@ -540,14 +552,11 @@ contains
                    tmp = sigl / ((1.+sigl)*pdt)
                    u_dt(i,j,k) = u_dt(i,j,k) - ua(i,j,k)*tmp
                    v_dt(i,j,k) = v_dt(i,j,k) - va(i,j,k)*tmp
-#ifdef TEST_HT
                    if ( hydrostatic ) then
                       pt(i,j,k) = pt(i,j,k) + pdt*tmp*(ua(i,j,k)**2+va(i,j,k)**2)/cp_air
-
-          else
+                   else
                       pt(i,j,k) = pt(i,j,k) + pdt*tmp*(ua(i,j,k)**2+va(i,j,k)**2)/cv_air
                    endif
-#endif
                endif
             enddo     !i-loop
             enddo     !j-loop
@@ -597,18 +606,18 @@ contains
  end subroutine fv_phys
 
 
- subroutine sim_phys(npx, npy, npz, is, ie, js, je, ng, nq, nwat, pk, pkz,  &
+ subroutine GFDL_sim_phys(npx, npy, npz, is, ie, js, je, ng, nq, nwat, pk, pkz,  &
                      u_dt, v_dt, t_dt, q_dt, u, v, w, ua, va,   &
                      pt, delz, q, pe, delp, peln, sst, oro, hydrostatic, &
                      pdt, agrid, ak, bk, p_ref,    &
-                     Time, time_total, gridstruct)
+                     Time, time_total, grid_type, gridstruct)
 !-----------------------
 ! A simple moist physics
 !-----------------------
 
 
  integer, INTENT(IN) :: npx, npy, npz
- integer, INTENT(IN) :: is, ie, js, je, ng, nq, nwat
+ integer, INTENT(IN) :: is, ie, js, je, ng, nq, nwat, grid_type
  real   , INTENT(IN) :: pdt
  real   , INTENT(IN) :: agrid(is-ng:ie+ng,js-ng:je+ng, 2)
  real   , INTENT(IN) :: ak(npz+1), bk(npz+1)
@@ -768,11 +777,11 @@ contains
 ! Apply net radiative cooling
 !----------------------------
  if ( gray_rad ) then
-    if ( prog_cloud ) then
+    if ( prog_low_cloud ) then
          call get_low_clouds( is,ie, js,je, km, q3(is,js,1,liq_wat), q3(is,js,1,ice_wat),   &
                                                 q3(is,js,1,cld_amt), clouds )
     else
-         clouds(:,:) = low_c
+         clouds(:,:) = low_cf0
     endif
 
     do j=js,je
@@ -798,7 +807,7 @@ contains
 
          endif
 
-         if ( prog_cloud ) &
+         if ( prog_low_cloud ) &
          clds = g0_sum(clouds, is, ie, js, je, 0, gridstruct%area(is:ie,js:je), 1)
 
          if( master ) then
@@ -806,7 +815,7 @@ contains
             write(*,*) 'Domain mean OLR', trim(gn), ' =', olrm
             write(*,*) 'Domain mean SWA', trim(gn), ' =', swab
            endif
-           if ( prog_cloud ) write(*,*) 'Domain mean low clouds fraction', trim(gn), ' =', clds
+           if ( prog_low_cloud ) write(*,*) 'Domain mean low clouds fraction', trim(gn), ' =', clds
          endif
     endif
 
@@ -882,9 +891,9 @@ if( do_mon_obkv ) then
 
                                                                              call timing_on('mon_obkv')
   call mon_obkv(zvir, ps, t3(is:ie,js:je, km), zfull(is:ie,js:je,km),     &
-                rho, p3(is:ie,js:je,km), u3(is:ie,js:je,km), v3(is:ie,js:je,km), u_mean, do_fixed_cd, cd,  sst,  &
+                rho, p3(is:ie,js:je,km), u3(is:ie,js:je,km), v3(is:ie,js:je,km), mo_u_mean, do_mo_fixed_cd, mo_cd,  sst,  &
                 qs, q3(is:ie,js:je,km,sphum), drag_t, drag_q, flux_t, flux_q, flux_u, flux_v, u_star, &
-                delm, pdt, mu, t_fac, master)
+                delm, pdt, mu, mo_t_fac, master)
                                                                              call timing_off('mon_obkv')
 !---------------------------------------------------
 ! delp/grav = delm = kg/m**2
@@ -928,6 +937,10 @@ endif
 
 if ( zero_winds ) then
 
+   if (grid_type /= 4) then
+      call mpp_error(FATAL, "fv_phys::GFDL_SIM_PHYS: zero_winds only works with doubly-periodic domain (grid_type = 4).")
+   endif
+   
 ! Zero out (doubly periodic) domain averaged winds with time-scale tau_zero:
 ! This loop can not be openMP-ed
  do k=1, km
@@ -957,77 +970,19 @@ endif
 
  if ( do_abl ) then
 ! ABL: vertical diffusion:
-! do j=js,je
-!    do i=is,ie
-!       mu(i,j) = -sqrt(area(i,j)/area_ref)*dz(i,j,km)/tau_difz
-!    enddo
-! enddo
-
+    if (.not. do_mon_obkv ) then
+       do j=js,je
+          do i=is,ie
+             mu(i,j) = -sqrt(gridstruct%area(i,j)/area_ref)*dz(i,j,km)/tau_difz
+          enddo
+       enddo
+    endif
+    
   call pbl_diff(hydrostatic, pdt, is, ie, js, je, ng, km, nq, u3, v3, t3,      &
                 w, q3, delp, p3, pe, sst, mu, dz, u_dt, v_dt, t_dt, q_dt, &
                 gridstruct%area, print_diag, Time )
  endif
 
-
-  if ( do_gfdl_cld_mp ) then
-      land(:,:) = 0.
-      k_mp = 1
-      do k=2, km
-         tmp = ak(k) + bk(k)*1000.E2
-         if ( tmp > 20.E2 ) then
-              k_mp = k
-              exit
-         endif
-      enddo
-!     if(master .and. print_diag) write(*,*) 'k_mp=', k_mp, tmp*0.01
-      k_mp = 1
-
-!!NOTE: You can do threaded GFDL MP in solo core, but it **WILL** mess up your GFDL MP diagnostics!!!
-                                                                                          call timing_on('gfdl_mp')
-!!$#ifndef GFDL_MP_THREAD
-!!$      call gfdl_cld_mp_driver(q3(is:ie,js:je,1:km,sphum),   q3(is:ie,js:je,1:km,liq_wat), q3(is:ie,js:je,1:km,rainwat),  &
-!!$                                    q3(is:ie,js:je,1:km,ice_wat), q3(is:ie,js:je,1:km,snowwat), q3(is:ie,js:je,1:km,graupel),  &
-!!$                                    q3(is:ie,js:je,1:km,cld_amt), q3(is:ie,js:je,1:km,cld_amt),   &
-!!$                                  q_dt(is:ie,js:je,1:km,sphum), q_dt(is:ie,js:je,1:km,liq_wat), q_dt(is:ie,js:je,1:km,rainwat), &
-!!$                                  q_dt(is:ie,js:je,1:km,ice_wat), q_dt(is:ie,js:je,1:km,snowwat), q_dt(is:ie,js:je,1:km,graupel), &
-!!$                                  q_dt(is:ie,js:je,1:km,cld_amt), t_dt, t3, w(is:ie,js:je,1:km), u3, v3,     &
-!!$                                  u_dt(is:ie,js:je,1:km),v_dt(is:ie,js:je,1:km), dz,      &
-!!$                                  dz(is:ie,js:je,1:km), delp(is:ie,js:je,1:km), gridstruct%area(is:ie,js:je),  &
-!!$                                  pdt, land, rain, snow, ice, graup, hydrostatic, phys_hydrostatic, &
-!!$                                  1,ie-is+1, 1,km, k_mp,npz, seconds ) !Time )
-!!$#else
-!$no-omp parallel do default(shared)
-!   do j=js,je  !--- ignoring for now
-!      call gfdl_cld_mp_driver(q3(is:ie,j,1:km,sphum),     q3(is:ie,j,1:km,liq_wat), q3(is:ie,j,1:km,rainwat),  &
-!                                    q3(is:ie,j,1:km,ice_wat),   q3(is:ie,j,1:km,snowwat), q3(is:ie,j,1:km,graupel),  &
-!                                    q3(is:ie,j,1:km,cld_amt),   q3(is:ie,j,1:km,cld_amt), q3(is:ie,j,1:km,cld_amt),   & !last 2 are dummies
-!                                    t3(is:ie,j,1:km), w(is:ie,j,1:km), u3(is:ie,j,1:km), v3(is:ie,j,1:km), &
-!                                    dz(is:ie,j,1:km), delp(is:ie,j,1:km), gridstruct%area(is:ie,j),  &
-!                                  pdt, land(is:ie,j), 
-!                                  q_dt(is:ie,j,1:km,sphum),   q_dt(is:ie,j,1:km,liq_wat), q_dt(is:ie,j,1:km,rainwat), &
-!                                  q_dt(is:ie,j,1:km,ice_wat), q_dt(is:ie,j,1:km,snowwat), q_dt(is:ie,j,1:km,graupel), &
-!                                  q_dt(is:ie,j,1:km,cld_amt), t_dt(is:ie,j,1:km), &
-!                                  u_dt(is:ie,j,1:km),         v_dt(is:ie,j,1:km), rain(is:ie,j), snow(is:ie,j), ice(is:ie,j), graup(is:ie,j), hydrostatic, phys_hydrostatic, &
-!                                  1,ie-is+1, 1,km, k_mp,npz, seconds ) ! Time )
-!   enddo
-!!$#endif
-                                                                                          call timing_off('gfdl_mp')
-     !GFDL MP outputs mm/d
-     if ( id_rain_k>0 ) then
-        prec_total(:,:) = prec_total(:,:) + rain(:,:) * pdt / 86400.
-        used = send_data(id_rain_k, prec_total, time)
-        if (print_diag) then
-           prec = g_sum(prec_total, is, ie, js, je, gridstruct%area(is:ie,js:je), 1)
-           if(master) write(*,*) ' Accumulated rain (m)', trim(gn), ' =', prec
-        endif
-        !call prt_maxmin(' W', w, is, ie, js, je, ng,  npz, 1.)
-     endif
-     if ( id_rain>0 ) then ! GFDL MP
-        used = send_data(id_rain, rain, time)
-        if (print_diag) call prt_maxmin(' Rain rate (mm/day): ', rain,  &
-             is,ie,js,je,0,1,1.)
-     endif
-  endif
 
   if ( mixed_layer ) then
      do j=js, je
@@ -1052,7 +1007,7 @@ endif
      do j=js, je
         do i=is, ie
            sst(i,j) = sst(i,j)+pdt*(sw_surf(i,j) + lwd(i,j) - rflux(i,j)  &
-                     - flux_t(i,j) - qflux(i,j) - lwu(i,j))/c0
+                     - flux_t(i,j) - qflux(i,j) - lwu(i,j))/ml_c0
         enddo
      enddo
      if ( print_diag ) then
@@ -1066,7 +1021,7 @@ endif
 !  Unit flux_q, moisture flux (kg/sm^2)
      do j=js, je
         do i=is, ie
-           sst(i,j) = sst(i,j) - pdt*(rflux(i,j) + flux_t(i,j) + qflux(i,j))/c0
+           sst(i,j) = sst(i,j) - pdt*(rflux(i,j) + flux_t(i,j) + qflux(i,j))/ml_c0
         enddo
      enddo
    endif
@@ -1105,7 +1060,7 @@ endif
   if (id_hflux) used=send_data(id_hflux, flux_t, time)
 
 
- end subroutine sim_phys
+ end subroutine GFDL_sim_phys
 
 
  subroutine pbl_diff(hydrostatic, dt, is, ie, js, je, ng, km, nq, ua, va, &
@@ -1174,7 +1129,7 @@ endif
              nu(i,k) = mu_min
         else
             kz(i) = 0.5*mu(i,j)*gh(i,km)
-            surf_h = s_fac*pblh(i,j)
+            surf_h = abl_s_fac*pblh(i,j)
             if ( gh(i,k) <= surf_h) then
                  kz(i) = mu(i,j)*gh(i,k)
                  nu(i,k) = kz(i)
@@ -1603,11 +1558,23 @@ endif
          unit = open_namelist_file ('input.nml')
          read  (unit, nml=sim_phys_nml, iostat=io, end=10)
          ierr = check_nml_error(io,'sim_phys_nml')
- 10     call close_file (unit)
-    endif
 
-    if (nwat /= 6 .and. do_gfdl_cld_mp) then
-       call mpp_error(FATAL, "Need nwat == 6 to run GFDL Cloud Microphysics.")
+         if (do_K_warm_rain) then
+            read  (unit, nml=Kessler_sim_phys_nml, iostat=io, end=10)
+            ierr = check_nml_error(io,'Kessler_sim_phys_nml')
+         endif
+         
+         if (do_GFDL_sim_phys) then
+            read  (unit, nml=GFDL_sim_phys_nml, iostat=io, end=10)
+            ierr = check_nml_error(io,'GFDL_sim_phys_nml')
+         endif
+
+         if (do_reed_sim_phys) then
+            read  (unit, nml=reed_sim_phys_nml, iostat=io, end=10)
+            ierr = check_nml_error(io,'reed_sim_phys_nml')
+         endif
+
+ 10     call close_file (unit)
     endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1639,7 +1606,7 @@ endif
        prec_total(:,:) = 0.
     endif
 
-    if (do_sim_phys > 0) then
+    if (do_GFDL_sim_phys > 0) then
        id_qflux = register_diag_field(mod_name, 'qflux', axes(1:3), time, &
             'Physics latent heat flux', 'J/m**2/s', missing_value=missing_value)
        id_hflux = register_diag_field(mod_name, 'hflux', axes(1:3), time, &
@@ -1842,22 +1809,7 @@ endif
        endif
          endif
       enddo
-#ifdef EXP_MP
-! Compute zm, & rho
-      ze(km+1) = 0.
-      do k=km, 1, -1
-         ze(k) = ze(k+1) + dz(k)
-      enddo
-
-      do k=1,km
-         ! Dry air density
-         rho(k) = drym(k)/(grav*dz(k))
-         zm(k)  = 0.5*(ze(k)+ze(k+1))
-      enddo
-      call KESSLER( t1, q1, q2, q3, vr, rho, sdt, zm, km )
-#else
       call kessler_imp( t1, q1, q2, q3, vr, drym, sdt, dz, km )
-#endif
 
 ! Retrive rain_flux from non-local changes in total water
        m1(1) = drym(1)*(q0(1)-(q1(1)+q2(1)+q3(1))) ! Pa * kg/kg (dry) = kg * (g/dA)
@@ -1867,9 +1819,9 @@ endif
 !      rain(i,j) = rain(i,j) + max(0., m1(km)) / (grav*sdt)
        rain(i,j) = rain(i,j) + max(0., m1(km)) / grav  ! kg / dA
 
-    if ( do_K_momentum ) then
+    if ( K_sedi_transport ) then
 ! Momentum transport
-       if ( do_sedi_w ) then
+       if ( do_K_sedi_w ) then
 ! Momentum conservation: (note vr is downward)
 !!!          w1(1) = (dm(1)*w1(1)+m1(1)*vr(1))/(dm(1)-m1(1))
           do k=2, km
@@ -1887,7 +1839,7 @@ endif
        enddo
     endif
 
-    if ( do_sedi_t ) then
+    if ( do_K_sedi_heat ) then
 ! Heat transport
        do k=1, km
           dgz(k) = -0.5*grav*delz(i,j,k)    ! > 0
@@ -1903,43 +1855,43 @@ endif
     endif
   enddo ! K_cycle
 
-    if ( id_vr_k>0 ) then
-         do k=1, km
-            vr_k(i,j,k) = vr(k)
-         enddo
-    endif
+  if ( id_vr_k>0 ) then
+     do k=1, km
+        vr_k(i,j,k) = vr(k)
+     enddo
+  endif
 
-       do k=1,km
-       u_dt(i,j,k) = u_dt(i,j,k) + (u1(k)-u(i,j,k))/dt
-       v_dt(i,j,k) = v_dt(i,j,k) + (v1(k)-v(i,j,k))/dt
-        u(i,j,k) = u1(k)
-        v(i,j,k) = v1(k)
-        w(i,j,k) = w1(k)
-          pt(i,j,k) = t1(k)
-! Convert back to moist mixing ratios
-       q1(k) = (q1(k)+qa(k)) * drym(k)
-       q2(k) = (q2(k)+qb(k)) * drym(k)
-       q3(k) = (q3(k)+qc(k)) * drym(k)
-! Update total air mass:
-          dp(i,j,k) = drym(k) + q1(k)+q2(k)+q3(k)
-! Update tracers:
-          q(i,j,k,  sphum) = q1(k) / dp(i,j,k)
-          q(i,j,k,liq_wat) = q2(k) / dp(i,j,k)
-          q(i,j,k,rainwat) = q3(k) / dp(i,j,k)
-       enddo
+  do k=1,km
+     u_dt(i,j,k) = u_dt(i,j,k) + (u1(k)-u(i,j,k))/dt
+     v_dt(i,j,k) = v_dt(i,j,k) + (v1(k)-v(i,j,k))/dt
+     u(i,j,k) = u1(k)
+     v(i,j,k) = v1(k)
+     w(i,j,k) = w1(k)
+     pt(i,j,k) = t1(k)
+     ! Convert back to moist mixing ratios
+     q1(k) = (q1(k)+qa(k)) * drym(k)
+     q2(k) = (q2(k)+qb(k)) * drym(k)
+     q3(k) = (q3(k)+qc(k)) * drym(k)
+     ! Update total air mass:
+     dp(i,j,k) = drym(k) + q1(k)+q2(k)+q3(k)
+     ! Update tracers:
+     q(i,j,k,  sphum) = q1(k) / dp(i,j,k)
+     q(i,j,k,liq_wat) = q2(k) / dp(i,j,k)
+     q(i,j,k,rainwat) = q3(k) / dp(i,j,k)
+  enddo
   enddo   ! i-loop
-
-! Adjust pressure fields:
-    do k=2,km+1
-       do i=is,ie
-          pe(i,k,j) = pe(i,k-1,j) + dp(i,j,k-1)
-          peln(i,k,j) = log( pe(i,k,j) )
-          pk(i,j,k) = exp( kappa*peln(i,k,j) )
-    enddo
- enddo
-   do i=is,ie
-      ps(i,j) = pe(i,km+1,j)
-   enddo
+  
+  ! Adjust pressure fields:
+  do k=2,km+1
+     do i=is,ie
+        pe(i,k,j) = pe(i,k-1,j) + dp(i,j,k-1)
+        peln(i,k,j) = log( pe(i,k,j) )
+        pk(i,j,k) = exp( kappa*peln(i,k,j) )
+     enddo
+  enddo
+  do i=is,ie
+     ps(i,j) = pe(i,km+1,j)
+  enddo
 
  enddo    ! j-loop
 
@@ -1951,6 +1903,10 @@ endif
 
  end subroutine K_warm_rain
 
+ !This is an upgraded version of kessler MP with modern
+ ! numerical techniques, implemented consistently with
+ ! the FV3 dynamics. You can think of this as a "lite"
+ ! version of the GFDL MP.
  subroutine kessler_imp( T, qv, qc, qr, vr, drym, dt, dz, NZ )
 ! T  - TEMPERATURE (K)
 ! QV - WATER VAPOR MIXING RATIO (GM/GM)
@@ -1998,10 +1954,10 @@ endif
        qr(K) = qr(k) + QRPROD
       rqr(k) = r(k)*max(qr(k), qr_min)
       QVS =  qs_wat(T(k), rho(k), dqsdt)
-#ifdef HIWPP
-      hlvm = hlv / cv_air
-#else
+#ifdef MOIST_CAPPA
       hlvm = (Lv0+dc_vap*T(k)) / (cv_air+qv(k)*cv_vap+(qc(k)+qr(k))*c_liq)
+#else
+      hlvm = hlv / cv_air
 #endif
       PROD = (qv(k)-QVS) / (1.+dqsdt*hlvm)
 ! Evaporation rate following K&W78 Eq3. 3.8-3.10
@@ -2019,78 +1975,6 @@ endif
    enddo
 
  end subroutine kessler_imp
-
- SUBROUTINE KESSLER( T, QV, QC, QR, VELQR, R, dt, Z, NZ )
-! T  - TEMPERATURE (K)
-! QV - WATER VAPOR MIXING RATIO (GM/GM)
-! QC - CLOUD WATER MIXING RATIO (GM/GM)
-! QR - RAIN WATER MIXING RATIO (GM/GM)
-! R  - DRY AIR DENSITY (GM/M^3)
-! dt - TIME STEP (S)
-! Z - HEIGHTS OF THERMODYNAMIC LEVELS IN THE GRID COLUMN (M)
-! NZ - NUMBER OF THERMODYNAMIC LEVELS IN THE COLUMN
-! VARIABLES IN THE GRID COLUMN ARE ORDERED FROM THE SURFACE TO THE TOP.
-! k=1 is the top layer
-! Dry mixing ratios?
-! OUTPUT VARIABLES:
-   integer, intent(in):: nz
-   real, intent(in):: dt
-   REAL, intent(in)   :: R(NZ), Z(NZ)
-   REAL, intent(inout):: T(NZ), QV(NZ), QC(NZ), QR(NZ), VELQR(NZ)
-! Local:
-   real, parameter:: c_k = 1003.    ! heat capacity of the K scheme
-   real, parameter:: F2X = 17.27
-   real, parameter:: F5 = 237.3*F2X*2.5E6/1003.
-   real, parameter:: XK = .2875
-   real, parameter:: cvd = 717.56
-   REAL RHALF(NZ), SED(NZ), pc(NZ)
-   REAL ERN, QRPROD, PROD, QVS, cvm
-   INTEGER K
-
-   DO K=1,NZ
-      RHALF(K) = SQRT(R(NZ)/R(K))
-      pc(K) = 3.8e2 / (R(k)*rdgas*T(k))
-! Liquid water terminal velocity (m/s) following K&W78 Eq. 2.15
-      VELQR(K) = 36.34*(QR(K)*R(K))**0.1364*RHALF(K)
-   END DO
-
-! Sedimentation term using upstream differencing
-!
-   SED(1) = -dt*QR(1)*VELQR(1)/(.5*(Z(1)-Z(2)))
-   DO K=2,NZ
-      SED(K) = dt*(R(K-1)*QR(K-1)*VELQR(K-1)         &
-              -R(K)*QR(K)*VELQR(K ))/(R(K)*(Z(K-1)-Z(K)))
-   END DO
-
-   DO K=1,NZ
-      cvm = (1.-qv(k)-qc(k))*cvd + qv(k)*cv_vap + qc(k)*c_liq
-! Autoconversion and accretion rates following K&W78 Eq. 2.13a,b
-! Threshold = 1.e-3
-      QRPROD = QC(K) - (QC(K)-dt*max(.001*(QC(K)-.001), 0.))    &
-             / (1.+dt*2.2*QR(K)**.875)
-      QC(K) = max(QC(K)-QRPROD,0.)
-      QR(K) = max(QR(K)+QRPROD+SED(K),0.)
-
-! Saturation vapor mixing ratio (gm/gm) following K&W78 Eq. 2.11
-      QVS = pc(K)*EXP(F2X*(T(K)-273.) /(T(K)- 36.))
-
-      PROD = (QV(K)-QVS)/(1.+QVS*F5/(T(K)-36.)**2)
-! Evaporation rate following K&W78 Eq3. 3.8-3.10
-      ERN = min(dt*(((1.6+124.9*(R(K)*QR(K))**.2046)   &
-          *(R(K)*QR(K))**.525)/(2.55E6*pc(K)             &
-          /(3.8 *QVS)+5.4E5))*(DIM(QVS,QV(K))            &
-          /(R(K)*QVS)),max(-PROD-QC(K),0.),QR(K))
-! Saturation adjustment following K&W78 Eq.2.14a,b
-!       T(k) = T(k) + (Lv0+dc_vap*T(k))*(max(PROD,-QC(k))-ERN) / cvm
-        T(K) = T(K) + 2.5E6*(max(PROD,-QC(K))-ERN) / cvd
-       QV(K) = max(QV(K)-max(PROD,-QC(K))+ERN,0.)
-       QC(K) = QC(K)+max(PROD,-QC(K))
-       QR(K) = QR(K)-ERN
-   END DO
-
- END SUBROUTINE KESSLER
-
-
 
  real function g_sum(p, ifirst, ilast, jfirst, jlast, area, mode)
 !-------------------------
