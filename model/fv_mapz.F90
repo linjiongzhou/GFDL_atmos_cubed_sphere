@@ -66,11 +66,10 @@ contains
                       akap, cappa, kord_mt, kord_wz, kord_tr, kord_tm,  peln, te0_2d,        &
                       ng, ua, va, omga, te, ws, fill, reproduce_sum, out_dt, dtdt,      &
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
-                      hydrostatic, hybrid_z, do_omega, adiabatic, do_adiabatic_init, &
+                      hydrostatic, hybrid_z, adiabatic, do_adiabatic_init, &
                       do_inline_mp, inline_mp, c2l_ord, bd, fv_debug, &
                       moist_phys, w_limiter, &
-                      do_fsbm, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start, &
-                      lagrangian_tendency_of_hydrostatic_pressure)
+                      do_fsbm, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
   logical, intent(in):: warm_start
@@ -108,7 +107,7 @@ contains
   logical, intent(in):: do_fsbm
   logical, intent(in):: fill                  ! fill negative tracers
   logical, intent(in):: reproduce_sum
-  logical, intent(in):: do_omega, adiabatic, do_adiabatic_init
+  logical, intent(in):: adiabatic, do_adiabatic_init
   real, intent(in) :: ptop
   real, intent(in) :: ak(km+1)
   real, intent(in) :: bk(km+1)
@@ -137,12 +136,11 @@ contains
   logical, intent(in):: hydrostatic
   logical, intent(in):: hybrid_z
   logical, intent(in):: out_dt
-  logical, intent(in):: moist_phys
+  logical, intent(in):: moist_phys !not used --- lmh 13 may 21
 
   real, intent(inout)::   ua(isd:ied,jsd:jed,km)   ! u-wind (m/s) on physics grid
   real, intent(inout)::   va(isd:ied,jsd:jed,km)   ! v-wind (m/s) on physics grid
   real, intent(inout):: omga(isd:ied,jsd:jed,km)   ! vertical press. velocity (pascal/sec)
-  real, allocatable, intent(inout):: lagrangian_tendency_of_hydrostatic_pressure(:,:,:)   !< More accurate calculation of vertical pressure velocity in non-hydrostatic model
   real, intent(inout)::   peln(is:ie,km+1,js:je)     ! log(pe)
   real, intent(inout)::   dtdt(is:ie,js:je,km)
   real, intent(out)::    pkz(is:ie,js:je,km)       ! layer-mean pk for converting t to pt
@@ -168,7 +166,6 @@ contains
   real, dimension(isd:ied,jsd:jed,km):: qnl, qni
 
   real rcp, rg, rrg, bkh, dtmp, k1k
-  real, allocatable, dimension(:,:) :: vulcan_pe3
   logical:: fast_mp_consv
   integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
@@ -221,8 +218,6 @@ contains
        qn_num = get_tracer_index (MODEL_ATMOS, 'qn_num')
        aerosol = get_tracer_index (MODEL_ATMOS, 'aerosol')
 
-       if (allocated(lagrangian_tendency_of_hydrostatic_pressure)) allocate(vulcan_pe3(is:ie+1,km+1))
-
        if ( do_adiabatic_init .or. do_sat_adj ) then
             fast_mp_consv = (.not.do_adiabatic_init) .and. consv>consv_min
             do k=1,km
@@ -237,9 +232,9 @@ contains
 !$OMP                                  graupel,q_con,sphum,cappa,r_vir,rcp,k1k,delp, &
 !$OMP                                  delz,akap,pkz,te,u,v,ps, gridstruct, last_step, &
 !$OMP                                  ak,bk,nq,isd,ied,jsd,jed,kord_tr,fill, adiabatic, &
-!$OMP hs,w,ws,kord_wz,do_omega,omga,lagrangian_tendency_of_hydrostatic_pressure,rrg,kord_mt,pe4,w_limiter)    &
+!$OMP hs,w,ws,kord_wz,omga,rrg,kord_mt,pe4,w_limiter)    &
 !$OMP                          private(gz,cvm,kp,k_next,bkh,dp2,   &
-!$OMP                                  pe0,pe1,pe2,pe3,pk1,pk2,pn2,phis,q2,w2,vulcan_pe3)
+!$OMP                                  pe0,pe1,pe2,pe3,pk1,pk2,pn2,phis,q2,w2)
   do 1000 j=js,je+1
 
      do k=1,km+1
@@ -258,11 +253,11 @@ contains
 ! Note: pt at this stage is Theta_v
              if ( hydrostatic ) then
 ! Transform virtual pt to virtual Temp
-             do k=1,km
+                do k=1,km
                    do i=is,ie
                       pt(i,j,k) = pt(i,j,k)*(pk(i,j,k+1)-pk(i,j,k))/(akap*(peln(i,k+1,j)-peln(i,k,j)))
                    enddo
-             enddo
+                enddo
              else
 ! Transform "density pt" to "density temp"
                do k=1,km
@@ -476,8 +471,8 @@ contains
    enddo
 
 !----------------
-   if ( do_omega ) then
-! Start do_omega
+   if ( last_step ) then
+! Start do_last_step
 ! Copy omega field to pe3
       do i=is,ie
          pe3(i,1) = 0.
@@ -488,17 +483,6 @@ contains
          enddo
       enddo
    endif
-
-   if (last_step .and. allocated(lagrangian_tendency_of_hydrostatic_pressure)) then
-       do i=is,ie
-          vulcan_pe3(i,1) = 0.
-       enddo
-       do k=2,km+1
-          do i=is,ie
-             vulcan_pe3(i,k) = lagrangian_tendency_of_hydrostatic_pressure(i,j,k-1)
-          enddo
-       enddo
-    endif
    
    do k=1,km+1
       do i=is,ie
@@ -517,7 +501,7 @@ contains
          enddo
       enddo
    else
-! Note: pt at this stage is T_v or T_m
+! Note: pt at this stage is T_v or T_m , unless kord_tm > 0
          do k=1,km
 #ifdef MOIST_CAPPA
             call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
@@ -542,7 +526,7 @@ contains
            enddo
            if ( last_step .and. (.not.adiabatic) ) then
               do i=is,ie
-                 pt(i,j,k) = pt(i,j,k)*pkz(i,j,k)
+                 pt(i,j,k) = pt(i,j,k)*pkz(i,j,k) !Need T for energy calculations
               enddo
            endif
          endif
@@ -551,7 +535,7 @@ contains
    endif
 
 ! Interpolate omega/pe3 (defined at pe0) to remapped cell center (dp2)
-   if ( do_omega ) then
+   if ( last_step ) then
    do k=1,km
       do i=is,ie
          dp2(i,k) = 0.5*(peln(i,k,j) + peln(i,k+1,j))
@@ -571,30 +555,8 @@ contains
           enddo
        enddo
    enddo
-   endif     ! end do_omega
+   endif     ! end last_step
 
-   if ( last_step .and. allocated(lagrangian_tendency_of_hydrostatic_pressure)) then
-       do k=1,km
-          do i=is,ie
-             dp2(i,k) = 0.5*(peln(i,k,j) + peln(i,k+1,j))
-          enddo
-       enddo
-       do i=is,ie
-           k_next = 1
-           do n=1,km
-              kp = k_next
-              do k=kp,km
-                 if( dp2(i,n) <= pe0(i,k+1) .and. dp2(i,n) >= pe0(i,k) ) then
-                     lagrangian_tendency_of_hydrostatic_pressure(i,j,n) = vulcan_pe3(i,k)  +  (vulcan_pe3(i,k+1) - vulcan_pe3(i,k)) *    &
-                           (dp2(i,n)-pe0(i,k)) / (pe0(i,k+1)-pe0(i,k) )
-                     k_next = k
-                     exit
-                 endif
-              enddo
-           enddo      
-       enddo
-    endif     ! end last_step
-   
   endif !(j < je+1)
 
       do i=is,ie+1
@@ -1364,7 +1326,7 @@ endif        ! end last_step check
     endif
 
   if ( last_step ) then
-       ! Output temperature if last_step
+       ! Convert T_v/T_m to T if last_step
 !!!  if ( is_master() ) write(*,*) 'dtmp=', dtmp, nwat
 !$OMP parallel do default(none) shared(is,ie,js,je,km,isd,ied,jsd,jed,hydrostatic,pt,adiabatic,cp, &
 !$OMP                                  nwat,rainwat,liq_wat,ice_wat,snowwat,graupel,r_vir,&
@@ -1393,7 +1355,7 @@ endif        ! end last_step check
               endif
            enddo   ! j-loop
         enddo  ! k-loop
-  else  ! not last_step
+  else  ! not last_step: convert T_v/T_m back to theta_v/theta_m for dyn_core
     if ( kord_tm < 0 ) then
 !$OMP parallel do default(none) shared(is,ie,js,je,km,pkz,pt)
        do k=1,km
@@ -1567,6 +1529,7 @@ endif        ! end last_step check
      do i=is,ie
         te_2d(i,j) = 0.
      enddo
+     !TODO moist_phys doesn't seem to make a difference --- lmh 13may21
      if ( moist_phys ) then
      do k=1,km
 #ifdef MOIST_CAPPA

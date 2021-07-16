@@ -1545,6 +1545,8 @@ module sw_core_mod
 ! nord = 1:   del-4
 ! nord = 2:   del-6
 !------------------
+!This does the same operation as tp_core::deln_flux except that it does not
+!add diffusive fluxes into the regular fluxes
    integer, intent(in):: nord, npx, npy
    real, intent(in):: damp
    type(fv_grid_bounds_type), intent(IN) :: bd
