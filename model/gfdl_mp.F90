@@ -120,8 +120,8 @@ module gfdl_mp_mod
     real, parameter :: hlv = 2.5e6 ! latent heat of evaporation (J/kg)
     real, parameter :: hlf = 3.3358e5 ! latent heat of fusion (J/kg)
     
-    real, parameter :: visk = 1.259e-5 ! kinematic viscosity of air (cm^2/s)
-    real, parameter :: vdifu = 2.11e-5 ! diffusivity of water vapor in air (cm^2/s)
+    real, parameter :: visk = 1.259e-5 ! kinematic viscosity of air (m^2/s)
+    real, parameter :: vdifu = 2.11e-5 ! diffusivity of water vapor in air (m^2/s)
     real, parameter :: tcond = 2.36e-2 ! thermal conductivity of air (J/m/s/K)
     
     real (kind = r8), parameter :: lv0 = hlv - dc_vap * tice ! 3.14893552e6, evaporation latent heat coeff. at 0 deg K (J/kg)

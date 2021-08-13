@@ -31,7 +31,6 @@ module atmosphere_mod
 !-----------------
 ! FMS modules:
 !-----------------
-use external_sst_mod,       only: get_ec_sst
 use block_control_mod,      only: block_control_type
 use constants_mod,          only: cp_air, rdgas, grav, rvgas, kappa, pstd_mks, pi
 use time_manager_mod,       only: time_type, get_time, set_time, operator(+), &
@@ -568,10 +567,6 @@ contains
        qv_dt(:,:,:) = rdt*(Atm(1)%q(isc:iec,jsc:jec,:,sphum) - qv_dt(:,:,:))
        Atm(n)%sg_diag%qv_dt = qv_dt(isc:iec,jsc:jec,:)
     endif
-
-   if (Atm(n)%flagstruct%read_ec_sst) then
-       call get_ec_sst(Time, isc, iec, jsc, jec, Atm(n)%ts(isc:iec,jsc:jec), Atm(n)%ci)
-   endif
 
    call mpp_clock_end (id_subgridz)
 
@@ -1688,13 +1683,6 @@ contains
          enddo
      endif
 
-     do ix = 1, blen
-       i = Atm_block%index(nb)%ii(ix)
-       j = Atm_block%index(nb)%jj(ix)
-       IPD_Data(nb)%Statein%sst(ix) = _DBL_(_RL_(Atm(mygrid)%ts(i,j)))
-       if (Atm(mygrid)%flagstruct%read_ec_sst) IPD_Data(nb)%Statein%ci(ix) = _DBL_(_RL_(Atm(mygrid)%ci(i,j)))
-     enddo
-     
      do k = 1, npz
        do ix = 1, blen
          i = Atm_block%index(nb)%ii(ix)

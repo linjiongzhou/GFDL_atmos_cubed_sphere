@@ -2249,6 +2249,8 @@ contains
 
    real :: var_nest_3d(is_n:ie_n+istag,js_n:je_n+jstag,1)
    real :: var_coarse_3d(isd_p:ied_p+istag,jsd_p:jed_p+jstag,1)
+   integer( KIND = 8) :: ptr_nest=0
+   integer( KIND = 8) :: ptr_coarse=0
    pointer(ptr_nest, var_nest_3d)
    pointer(ptr_coarse, var_coarse_3d)
 
@@ -2542,7 +2544,7 @@ contains
 
   subroutine update_coarse_grid_mpp_vector(u_coarse, v_coarse, u_nest, v_nest, nest_domain, dx, dy, area, &
       bd, isd_p, ied_p, jsd_p, jed_p, is_n, ie_n, js_n, je_n, &
-      isu, ieu, jsu, jeu, npx, npy, npz, istag_u, jstag_u, istag_v, jstag_v, &
+      isu, ieu, jsu, jeu, jeu_stag, iev_stag, npx, npy, npz, istag_u, jstag_u, istag_v, jstag_v, &
       r, nestupdate, upoff, nsponge, &
       parent_proc, child_proc, parent_grid, nest_level, flags, gridtype)
 
@@ -2552,7 +2554,7 @@ contains
 
    type(fv_grid_bounds_type), intent(IN) :: bd
    integer, intent(IN) :: isd_p, ied_p, jsd_p, jed_p, is_n, ie_n, js_n, je_n
-   integer, intent(IN) :: isu, ieu, jsu, jeu
+   integer, intent(IN) :: isu, ieu, jsu, jeu, jeu_stag, iev_stag
    integer, intent(IN) :: istag_u, jstag_u, istag_v, jstag_v
    integer, intent(IN) :: npx, npy, npz, r, nestupdate, upoff, nsponge
    real, intent(IN)    :: u_nest(is_n:ie_n+istag_u,js_n:je_n+jstag_u,npz)
@@ -2613,13 +2615,14 @@ contains
    s = r/2 !rounds down (since r > 0)
    qr = r*upoff + nsponge - s
 
-   if (parent_proc .and. .not. (ieu < isu .or. jeu < jsu)) then
+   if (parent_proc .and. .not. (ieu < isu .or. jeu_stag < jsu)) then
       call fill_var_coarse(u_coarse, coarse_dat_recv_u, isd_p, ied_p, jsd_p, jed_p, &
-           isu, ieu, jsu, jeu, npx, npy, npz, istag_u, jstag_u, nestupdate, parent_grid)
+           isu, ieu, jsu, jeu_stag, npx, npy, npz, istag_u, jstag_u, nestupdate, parent_grid)
    endif
-   if (parent_proc .and. .not. (ieu < isu .or. jeu < jsu)) then
+
+   if (parent_proc .and. .not. (iev_stag < isu .or. jeu < jsu)) then
       call fill_var_coarse(v_coarse, coarse_dat_recv_v, isd_p, ied_p, jsd_p, jed_p, &
-           isu, ieu, jsu, jeu, npx, npy, npz, istag_v, jstag_v, nestupdate, parent_grid)
+           isu, iev_stag, jsu, jeu, npx, npy, npz, istag_v, jstag_v, nestupdate, parent_grid)
    endif
 
    if (allocated(coarse_dat_recv_u)) deallocate(coarse_dat_recv_u)
