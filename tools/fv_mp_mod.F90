@@ -282,9 +282,10 @@ contains
 !
 !     domain_decomp :: Setup domain decomp
 !
-      subroutine domain_decomp(npx,npy,nregions,grid_type,nested,layout,io_layout,bd,tile,square_domain,&
+      subroutine domain_decomp(grid_num,npx,npy,nregions,grid_type,nested,layout,io_layout,bd,tile,square_domain,&
            npes_per_tile,domain,domain_for_coupler,num_contact,pelist)
 
+         integer, intent(IN)  :: grid_num
          integer, intent(IN)  :: npx,npy,grid_type
          integer, intent(INOUT) :: nregions, tile
          logical, intent(IN):: nested
@@ -551,7 +552,7 @@ contains
                if( nregions .NE. 1 ) then
                   call mpp_error(FATAL, 'domain_decomp: nregions should be 1 for nested region, contact developer')
                endif
-               tile_id(1) = 7   ! TODO need update for multiple nests
+               tile_id(1) = tile_fine(grid_num)
             else
                do n = 1, nregions
                   tile_id(n) = n

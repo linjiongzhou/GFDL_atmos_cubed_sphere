@@ -321,9 +321,20 @@ contains
           enddo
           else
             do j=js,je
-               do i=is,ie
+#ifdef MOIST_CAPPA
+             call moist_cv(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, sphum, liq_wat, rainwat,    &
+                           ice_wat, snowwat, graupel, q, q_con(is:ie,j,k), cvm)
+#endif
+             do i=is,ie
+                dp1(i,j,k) = zvir*q(i,j,k,sphum)
+#ifdef MOIST_CAPPA
+               cappa(i,j,k) = rdgas/(rdgas + cvm(i)/(1.+dp1(i,j,k)))
+               pkz(i,j,k) = exp(cappa(i,j,k)*log(rdg*delp(i,j,k)*pt(i,j,k)*    &
+                            (1.+dp1(i,j,k))*(1.-q_con(i,j,k))/delz(i,j,k)) )
+#else
                   dp1(i,j,k) = 0.
                   pkz(i,j,k) = exp(kappa*log(rdg*delp(i,j,k)*pt(i,j,k)/delz(i,j,k)))
+#endif                  
                enddo
             enddo
           endif
@@ -383,32 +394,7 @@ contains
 #endif
 
 #ifndef SW_DYNAMICS
-      ! BUG: If MOIST_CAPPA+USE_COND are set and adiabatic = true then
-      ! if k_split = 1, then pt is not correctly converted back to T
-      ! after L2E. If any of these conditions are relaxed this doesn't
-      ! happen. The problem appears to be that pkz isn't correctly
-      ! re-computed in this case --- lmh 13 May 21
 ! Convert pt to virtual potential temperature on the first timestep
-  if ( flagstruct%adiabatic .and. flagstruct%kord_tm>0 ) then
-     if ( .not.pt_initialized )then
-!$OMP parallel do default(none) shared(theta_d,is,ie,js,je,npz,pt,pkz,q)
-       do k=1,npz
-          do j=js,je
-             do i=is,ie
-                pt(i,j,k) = pt(i,j,k)/pkz(i,j,k)
-             enddo
-          enddo
-          if ( theta_d>0 ) then
-             do j=js,je
-                do i=is,ie
-                   q(i,j,k,theta_d) = pt(i,j,k)
-                enddo
-             enddo
-          endif
-       enddo
-       pt_initialized = .true.
-     endif
-  else
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,pt,dp1,pkz,q_con)
   do k=1,npz
      do j=js,je
@@ -421,7 +407,6 @@ contains
         enddo
      enddo
   enddo
-  endif
 #endif
 
   last_step = .false.
@@ -587,10 +572,15 @@ contains
         if (is_master()) write(*,'(A, I3, A1, I3)') 'before remap k_split ', n_map, '/', k_split
        call prt_mxm('T_ldyn',    pt, is, ie, js, je, ng, npz, 1., gridstruct%area_64, domain)
        call prt_mxm('SPHUM_ldyn',   q(isd,jsd,1,sphum  ), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( liq_wat > 0 )  &
        call prt_mxm('liq_wat_ldyn', q(isd,jsd,1,liq_wat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( rainwat > 0 )  &
        call prt_mxm('rainwat_ldyn', q(isd,jsd,1,rainwat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( ice_wat > 0 )  &
        call prt_mxm('ice_wat_ldyn', q(isd,jsd,1,ice_wat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( snowwat > 0 )  &
        call prt_mxm('snowwat_ldyn', q(isd,jsd,1,snowwat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( graupel > 0 )  &
        call prt_mxm('graupel_ldyn', q(isd,jsd,1,graupel), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
 
 #ifdef TEST_LMH
@@ -630,11 +620,16 @@ contains
        call prt_mxm('T_dyn_a4',    pt, is, ie, js, je, ng, npz, 1., gridstruct%area_64, domain)
        call prt_mxm('pkz',         pkz, is, ie, js, je, 0, npz, 1., gridstruct%area_64, domain)
        call prt_mxm('SPHUM_dyn',   q(isd,jsd,1,sphum  ), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( liq_wat > 0 )  &
        call prt_mxm('liq_wat_dyn', q(isd,jsd,1,liq_wat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
-       call prt_mxm('rainwat_dyn', q(isd,jsd,1,rainwat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
-       call prt_mxm('ice_wat_dyn', q(isd,jsd,1,ice_wat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
-       call prt_mxm('snowwat_dyn', q(isd,jsd,1,snowwat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
-       call prt_mxm('graupel_dyn', q(isd,jsd,1,graupel), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( rainwat > 0 )  &
+      call prt_mxm('rainwat_dyn', q(isd,jsd,1,rainwat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( ice_wat > 0 )  &
+      call prt_mxm('ice_wat_dyn', q(isd,jsd,1,ice_wat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( snowwat > 0 )  &
+      call prt_mxm('snowwat_dyn', q(isd,jsd,1,snowwat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
+       if ( graupel > 0 )  &
+      call prt_mxm('graupel_dyn', q(isd,jsd,1,graupel), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
      endif
 #ifdef AVEC_TIMERS
                                                   call avec_timer_stop(6)

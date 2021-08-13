@@ -505,11 +505,18 @@ contains
 #ifdef MOIST_CAPPA
             call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
                           ice_wat, snowwat, graupel, q, gz, cvm)
-            do i=is,ie
-               q_con(i,j,k) = gz(i)
-               cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
-               pkz(i,j,k) = exp(cappa(i,j,k)*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
-            enddo
+            if ( kord_tm < 0 ) then
+              do i=is,ie
+                 q_con(i,j,k) = gz(i)
+                 cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
+                 pkz(i,j,k) = exp(cappa(i,j,k)*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+              enddo
+            else
+              do i=is,ie
+                   cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
+                   pkz(i,j,k) = exp(cappa(i,j,k)/(1.-cappa(i,j,k))*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+             enddo
+            endif
 #else
          if ( kord_tm < 0 ) then
            do i=is,ie
@@ -523,13 +530,15 @@ contains
 ! Using dry pressure for the definition of the virtual potential temperature
 !             pkz(i,j,k) = exp(k1k*log(rrg*(1.-q(i,j,k,sphum))*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)/(1.+r_vir*q(i,j,k,sphum))))
            enddo
-           if ( last_step .and. (.not.adiabatic) ) then
-              do i=is,ie
-                 pt(i,j,k) = pt(i,j,k)*pkz(i,j,k) !Need T for energy calculations
-              enddo
-           endif
          endif
 #endif
+         enddo
+   endif
+   if ( kord_tm > 0 ) then
+         do k=1,km
+           do i=is,ie
+                 pt(i,j,k) = pt(i,j,k)*pkz(i,j,k) !Need T for energy calculations
+           enddo
          enddo
    endif
 
@@ -1351,7 +1360,6 @@ endif        ! end last_step check
            enddo   ! j-loop
         enddo  ! k-loop
   else  ! not last_step: convert T_v/T_m back to theta_v/theta_m for dyn_core
-    if ( kord_tm < 0 ) then
 !$OMP parallel do default(none) shared(is,ie,js,je,km,pkz,pt)
        do k=1,km
           do j=js,je
@@ -1360,7 +1368,7 @@ endif        ! end last_step check
              enddo
           enddo
        enddo
-    endif
+
   endif
 
 !-----------------------------------------------------------------------
