@@ -705,9 +705,9 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
                     ! Boucher and Lohmann (1995)
                     if (aerosol .gt. 0) then
                         nl = xland (i, j) * &
-                            (10. ** 2.24 * (0.7273 * q (i, j, km+1-k, aerosol) * rho_phy (i, k, j) * 1.e9) ** 0.257) + &
+                            (10. ** 2.24 * (q (i, j, km+1-k, aerosol) * rho_phy (i, k, j) * 1.e9) ** 0.257) + &
                             (1. - xland (i, j)) * &
-                            (10. ** 2.06 * (0.7273 * q (i, j, km+1-k, aerosol) * rho_phy (i, k, j) * 1.e9) ** 0.48)
+                            (10. ** 2.06 * (q (i, j, km+1-k, aerosol) * rho_phy (i, k, j) * 1.e9) ** 0.48)
                         nl = max (10.0, nl) * 1.e6 / rho_phy (i, k, j)
                     else
                         nl = 1.e8
