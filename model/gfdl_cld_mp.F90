@@ -1191,9 +1191,9 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, &
             do k = ks, ke
                 ! boucher and lohmann (1995)
                 nl = min (1., abs (hs (i)) / (10. * grav)) * &
-                     (10. ** 2.24 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.257) + &
+                     (10. ** 2.24 * (qnl (i, k) * den (k) * 1.e9) ** 0.257) + &
                      (1. - min (1., abs (hs (i)) / (10. * grav))) * &
-                     (10. ** 2.06 * (0.7273 * qnl (i, k) * den (k) * 1.e9) ** 0.48)
+                     (10. ** 2.06 * (qnl (i, k) * den (k) * 1.e9) ** 0.48)
                 ni = qni (i, k)
                 ccn (k) = max (10.0, nl) * 1.e6
                 cin (k) = max (10.0, ni) * 1.e6
@@ -5620,9 +5620,9 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, qa,
                 if (prog_ccn) then
                     ! boucher and lohmann (1995)
                     ccnw = (1.0 - abs (mask - 1.0)) * &
-                         (10. ** 2.24 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.257) + &
+                         (10. ** 2.24 * (qa (i, k) * rho * 1.e9) ** 0.257) + &
                         abs (mask - 1.0) * &
-                         (10. ** 2.06 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.48)
+                         (10. ** 2.06 * (qa (i, k) * rho * 1.e9) ** 0.48)
                 else
 #ifdef MARTIN_CCN
                     ccnw = 0.80 * (- 1.15e-3 * (ccno ** 2) + 0.963 * ccno + 5.30) * abs (mask - 1.0) + &
@@ -5653,9 +5653,9 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, qa,
                 if (prog_ccn) then
                     ! boucher and lohmann (1995)
                     ccnw = (1.0 - abs (mask - 1.0)) * &
-                         (10. ** 2.24 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.257) + &
+                         (10. ** 2.24 * (qa (i, k) * rho * 1.e9) ** 0.257) + &
                         abs (mask - 1.0) * &
-                         (10. ** 2.06 * (0.7273 * qa (i, k) * rho * 1.e9) ** 0.48)
+                         (10. ** 2.06 * (qa (i, k) * rho * 1.e9) ** 0.48)
                 else
                     ccnw = 1.077 * ccno * abs (mask - 1.0) + 1.143 * ccnl * (1.0 - abs (mask - 1.0))
                 endif
