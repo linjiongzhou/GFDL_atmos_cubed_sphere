@@ -326,7 +326,7 @@ contains
     integer :: is,  ie,  js,  je
     integer :: isd, ied, jsd, jed
     integer :: ios, ierr, unit, id_res
-    type (restart_file_type) :: ORO_restart, SFC_restart, GFS_restart
+    type (restart_file_type) :: ORO_restart, GFS_restart
     character(len=6)  :: gn, stile_name
     character(len=64) :: tracer_name
     character(len=64) :: fn_gfs_ctl = 'gfs_ctrl.nc'
@@ -476,10 +476,8 @@ contains
 
     ! read in the restart
     call restore_state (ORO_restart)
-    call restore_state (SFC_restart)
     ! free the restart type to be re-used by the nest
     call free_restart_type(ORO_restart)
-    call free_restart_type(SFC_restart)
 
 
     ! initialize all tracers to default values prior to being input
@@ -829,7 +827,7 @@ contains
       integer :: is,  ie,  js,  je
       integer :: isd, ied, jsd, jed
       integer :: ios, ierr, unit, id_res
-      type (restart_file_type) :: ORO_restart, SFC_restart, HRRR_restart
+      type (restart_file_type) :: ORO_restart, HRRR_restart
       character(len=6)  :: gn, stile_name
       character(len=64) :: tracer_name
       character(len=64) :: fn_hrr_ctl = 'hrrr_ctrl.nc'
@@ -1011,11 +1009,9 @@ contains
 
         ! read in the restart
         call restore_state (ORO_restart)
-        call restore_state (SFC_restart)
         call restore_state (HRRR_restart)
         ! free the restart type to be re-used by the nest
         call free_restart_type(ORO_restart)
-        call free_restart_type(SFC_restart)
         call free_restart_type(HRRR_restart)
 
 
