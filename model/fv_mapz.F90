@@ -67,11 +67,12 @@ contains
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, adiabatic, do_adiabatic_init, &
                       do_inline_mp, inline_mp, c2l_ord, bd, fv_debug, &
-                      w_limiter, &
+                      moist_phys, do_aerosol, w_limiter, &
                       do_fsbm, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
   logical, intent(in):: warm_start
+  logical, intent(in):: do_aerosol
   logical, intent(in):: w_limiter
   real,    intent(in):: mdt                   ! remap time step
   real,    intent(in):: pdt                   ! phys time step
@@ -162,6 +163,31 @@ contains
   integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
   integer:: ccn_cm3, cin_cm3, aerosol
+  integer:: ql_num, qr_num, qi_num, qs_num, qg_num, qa_num, qn_num
+
+  ! Linjiong Zhou, FSBM
+
+  logical :: diagflag = .false.
+  integer :: n_chem, num_sbmradar, itimestep
+  real :: qliq, qsol, f_sum, mu, sigma, alpha, beta, qsat, rh
+  real :: dqv, dql, dqr, dqi, dqs, dqg, ps_dt, nl
+  real, parameter :: xr_a = 0.25 ! p value in xu and randall, 1996
+  real, parameter :: xr_b = 100. ! alpha_0 value in xu and randall, 1996
+  real, parameter :: xr_c = 0.49 ! gamma value in xu and randall, 1996
+  integer, dimension(fsbm_bin) :: qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind
+  real, dimension(fsbm_bin) :: f
+  real, allocatable, dimension(:,:) :: xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv
+  real, allocatable, dimension(:,:,:) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy
+  real, allocatable, dimension(:,:,:) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng
+  real, allocatable, dimension(:,:,:) :: sbqna, sbqnn
+  real, allocatable, dimension(:,:,:) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
+  real, allocatable, dimension(:,:,:) :: cldnucl_rate, icenucl_rate, n_reg_ccn
+  real, allocatable, dimension(:,:,:) :: th_old, qv_old
+  real, allocatable, dimension(:,:,:) :: pkz0, delz0, dlnp
+  real, allocatable, dimension(:,:,:,:) :: chem_new
+  real, allocatable, dimension(:,:,:,:) :: sbmradar
+  character(len=4) :: ind
+  integer :: unit
 
        k1k = rdgas/cv_air   ! akap / (1.-akap) = rg/Cv=0.4
         rg = rdgas
@@ -176,7 +202,23 @@ contains
        cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
        ccn_cm3 = get_tracer_index (MODEL_ATMOS, 'ccn_cm3')
        cin_cm3 = get_tracer_index (MODEL_ATMOS, 'cin_cm3')
+       ql_num = get_tracer_index (MODEL_ATMOS, 'ql_num')
+       qr_num = get_tracer_index (MODEL_ATMOS, 'qr_num')
+       qi_num = get_tracer_index (MODEL_ATMOS, 'qi_num')
+       qs_num = get_tracer_index (MODEL_ATMOS, 'qs_num')
+       qg_num = get_tracer_index (MODEL_ATMOS, 'qg_num')
+       qa_num = get_tracer_index (MODEL_ATMOS, 'qa_num')
+       qn_num = get_tracer_index (MODEL_ATMOS, 'qn_num')
        aerosol = get_tracer_index (MODEL_ATMOS, 'aerosol')
+
+       if ( do_adiabatic_init .or. do_sat_adj ) then
+            fast_mp_consv = (.not.do_adiabatic_init) .and. consv>consv_min
+            do k=1,km
+               kmp = k
+               if ( pfull(k) > 10.E2 ) exit
+            enddo
+            call qsmith_init
+       endif
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,pe,ptop,kord_tm,hydrostatic, &
 !$OMP                                  pt,pk,rg,peln,q,nwat,liq_wat,rainwat,ice_wat,snowwat,    &
@@ -714,6 +756,339 @@ endif        ! end last_step check
 !-----------------------------------------------------------------------
 ! <<< Fast Physics
 !-----------------------------------------------------------------------
+
+    if ((.not. do_adiabatic_init) .and. do_inline_mp .and. do_fsbm) then
+
+        f_sum = 0
+        do n = 1, fsbm_bin
+            ! normal distribution
+            ! mu = (1 + fsbm_bin) / 2.
+            ! sigma = 10.
+            ! f(n) = 1. / (sigma * sqrt(2. * pi)) * exp(- (n - mu) ** 2. / (2. * sigma ** 2.))
+            ! gamma distribution
+            alpha = 3.
+            beta = 3.
+            f(n) = 1. / (gamma(alpha) * beta ** alpha) * n ** (alpha - 1.) * exp(- n / beta)
+            ! sum up
+            f_sum = f_sum + f(n)
+            ! get tracer index
+            if (n .lt. 10) then
+                write (ind,'(I1)') n
+            else
+                write (ind,'(I2)') n
+            endif
+            qlr_ind(n) = get_tracer_index(MODEL_ATMOS, 'qlr_'//trim(ind))
+            qis_ind(n) = get_tracer_index(MODEL_ATMOS, 'qis_'//trim(ind))
+            qg_ind(n) = get_tracer_index(MODEL_ATMOS, 'qg_'//trim(ind))
+            qa_ind(n) = get_tracer_index(MODEL_ATMOS, 'qa_'//trim(ind))
+            qn_ind(n) = get_tracer_index(MODEL_ATMOS, 'qn_'//trim(ind))
+        enddo
+        f = f / f_sum
+
+        n_chem = fsbm_bin * 5
+        num_sbmradar = 55
+
+        allocate(xland(is:ie,js:je), rainnc(is:ie,js:je), rainncv(is:ie,js:je), snownc(is:ie,js:je))
+        allocate(snowncv(is:ie,js:je), graupelnc(is:ie,js:je), graupelncv(is:ie,js:je))
+        allocate(ur(is-1:ie+1,km,js-1:je+1), vr(is-1:ie+1,km,js-1:je+1), wr(is-1:ie+1,km,js-1:je+1))
+        allocate(dz8w(is-1:ie+1,km,js-1:je+1), n_reg_ccn(is:ie,km,js:je))
+        allocate(p_phy(is-1:ie+1,km,js-1:je+1), pi_phy(is-1:ie+1,km,js-1:je+1), rho_phy(is-1:ie+1,km,js-1:je+1))
+        allocate(th_phy(is-1:ie+1,km,js-1:je+1), sbqv(is-1:ie+1,km,js-1:je+1), sbqc(is:ie,km,js:je))
+        allocate(sbqr(is:ie,km,js:je), sbqi(is:ie,km,js:je), sbqs(is:ie,km,js:je))
+        allocate(sbqg(is:ie,km,js:je), sbqnc(is:ie,km,js:je), sbqnr(is:ie,km,js:je))
+        allocate(sbqni(is:ie,km,js:je), sbqns(is:ie,km,js:je), sbqng(is:ie,km,js:je))
+        allocate(sbqna(is:ie,km,js:je), ma(is:ie,km,js:je), lh_rate(is:ie,km,js:je), sbqnn(is:ie,km,js:je))
+        allocate(ce_rate(is:ie,km,js:je), ds_rate(is:ie,km,js:je), melt_rate(is:ie,km,js:je))
+        allocate(frz_rate(is:ie,km,js:je), cldnucl_rate(is:ie,km,js:je), icenucl_rate(is:ie,km,js:je))
+        allocate(th_old(is-1:ie+1,km,js-1:je+1), qv_old(is-1:ie+1,km,js-1:je+1), chem_new(is:ie,km,js:je,n_chem))
+        allocate(pkz0(is-ng:ie+ng,js-ng:je+ng,km), delz0(is-ng:ie+ng,js-ng:je+ng,km), dlnp(is-ng:ie+ng,js-ng:je+ng,km))
+        allocate(sbmradar(is:ie,km,js:je,num_sbmradar))
+
+!$OMP parallel do default(none) shared(is,ie,js,je,km,pkz,pkz0,delz,delz0,dlnp,peln,hydrostatic)
+        do j = js, je
+            do i = is, ie
+                do k = 1, km
+                    pkz0(i,j,k) = pkz(i,j,k)
+                    if (hydrostatic) then
+                        dlnp(i,j,k) = peln(i,k+1,j) - peln(i,k,j)
+                    else
+                        delz0(i,j,k) = delz(i,j,k)
+                    endif
+                enddo
+            enddo
+        enddo
+
+        call mpp_update_domains(pt, domain)
+        call mpp_update_domains(ua, domain)
+        call mpp_update_domains(va, domain)
+        call mpp_update_domains(q(:,:,:,sphum), domain)
+        call mpp_update_domains(delp, domain)
+        if (hydrostatic) then
+            call mpp_update_domains(dlnp, domain)
+        else
+            call mpp_update_domains(w, domain)
+            call mpp_update_domains(delz0, domain)
+        endif
+        call mpp_update_domains(pkz0, domain)
+        call mpp_update_domains(pt_old, domain)
+        call mpp_update_domains(q_old, domain)
+
+!$OMP parallel do default(none) shared(is,ie,js,je,km,ua,va,w,ur,vr,wr,dz8w,delz0,rho_phy,delp, &
+!$OMP                                  p_phy,pt,pi_phy,pkz0,th_phy,pt_old,th_old,q_old,qv_old, &
+!$OMP                                  sbqv,q,sphum,dlnp,hydrostatic,omga)
+        do j = js-1, je+1
+            do i = is-1, ie+1
+                do k = 1, km
+                    ur(i,k,j) = ua(i,j,km+1-k)
+                    vr(i,k,j) = va(i,j,km+1-k)
+                    if (hydrostatic) then
+                        p_phy(i,k,j) = delp(i,j,km+1-k) / dlnp(i,j,km+1-k)
+                        rho_phy(i,k,j) = p_phy(i,k,j) / (rdgas * pt(i,j,km+1-k))
+                        dz8w(i,k,j) = delp(i,j,km+1-k) / (rho_phy(i,k,j) * grav)
+                        wr(i,k,j) = - omga(i,j,km+1-k) * dz8w(i,k,j) / delp(i,j,km+1-k)
+                    else
+                        dz8w(i,k,j) = - delz0(i,j,km+1-k)
+                        rho_phy(i,k,j) = - delp(i,j,km+1-k) / delz0(i,j,km+1-k) / grav
+                        p_phy(i,k,j) = rho_phy(i,k,j) * rdgas * pt(i,j,km+1-k)
+                        wr(i,k,j) = w(i,j,km+1-k)
+                    endif
+                    pi_phy(i,k,j) = pkz0(i,j,km+1-k)
+                    th_phy(i,k,j) = pt(i,j,km+1-k) / pi_phy(i,k,j)
+                    th_old(i,k,j) = pt_old(i,j,km+1-k) / pi_phy(i,k,j)
+                    qv_old(i,k,j) = q_old(i,j,km+1-k)
+                    sbqv(i,k,j) = q(i,j,km+1-k,sphum)
+                enddo
+            enddo
+        enddo
+
+!$OMP parallel do default(none) shared(is,ie,js,je,km,hs,rho_phy,delp,pt,q, &
+!$OMP                                  chem_new,te,xland,sphum,liq_wat,ice_wat,rainwat, &
+!$OMP                                  snowwat,graupel,ma,lh_rate,ce_rate,ds_rate,melt_rate, &
+!$OMP                                  frz_rate,consv,f,qlr_ind,qis_ind,qg_ind,qa_ind,qn_ind,a_step, &
+!$OMP                                  fsbm_bin,r_vir,warm_start,itimestep,do_aerosol,aerosol,nl) &
+!$OMP                          private(qliq,qsol,cvm)
+        do j = js, je
+            do i = is, ie
+                if (hs(i,j) .gt. 0) then
+                    xland(i,j) = 1
+                else
+                    xland(i,j) = 0
+                endif
+                do k = 1, km
+                    ! Boucher and Lohmann (1995)
+                    if (do_aerosol) then
+                        nl = xland(i,j) * &
+                            (10. ** 2.24 * (0.7273 * q(i,j,km+1-k,aerosol) * rho_phy(i,k,j) * 1.e9) ** 0.257) + &
+                            (1. - xland(i,j)) * &
+                            (10. ** 2.06 * (0.7273 * q(i,j,km+1-k,aerosol) * rho_phy(i,k,j) * 1.e9) ** 0.48)
+                        nl = max (10.0, nl) * 1.e6 / rho_phy(i,k,j)
+                    else
+                        nl = 1.e8 / rho_phy(i,k,j)
+                    endif
+                    do n = 1, fsbm_bin
+                        if (.not. warm_start .and. a_step .eq. 1) then
+                            itimestep = 1
+                            chem_new(i,k,j,fsbm_bin*0+n) = (q(i,j,km+1-k,liq_wat) + q(i,j,km+1-k,rainwat)) * f(n)
+                            chem_new(i,k,j,fsbm_bin*1+n) = (q(i,j,km+1-k,ice_wat) + q(i,j,km+1-k,snowwat)) * f(n)
+                            chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,graupel) * f(n)
+                            chem_new(i,k,j,fsbm_bin*3+n) = nl * f(n)
+                            chem_new(i,k,j,fsbm_bin*4+n) = 0.0
+                        else
+                            itimestep = 2
+                            chem_new(i,k,j,fsbm_bin*0+n) = q(i,j,km+1-k,qlr_ind(n))
+                            chem_new(i,k,j,fsbm_bin*1+n) = q(i,j,km+1-k,qis_ind(n))
+                            chem_new(i,k,j,fsbm_bin*2+n) = q(i,j,km+1-k,qg_ind(n))
+                            chem_new(i,k,j,fsbm_bin*3+n) = q(i,j,km+1-k,qa_ind(n)) 
+                            chem_new(i,k,j,fsbm_bin*4+n) = q(i,j,km+1-k,qn_ind(n)) 
+                        endif
+                    enddo
+                    ma(i,k,j) = 0.0
+                    lh_rate(i,k,j) = 0.0
+                    ce_rate(i,k,j) = 0.0
+                    ds_rate(i,k,j) = 0.0
+                    melt_rate(i,k,j) = 0.0
+                    frz_rate(i,k,j) = 0.0
+
+                    if (consv .gt. consv_min) then
+                        qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
+                        qsol = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
+                        cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
+                            q(i,j,k,sphum) * cv_vap + qliq * c_liq + qsol * c_ice
+                        te(i,j,k) = - cvm(i) * pt(i,j,k) / ((1. + r_vir * q(i,j,k,sphum)) * &
+                            (1. - (qliq + qsol))) * delp(i,j,k)
+                    endif
+                enddo
+            enddo
+        enddo
+
+        !unit = stdout()
+        !write(unit,*) 'fsbm chksum before: temp', mpp_chksum(pt(is:ie,js:je,:))
+        !write(unit,*) 'fsbm chksum before: qv', mpp_chksum(q(is:ie,js:je,:,sphum))
+        !write(unit,*) 'fsbm chksum before: qml', mpp_chksum(q(is:ie,js:je,:,liq_wat))
+        !write(unit,*) 'fsbm chksum before: qmr', mpp_chksum(q(is:ie,js:je,:,rainwat))
+        !write(unit,*) 'fsbm chksum before: qmi', mpp_chksum(q(is:ie,js:je,:,ice_wat))
+        !write(unit,*) 'fsbm chksum before: qms', mpp_chksum(q(is:ie,js:je,:,snowwat))
+        !write(unit,*) 'fsbm chksum before: qmg', mpp_chksum(q(is:ie,js:je,:,graupel))
+        !write(unit,*) 'fsbm chksum before: qnl', mpp_chksum(q(is:ie,js:je,:,ql_num))
+        !write(unit,*) 'fsbm chksum before: qnr', mpp_chksum(q(is:ie,js:je,:,qr_num))
+        !write(unit,*) 'fsbm chksum before: qni', mpp_chksum(q(is:ie,js:je,:,qi_num))
+        !write(unit,*) 'fsbm chksum before: qns', mpp_chksum(q(is:ie,js:je,:,qs_num))
+        !write(unit,*) 'fsbm chksum before: qng', mpp_chksum(q(is:ie,js:je,:,qg_num))
+        !write(unit,*) 'fsbm chksum before: qlr', mpp_chksum(q(is:ie,js:je,:,7+1:7+33))
+        !write(unit,*) 'fsbm chksum before: qis', mpp_chksum(q(is:ie,js:je,:,7+34:7+66))
+        !write(unit,*) 'fsbm chksum before: qgg', mpp_chksum(q(is:ie,js:je,:,7+67:7+99))
+        !write(unit,*) 'fsbm chksum before: ccn', mpp_chksum(q(is:ie,js:je,:,7+100:7+132))
+  
+!$OMP parallel do default(none) shared(is,ie,js,je,km,inline_mp,q,sphum,liq_wat,rainwat,ice_wat,snowwat,graupel,pt)
+        do j = js, je
+            do i = is, ie
+                do k = 1, km
+                    if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt(i,j,k) = inline_mp%liq_wat_dt(i,j,k) - q(i,j,k,liq_wat)
+                    if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt(i,j,k) = inline_mp%ice_wat_dt(i,j,k) - q(i,j,k,ice_wat)
+                    if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt(i,j,k) = inline_mp%qv_dt(i,j,k) - q(i,j,k,sphum)
+                    if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(i,j,k) = inline_mp%ql_dt(i,j,k) - (q(i,j,k,liq_wat) + q(i,j,k,rainwat))
+                    if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt(i,j,k) = inline_mp%qi_dt(i,j,k) - (q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel))
+                    if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt(i,j,k) = inline_mp%qr_dt(i,j,k) - q(i,j,k,rainwat)
+                    if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(i,j,k) = inline_mp%qs_dt(i,j,k) - q(i,j,k,snowwat)
+                    if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(i,j,k) = inline_mp%qg_dt(i,j,k) - q(i,j,k,graupel)
+                    if (allocated(inline_mp%t_dt)) inline_mp%t_dt(i,j,k) = inline_mp%t_dt(i,j,k) - pt(i,j,k)
+                enddo
+            enddo
+        enddo
+
+        call fast_sbm(wr, ur, vr, th_old, chem_new, n_chem, itimestep, abs(mdt), fsbm_dx, &
+            fsbm_dy, dz8w, rho_phy, p_phy, pi_phy, th_phy, xland, sbqv, sbqc, sbqr, sbqi, &
+            sbqs, sbqg, qv_old, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, sbqnn, 1, npx, &
+            1, npy, 1, km, is, ie, js, je, 1, km, is, ie, js, je, 1, km, diagflag, sbmradar, &
+            num_sbmradar, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv, ma, &
+            lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, cldnucl_rate, icenucl_rate, &
+            n_reg_ccn)
+
+!$OMP parallel do default(none) shared(is,ie,js,je,km,inline_mp,do_inline_mp,rainncv,snowncv, &
+!$OMP                                  graupelncv,mdt,sbqv,sbqc,sbqr,sbqi,sbqs,sbqg,q,th_phy, &
+!$OMP                                  pi_phy,th_old,pt,pt_old,q_old,qv_old,q_con,cappa,r_vir, &
+!$OMP                                  te,delp,sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
+!$OMP                                  consv,cld_amt,rho_phy,qlr_ind,qis_ind,qg_ind,qa_ind,qn_ind,&
+!$OMP                                  chem_new,fsbm_bin,te0_2d,ql_num,qr_num,qi_num,qs_num, &
+!$OMP                                  qg_num,qa_num,qn_num,sbqnc,sbqnr,sbqni,sbqns,sbqng,&
+!$OMP                                  sbqna,sbqnn) &
+!$OMP                          private(qliq,qsol,cvm,dqv,dql,dqr,dqi,dqs,dqg,rh,qsat,ps_dt)
+        do j = js, je
+            do i = is, ie
+                if (do_inline_mp) then
+                    inline_mp%prer(i,j) = inline_mp%prer(i,j) + rainncv(i,j) / abs(mdt) * 86400
+                    inline_mp%pres(i,j) = inline_mp%pres(i,j) + snowncv(i,j) / abs(mdt) * 86400
+                    inline_mp%preg(i,j) = inline_mp%preg(i,j) + graupelncv(i,j) / abs(mdt) * 86400
+                endif
+                do k = 1, km
+                    dqv = sbqv(i,km+1-k,j) - q(i,j,k,sphum)
+                    dql = sbqc(i,km+1-k,j) - q(i,j,k,liq_wat)
+                    dqr = sbqr(i,km+1-k,j) - q(i,j,k,rainwat)
+                    dqi = sbqi(i,km+1-k,j) - q(i,j,k,ice_wat)
+                    dqs = sbqs(i,km+1-k,j) - q(i,j,k,snowwat)
+                    dqg = sbqg(i,km+1-k,j) - q(i,j,k,graupel)
+                    ps_dt = 1 + dqv + dql + dqr + dqi + dqs + dqg
+                    q(i,j,k,sphum) = sbqv(i,km+1-k,j) / ps_dt
+                    q(i,j,k,liq_wat) = sbqc(i,km+1-k,j) / ps_dt
+                    q(i,j,k,rainwat) = sbqr(i,km+1-k,j) / ps_dt
+                    q(i,j,k,ice_wat) = sbqi(i,km+1-k,j) / ps_dt
+                    q(i,j,k,snowwat) = sbqs(i,km+1-k,j) / ps_dt
+                    q(i,j,k,graupel) = sbqg(i,km+1-k,j) / ps_dt
+                    q(i,j,k,ql_num) = sbqnc(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qr_num) = sbqnr(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qi_num) = sbqni(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qs_num) = sbqns(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qg_num) = sbqng(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qa_num) = sbqna(i,km+1-k,j) / ps_dt
+                    q(i,j,k,qn_num) = sbqnn(i,km+1-k,j) / ps_dt
+                    pt(i,j,k) = th_phy(i,km+1-k,j) * pi_phy(i,km+1-k,j)
+                    pt_old(i,j,k) = th_old(i,km+1-k,j) * pi_phy(i,km+1-k,j)
+                    q_old(i,j,k) = qv_old(i,km+1-k,j)
+                    do n = 1, fsbm_bin
+                        q(i,j,k,qlr_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*0+n)
+                        q(i,j,k,qis_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*1+n)
+                        q(i,j,k,qg_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*2+n)
+                        q(i,j,k,qa_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*3+n)
+                        q(i,j,k,qn_ind(n)) = chem_new(i,km+1-k,j,fsbm_bin*4+n)
+                    enddo
+
+                    qliq = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
+                    qsol = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
+                    qsat = iqs1(pt(i,j,k), rho_phy(i,km+1-k,j))
+                    rh = q(i,j,k,sphum) / qsat
+                    if (rh >= 1.0) then
+                        q(i,j,k,cld_amt) = 1.0
+                    elseif (rh > 0.75 .and. qliq + qsol > 1.e-6) then
+                        q(i,j,k,cld_amt) = rh ** xr_a * (1.0 - exp (- xr_b * max (0.0, qliq + qsol) / &
+                            max (1.e-5, (max (1.e-10, 1.0 - rh) * qsat) ** xr_c)))
+                        q(i,j,k,cld_amt) = max (0.0, min (1., q(i,j,k,cld_amt)))
+                    else
+                        q(i,j,k,cld_amt) = 0.0
+                    endif
+                    cvm(i) = (1 - (q(i,j,k,sphum) + qliq + qsol)) * cv_air + &
+                        q(i,j,k,sphum) * cv_vap + qliq * c_liq + qsol * c_ice
+#ifdef USE_COND
+                    q_con(i,j,k) = qliq + qsol
+#endif
+#ifdef MOIST_CAPPA
+                    cappa(i,j,k) = rdgas / (rdgas + cvm(i) / (1. + r_vir * q(i,j,k,sphum)))
+#endif
+                    delp(i,j,k) = delp(i,j,k) * ps_dt
+                    if (consv .gt. consv_min) then
+                        te(i,j,k) = te(i,j,k) + cvm(i) * pt(i,j,k) / ((1. + r_vir * q(i,j,k,sphum)) * &
+                            (1. - (qliq + qsol))) * delp(i,j,k)
+                        te0_2d(i,j) = te0_2d(i,j) + te(i,j,k)
+                    endif
+                enddo
+            enddo
+        enddo
+
+!$OMP parallel do default(none) shared(is,ie,js,je,km,inline_mp,q,sphum,liq_wat,rainwat,ice_wat,snowwat,graupel,pt,mdt)
+        do j = js, je
+            do i = is, ie
+                do k = 1, km
+                    if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt(i,j,k) = inline_mp%liq_wat_dt(i,j,k) + q(i,j,k,liq_wat)
+                    if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt(i,j,k) = inline_mp%ice_wat_dt(i,j,k) + q(i,j,k,ice_wat)
+                    if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt(i,j,k) = inline_mp%qv_dt(i,j,k) + q(i,j,k,sphum)
+                    if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt(i,j,k) = inline_mp%ql_dt(i,j,k) + (q(i,j,k,liq_wat) + q(i,j,k,rainwat))
+                    if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt(i,j,k) = inline_mp%qi_dt(i,j,k) + (q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel))
+                    if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt(i,j,k) = inline_mp%qr_dt(i,j,k) + q(i,j,k,rainwat)
+                    if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt(i,j,k) = inline_mp%qs_dt(i,j,k) + q(i,j,k,snowwat)
+                    if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt(i,j,k) = inline_mp%qg_dt(i,j,k) + q(i,j,k,graupel)
+                    if (allocated(inline_mp%t_dt)) inline_mp%t_dt(i,j,k) = inline_mp%t_dt(i,j,k) + pt(i,j,k)
+                enddo
+            enddo
+        enddo
+
+        !unit = stdout()
+        !write(unit,*) 'fsbm chksum after: temp', mpp_chksum(pt(is:ie,js:je,:))
+        !write(unit,*) 'fsbm chksum after: qv', mpp_chksum(q(is:ie,js:je,:,sphum))
+        !write(unit,*) 'fsbm chksum after: qml', mpp_chksum(q(is:ie,js:je,:,liq_wat))
+        !write(unit,*) 'fsbm chksum after: qmr', mpp_chksum(q(is:ie,js:je,:,rainwat))
+        !write(unit,*) 'fsbm chksum after: qmi', mpp_chksum(q(is:ie,js:je,:,ice_wat))
+        !write(unit,*) 'fsbm chksum after: qms', mpp_chksum(q(is:ie,js:je,:,snowwat))
+        !write(unit,*) 'fsbm chksum after: qmg', mpp_chksum(q(is:ie,js:je,:,graupel))
+        !write(unit,*) 'fsbm chksum after: qnl', mpp_chksum(q(is:ie,js:je,:,ql_num))
+        !write(unit,*) 'fsbm chksum after: qnr', mpp_chksum(q(is:ie,js:je,:,qr_num))
+        !write(unit,*) 'fsbm chksum after: qni', mpp_chksum(q(is:ie,js:je,:,qi_num))
+        !write(unit,*) 'fsbm chksum after: qns', mpp_chksum(q(is:ie,js:je,:,qs_num))
+        !write(unit,*) 'fsbm chksum after: qng', mpp_chksum(q(is:ie,js:je,:,qg_num))
+        !write(unit,*) 'fsbm chksum after: qlr', mpp_chksum(q(is:ie,js:je,:,7+1:7+33))
+        !write(unit,*) 'fsbm chksum after: qis', mpp_chksum(q(is:ie,js:je,:,7+34:7+66))
+        !write(unit,*) 'fsbm chksum after: qgg', mpp_chksum(q(is:ie,js:je,:,7+67:7+99))
+        !write(unit,*) 'fsbm chksum after: ccn', mpp_chksum(q(is:ie,js:je,:,7+100:7+132))
+  
+        deallocate(xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv)
+        deallocate(ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy)
+        deallocate(sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, sbqnn)
+        deallocate(ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate)
+        deallocate(cldnucl_rate, icenucl_rate, n_reg_ccn)
+        deallocate(th_old, qv_old)
+        deallocate(pkz0, delz0, dlnp)
+        deallocate(chem_new)
+        deallocate(sbmradar)
+
+    endif
 
   if ( last_step ) then
        ! Convert T_v/T_m to T if last_step

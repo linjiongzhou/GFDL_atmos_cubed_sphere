@@ -459,7 +459,6 @@ contains
             Atm(n)%neststruct, Atm(n)%idiag, Atm(n)%bd, Atm(n)%parent_grid, Atm(n)%domain, &
             Atm(n)%inline_mp, Atm(n)%pt_old, Atm(n)%q_old, &
             Atm(n)%lagrangian_tendency_of_hydrostatic_pressure, time_total=time_total)
-            Atm(n)%inline_mp, time_total=time_total)
                                               call timing_off('fv_dynamics')
     end do
 
