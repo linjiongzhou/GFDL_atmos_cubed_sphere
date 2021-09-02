@@ -76,7 +76,7 @@ module cld_eff_rad_mod
     namelist / cld_eff_rad_nml / &
         qi0_rei, qmin, beta, liq_ice_combine, rewflag, reiflag, rewmin, rewmax, reimin, &
         reimax, rermin, rermax, resmin, resmax, regmin, regmax, betaw, betai, betar, betas, &
-        betag
+        betag, snow_grauple_combine
     
 contains
 

@@ -364,7 +364,8 @@ contains
 subroutine gfdl_mp_driver (qv, ql, qr, qi, qs, qg, qa, qnl, qni, &
         pt, w, ua, va, dz, delp, gsize, dts, hs, rain, snow, ice, &
         graupel, hydrostatic, is, ie, ks, ke, q_con, cappa, consv_te, &
-        te, condensation, deposition, evaporation, sublimation, last_step, do_inline_mp)
+        te, prefluxr, prefluxi, prefluxs, prefluxg, condensation, &
+        deposition, evaporation, sublimation, last_step, do_inline_mp)
     
     implicit none
     
@@ -386,6 +387,7 @@ subroutine gfdl_mp_driver (qv, ql, qr, qi, qs, qg, qa, qnl, qni, &
     real, intent (inout), dimension (is:ie, ks:ke) :: delp
     real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa
     real, intent (inout), dimension (is:ie, ks:ke) :: pt, ua, va, w
+    real, intent (inout), dimension (is:ie, ks:ke) :: prefluxr, prefluxi, prefluxs, prefluxg
     real, intent (inout), dimension (is:, ks:) :: q_con, cappa
     real, intent (inout), dimension (is:ie) :: rain, snow, ice, graupel
     real, intent (inout), dimension (is:ie) :: condensation, deposition
@@ -450,7 +452,8 @@ subroutine gfdl_mp_driver (qv, ql, qr, qi, qs, qg, qa, qnl, qni, &
         qa, qnl, qni, dz, is, ie, ks, ke, dts, &
         rain, snow, graupel, ice, m2_rain, m2_sol, gsize, hs, &
         w_var, vt_r, vt_s, vt_g, vt_i, q_con, cappa, consv_te, te, &
-        condensation, deposition, evaporation, sublimation, last_step, do_inline_mp)
+        prefluxr, prefluxi, prefluxs, prefluxg, condensation, deposition, &
+        evaporation, sublimation, last_step, do_inline_mp)
     
 end subroutine gfdl_mp_driver
 
@@ -473,7 +476,8 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
         qg, qa, qnl, qni, dz, is, ie, ks, ke, dt_in, &
         rain, snow, graupel, ice, m2_rain, m2_sol, gsize, hs, &
         w_var, vt_r, vt_s, vt_g, vt_i, q_con, cappa, consv_te, te, &
-        condensation, deposition, evaporation, sublimation, last_step, do_inline_mp)
+        prefluxr, prefluxi, prefluxs, prefluxg, condensation, deposition, &
+        evaporation, sublimation, last_step, do_inline_mp)
     
     implicit none
     
@@ -491,6 +495,7 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
     real, intent (inout), dimension (is:ie, ks:ke) :: delp
     real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa
     real, intent (inout), dimension (is:ie, ks:ke) :: pt, ua, va, w
+    real, intent (inout), dimension (is:ie, ks:ke) :: prefluxr, prefluxi, prefluxs, prefluxg
     real, intent (inout), dimension (is:, ks:) :: q_con, cappa
     real, intent (inout), dimension (is:ie) :: rain, snow, ice, graupel
     real, intent (inout), dimension (is:ie) :: condensation, deposition
@@ -503,7 +508,7 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
     ! local:
     real, dimension (ks:ke) :: q_liq, q_sol
     real, dimension (ks:ke) :: qvz, qlz, qrz, qiz, qsz, qgz, qaz
-    real, dimension (ks:ke) :: vtiz, vtsz, vtgz, vtrz
+    real, dimension (ks:ke) :: vtiz, vtsz, vtgz, vtrz, pfr, pfi, pfs, pfg
     real, dimension (ks:ke) :: dp1, dz1
     real, dimension (ks:ke) :: den, p1, denfac
     real, dimension (ks:ke) :: ccn, cin, c_praut, m1_rain, m1_sol, m1
@@ -743,10 +748,11 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
             ! -----------------------------------------------------------------------
             
             call warm_rain (dt_rain, ks, ke, dp1, dz1, tz, qvz, qlz, qrz, qiz, qsz, &
-                qgz, den, denfac, ccn, c_praut, rh_rain, vtrz, r1, m1_rain, w1, h_var, reevap, dte (i))
+                qgz, den, denfac, ccn, c_praut, rh_rain, vtrz, r1, pfr, m1_rain, w1, h_var, reevap, dte (i))
             
             evaporation (i) = evaporation (i) + reevap * convt
             rain (i) = rain (i) + r1 * convt
+            prefluxr (i, :) = prefluxr (i, :) + pfr * convt
             
             do k = ks, ke
                 m2_rain (i, k) = m2_rain (i, k) + m1_rain (k)
@@ -760,12 +766,16 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
             call fall_speed (ks, ke, den, qsz, qiz, qgz, qlz, tz, vtsz, vtiz, vtgz)
             
             call terminal_fall (dts, ks, ke, tz, qvz, qlz, qrz, qgz, qsz, qiz, &
-                dz1, dp1, den, vtgz, vtsz, vtiz, r1, g1, s1, i1, m1_sol, w1, dte (i))
+                dz1, dp1, den, vtgz, vtsz, vtiz, r1, g1, s1, i1, pfr, pfi, pfs, pfg, m1_sol, w1, dte (i))
             
             rain (i) = rain (i) + r1 * convt ! from melted snow & ice that reached the ground
             snow (i) = snow (i) + s1 * convt
             graupel (i) = graupel (i) + g1 * convt
             ice (i) = ice (i) + i1 * convt
+            prefluxr (i, :) = prefluxr (i, :) + pfr * convt
+            prefluxi (i, :) = prefluxi (i, :) + pfi * convt
+            prefluxs (i, :) = prefluxs (i, :) + pfs * convt
+            prefluxg (i, :) = prefluxg (i, :) + pfg * convt
             
             ! -----------------------------------------------------------------------
             ! energy loss during sedimentation heating
@@ -804,10 +814,11 @@ subroutine mpdrv (hydrostatic, ua, va, w, delp, pt, qv, ql, qr, qi, qs, &
             ! -----------------------------------------------------------------------
             
             call warm_rain (dt_rain, ks, ke, dp1, dz1, tz, qvz, qlz, qrz, qiz, qsz, &
-                qgz, den, denfac, ccn, c_praut, rh_rain, vtrz, r1, m1_rain, w1, h_var, reevap, dte (i))
+                qgz, den, denfac, ccn, c_praut, rh_rain, vtrz, r1, pfr, m1_rain, w1, h_var, reevap, dte (i))
             
             evaporation (i) = evaporation (i) + reevap * convt
             rain (i) = rain (i) + r1 * convt
+            prefluxr (i, :) = prefluxr (i, :) + pfr * convt
             
             do k = ks, ke
                 m2_rain (i, k) = m2_rain (i, k) + m1_rain (k)
@@ -1052,7 +1063,7 @@ end subroutine sedi_heat
 ! -----------------------------------------------------------------------
 
 subroutine warm_rain (dt, ks, ke, dp, dz, tz, qv, ql, qr, qi, qs, qg, &
-        den, denfac, ccn, c_praut, rh_rain, vtr, r1, m1_rain, w1, h_var, reevap, dte)
+        den, denfac, ccn, c_praut, rh_rain, vtr, r1, pfr, m1_rain, w1, h_var, reevap, dte)
     
     implicit none
     
@@ -1063,7 +1074,7 @@ subroutine warm_rain (dt, ks, ke, dp, dz, tz, qv, ql, qr, qi, qs, qg, &
     real, intent (in), dimension (ks:ke) :: denfac, ccn, c_praut
     
     real (kind = r8), intent (inout), dimension (ks:ke) :: tz
-    real, intent (inout), dimension (ks:ke) :: vtr, qv, ql, qr, qi, qs, qg, m1_rain, w1
+    real, intent (inout), dimension (ks:ke) :: vtr, qv, ql, qr, qi, qs, qg, m1_rain, w1, pfr
     real (kind = r8), intent (inout) :: dte
     real, intent (out) :: r1
     real, intent (out) :: reevap
@@ -1085,6 +1096,7 @@ subroutine warm_rain (dt, ks, ke, dp, dz, tz, qv, ql, qr, qi, qs, qg, &
     logical :: no_fall
     
     dt5 = 0.5 * dt
+    pfr = 0.
     
     ! -----------------------------------------------------------------------
     ! terminal speed of rain
@@ -1167,6 +1179,11 @@ subroutine warm_rain (dt, ks, ke, dp, dz, tz, qv, ql, qr, qi, qs, qg, &
             call implicit_fall (dt, ks, ke, ze, vtr, dp, qr, r1, m1_rain)
         endif
         
+        pfr (ks) = max (0.0, m1_rain (ks))
+        do k = ke, ks + 1, -1
+            pfr (k) = max (0.0, m1_rain (k) - m1_rain (k - 1))
+        enddo
+
         ! -----------------------------------------------------------------------
         ! energy loss during sedimentation
         ! -----------------------------------------------------------------------
@@ -2547,7 +2564,7 @@ end subroutine revap_rac1
 ! =======================================================================
 
 subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
-        den, vtg, vts, vti, r1, g1, s1, i1, m1_sol, w1, dte)
+        den, vtg, vts, vti, r1, g1, s1, i1, pfr, pfi, pfs, pfg, m1_sol, w1, dte)
     
     implicit none
     
@@ -2555,7 +2572,7 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
     real, intent (in) :: dtm ! time step (s)
     real, intent (in), dimension (ks:ke) :: vtg, vts, vti, den, dp, dz
     real (kind = r8), intent (inout), dimension (ks:ke) :: tz
-    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qg, qs, qi, m1_sol, w1
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qg, qs, qi, m1_sol, w1, pfr, pfi, pfs, pfg
     real (kind = r8), intent (inout) :: dte
     real, intent (out) :: r1, g1, s1, i1
     ! local:
@@ -2574,6 +2591,10 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
     
     dt5 = 0.5 * dtm
     fac_imlt = 1. - exp (- dt5 / tau_imlt)
+    pfr = 0.0
+    pfi = 0.0
+    pfs = 0.0
+    pfg = 0.0
     
     ! -----------------------------------------------------------------------
     ! define heat capacity and latend heat coefficient
@@ -2707,6 +2728,11 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
             call implicit_fall (dtm, ks, ke, ze, vti, dp, qi, i1, m1_sol)
         endif
         
+        pfi (ks) = max (0.0, m1_sol (ks))
+        do k = ke, ks + 1, -1
+            pfi (k) = max (0.0, m1_sol (k) - m1_sol (k - 1))
+        enddo
+
         ! -----------------------------------------------------------------------
         ! energy loss during sedimentation
         ! -----------------------------------------------------------------------
@@ -2763,6 +2789,7 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
                             qs (k) = qs (k) - sink * dp (m) / dp (k)
                             if (zt (k) < zs) then
                                 r1 = r1 + sink * dp (m) ! precip as rain
+                                pfr (k) = sink * dp (m)
                             else
                                 ! qr source here will fall next time step (therefore, can evap)
                                 qr (m) = qr (m) + sink
@@ -2797,6 +2824,11 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
             call implicit_fall (dtm, ks, ke, ze, vts, dp, qs, s1, m1)
         endif
         
+        pfs (ks) = max (0.0, m1 (ks))
+        do k = ke, ks + 1, -1
+            pfs (k) = max (0.0, m1 (k) - m1 (k - 1))
+        enddo
+
         ! -----------------------------------------------------------------------
         ! energy loss during sedimentation
         ! -----------------------------------------------------------------------
@@ -2855,6 +2887,7 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
                             qg (k) = qg (k) - sink * dp (m) / dp (k)
                             if (zt (k) < zs) then
                                 r1 = r1 + sink * dp (m)
+                                pfr (k) = sink * dp (m)
                             else
                                 qr (m) = qr (m) + sink
                             endif
@@ -2888,6 +2921,11 @@ subroutine terminal_fall (dtm, ks, ke, tz, qv, ql, qr, qg, qs, qi, dz, dp, &
             call implicit_fall (dtm, ks, ke, ze, vtg, dp, qg, g1, m1)
         endif
         
+        pfg (ks) = max (0.0, m1 (ks))
+        do k = ke, ks + 1, -1
+            pfg (k) = max (0.0, m1 (k) - m1 (k - 1))
+        enddo
+    
         ! -----------------------------------------------------------------------
         ! energy loss during sedimentation
         ! -----------------------------------------------------------------------

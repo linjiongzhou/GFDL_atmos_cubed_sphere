@@ -78,6 +78,7 @@
      real, allocatable :: pt1(:)
 
      integer :: id_prec, id_prer, id_prei, id_pres, id_preg, id_cond, id_dep, id_reevap, id_sub
+     integer :: id_prefluxr, id_prefluxi, id_prefluxs, id_prefluxg
      integer :: id_qv_dt_gfdlmp, id_T_dt_gfdlmp, id_ql_dt_gfdlmp, id_qi_dt_gfdlmp
      integer :: id_qr_dt_gfdlmp, id_qg_dt_gfdlmp, id_qs_dt_gfdlmp
      integer :: id_liq_wat_dt_gfdlmp, id_ice_wat_dt_gfdlmp

@@ -621,6 +621,14 @@ contains
             'snow precipitation', 'mm/day', missing_value=missing_value )
        id_preg = register_diag_field ( trim(field), 'preg', axes(1:2), Time,           &
             'graupel precipitation', 'mm/day', missing_value=missing_value )
+       id_prefluxr = register_diag_field ( trim(field), 'prefluxr', axes(1:3), Time,           &
+            'rain precipitation flux', 'mm/day', missing_value=missing_value )
+       id_prefluxi = register_diag_field ( trim(field), 'prefluxi', axes(1:3), Time,           &
+            'ice precipitation flux', 'mm/day', missing_value=missing_value )
+       id_prefluxs = register_diag_field ( trim(field), 'prefluxs', axes(1:3), Time,           &
+            'snow precipitation flux', 'mm/day', missing_value=missing_value )
+       id_prefluxg = register_diag_field ( trim(field), 'prefluxg', axes(1:3), Time,           &
+            'graupel precipitation flux', 'mm/day', missing_value=missing_value )
        id_cond = register_diag_field ( trim(field), 'cond', axes(1:2), Time,           &
             'condensation', 'mm/day', missing_value=missing_value )
        id_dep = register_diag_field ( trim(field), 'dep', axes(1:2), Time,           &
@@ -1707,6 +1715,10 @@ contains
        if(id_prei > 0) used=send_data(id_prei, Atm(n)%inline_mp%prei(isc:iec,jsc:jec), Time)
        if(id_pres > 0) used=send_data(id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
        if(id_preg > 0) used=send_data(id_preg, Atm(n)%inline_mp%preg(isc:iec,jsc:jec), Time)
+       if(id_prefluxr > 0) used=send_data(id_prefluxr, Atm(n)%inline_mp%prefluxr(isc:iec,jsc:jec,1:npz), Time)
+       if(id_prefluxi > 0) used=send_data(id_prefluxi, Atm(n)%inline_mp%prefluxi(isc:iec,jsc:jec,1:npz), Time)
+       if(id_prefluxs > 0) used=send_data(id_prefluxs, Atm(n)%inline_mp%prefluxs(isc:iec,jsc:jec,1:npz), Time)
+       if(id_prefluxg > 0) used=send_data(id_prefluxg, Atm(n)%inline_mp%prefluxg(isc:iec,jsc:jec,1:npz), Time)
        if(id_cond > 0) used=send_data(id_cond, Atm(n)%inline_mp%cond(isc:iec,jsc:jec), Time)
        if(id_dep > 0) used=send_data(id_dep, Atm(n)%inline_mp%dep(isc:iec,jsc:jec), Time)
        if(id_reevap > 0) used=send_data(id_reevap, Atm(n)%inline_mp%reevap(isc:iec,jsc:jec), Time)

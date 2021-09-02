@@ -952,7 +952,9 @@ endif        ! end last_step check
                        cappa(isd:,jsd,1:), &
 #endif
                        consv>consv_min, &
-                       te(is:ie,j,:), inline_mp%cond(is:ie,j), inline_mp%dep(is:ie,j), &
+                       te(is:ie,j,:), inline_mp%prefluxr(is:ie,j,:), inline_mp%prefluxi(is:ie,j,:), &
+                       inline_mp%prefluxs(is:ie,j,:), inline_mp%prefluxg(is:ie,j,:), &
+                       inline_mp%cond(is:ie,j), inline_mp%dep(is:ie,j), &
                        inline_mp%reevap(is:ie,j), inline_mp%sub(is:ie,j), last_step, do_inline_mp)
 
         if (.not. hydrostatic) then
