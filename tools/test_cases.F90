@@ -540,6 +540,9 @@
       real   :: tmp1(1   :npx     ,1   :npy     ,1:nregions)
 
       real(kind=R_GRID)   :: p0(2)       ! Temporary Point
+      real(kind=R_GRID)   :: p0e(2)       ! Temporary Point
+      real(kind=R_GRID)   :: p0w(2)       ! Temporary Point
+
       real(kind=R_GRID)   :: p1(2)      ! Temporary Point
       real(kind=R_GRID)   :: p2(2)      ! Temporary Point
       real(kind=R_GRID)   :: p3(2)      ! Temporary Point
@@ -3256,8 +3259,13 @@
 !!$           ubar = 50.       ! Initial maxmium wind speed (m/s)
 !!$           r0 = 500.e3
 !!$        endif
-        p0(1) = pi*0.5
-        p0(2) = 0.
+!        p0(1) = pi*0.5
+!        p0(2) = 0.
+        p0w(1) = pi*0.5
+        p0w(2) = 0.
+        p0e(1) = p0w(1) + pi
+        p0e(2) = 0.
+
 
      do k=1,npz
         do j=js,je
@@ -3265,7 +3273,7 @@
               p1(:) = grid(i  ,j ,1:2)
               p2(:) = grid(i,j+1 ,1:2)
               call mid_pt_sphere(p1, p2, p3)
-              r = great_circle_dist( p0, p3, radius )
+              r = great_circle_dist( p0w, p3, radius )
               utmp = ubar*exp(-(r/r0)**2)
               call get_unit_vect2(p1, p2, e2)
               call get_latlon_vector(p3, ex, ey)
@@ -3277,13 +3285,43 @@
               p1(:) = grid(i,  j,1:2)
               p2(:) = grid(i+1,j,1:2)
               call mid_pt_sphere(p1, p2, p3)
-              r = great_circle_dist( p0, p3, radius )
+              r = great_circle_dist( p0w, p3, radius )
               utmp = ubar*exp(-(r/r0)**2)
               call get_unit_vect2(p1, p2, e1)
               call get_latlon_vector(p3, ex, ey)
               u(i,j,k) = utmp*inner_prod(e1,ex)
            enddo
         enddo
+
+! Add easterly-wind-brust:
+        p0(1) = p0(1) + pi
+        p0(2) = 0.
+
+        do j=js,je
+           do i=is,ie+1
+              p1(:) = grid(i  ,j ,1:2)
+              p2(:) = grid(i,j+1 ,1:2)
+              call mid_pt_sphere(p1, p2, p3)
+              r = great_circle_dist( p0e, p3, radius )
+              utmp = ubar*exp(-(r/r0)**2)
+              call get_unit_vect2(p1, p2, e2)
+              call get_latlon_vector(p3, ex, ey)
+              v(i,j,k) = v(i,j,k) - utmp*inner_prod(e2,ex)
+           enddo
+        enddo
+        do j=js,je+1
+           do i=is,ie
+              p1(:) = grid(i,  j,1:2)
+              p2(:) = grid(i+1,j,1:2)
+              call mid_pt_sphere(p1, p2, p3)
+              r = great_circle_dist( p0e, p3, radius )
+              utmp = ubar*exp(-(r/r0)**2)
+              call get_unit_vect2(p1, p2, e1)
+              call get_latlon_vector(p3, ex, ey)
+              u(i,j,k) = u(i,j,k) - utmp*inner_prod(e1,ex)
+           enddo
+        enddo
+
 
         do j=js,je
            do i=is,ie
@@ -3310,8 +3348,8 @@
      enddo
      enddo
 #else
-     call checker_tracers(is,ie, js,je, isd,ied, jsd,jed,  &
-                          ncnst, npz, q, agrid(is:ie,js:je,1), agrid(is:ie,js:je,2), 9., 9.)
+!     call checker_tracers(is,ie, js,je, isd,ied, jsd,jed,  &
+!                          ncnst, npz, q, agrid(is:ie,js:je,1), agrid(is:ie,js:je,2), 9., 9.)
 #endif
 
         if ( .not. hydrostatic ) then

@@ -245,7 +245,7 @@ module fv_regional_mod
 
       integer :: a_step, p_step, k_step, n_step
 !
-      character(len=80) :: data_source
+      logical :: data_source_fv3gfs
 contains
 
 !-----------------------------------------------------------------------
@@ -1071,6 +1071,7 @@ contains
       call check(nf90_open(filename,nf90_nowrite,ncid_grid))               !<-- Open the grid data netcdf file; get the file ID.
 !
       call  mpp_error(NOTE,' opened grid file '//trim(filename))
+!
 !-----------------------------------------------------------------------
 !***  The longitude and latitude are on the super grid.  We need only
 !***  the points on each corner of the grid cells which is every other
@@ -1248,9 +1249,9 @@ contains
 !-----------------------------------------------------------------------
 !
       if (Atm%flagstruct%hrrrv3_ic) then
-        data_source = 'FV3GFS GAUSSIAN NEMSIO FILE'
+        data_source_fv3gfs = .TRUE.
       else
-        call get_data_source(data_source,Atm%flagstruct%regional)
+        call get_data_source(data_source_fv3gfs,Atm%flagstruct%regional)
       endif
 !
       call setup_regional_BC(Atm                                        &
@@ -1296,7 +1297,6 @@ contains
         Atm%ps(i,j) = ps0(i,j)
       enddo
       enddo
-!
 !
       allocate (ak_in(1:levp+1))                                           !<-- Save the input vertical structure for
       allocate (bk_in(1:levp+1))                                           !    remapping BC updates during the forecast.
@@ -1375,7 +1375,7 @@ contains
 11011   format(' start_regional_restart failed to read external_ic_nml ierr=',i3)
       endif
 
-!--- read in ak and bk from the HRRR control file using fms_io read_data ---
+!--- read in ak and bk from the control file using fms_io read_data ---
       call open_ncfile( 'INPUT/gfs_ctrl.nc', ncid )        ! open the file
       call get_ncdim1( ncid, 'levsp', levsp )
       call close_ncfile( ncid )
@@ -1387,9 +1387,9 @@ contains
 !-----------------------------------------------------------------------
 !
       if (Atm%flagstruct%hrrrv3_ic) then
-        data_source = 'FV3GFS GAUSSIAN NEMSIO FILE'
+        data_source_fv3gfs = .TRUE.
       else
-        call get_data_source(data_source,Atm%flagstruct%regional)
+        call get_data_source(data_source_fv3gfs,Atm%flagstruct%regional)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1406,7 +1406,7 @@ contains
       if (Atm%flagstruct%hrrrv3_ic) then
         call read_data('INPUT/hrrr_ctrl.nc','vcoord',wk2, no_domain=.TRUE.)
       else
-        call read_data('INPUT/gfs_ctrl.nc','vcoord',wk2, no_domain=.TRUE.)
+      call read_data('INPUT/gfs_ctrl.nc','vcoord',wk2, no_domain=.TRUE.)
       end if
       ak_in(1:levp+1) = wk2(1:levp+1,1)
       ak_in(1) = max(1.e-9, ak_in(1))
@@ -1433,7 +1433,6 @@ contains
       if(Atm%flagstruct%regional_bcs_from_gsi)then
         Atm%flagstruct%regional_bcs_from_gsi=.false.
       endif
-
 !
 !-----------------------------------------------------------------------
 !***  If the GSI will need restart files that include the
@@ -1764,15 +1763,15 @@ contains
 
 
       else
-        if (data_source == 'FV3GFS GAUSSIAN NEMSIO FILE') then
+        if (data_source_fv3gfs) then
           nlev=klev_in
-          var_name_root='t'
-          call read_regional_bc_file(is_input,ie_input,js_input,je_input  &
-                                    ,nlev                                 &
-                                    ,ntracers                             &
-!                                   ,Atm%regional_bc_bounds               &
-                                    ,var_name_root                        &
-                                    ,array_3d=t_input)
+        var_name_root='t'
+        call read_regional_bc_file(is_input,ie_input,js_input,je_input  &
+                                  ,nlev                                 &
+                                  ,ntracers                             &
+!                                 ,Atm%regional_bc_bounds               &
+                                  ,var_name_root                        &
+                                  ,array_3d=t_input)
         endif
       endif
 !
@@ -1997,7 +1996,7 @@ contains
 !
             call set_delp_and_tracers(bc_side_t1,Atm%npz,Atm%flagstruct%nwat)
 !
-            if(nside==1)then
+           if(nside==1)then
               if(north_bc)then
                 if (is == 1) then
                    istart = 1
@@ -2025,10 +2024,10 @@ contains
                   do j=jsd,0
                   do i=isd,0
                      delz_regBC%west_t1(i,j,k) = bc_side_t1%delz_BC(i,j,k)
-             	     delz_regBC%west_t0(i,j,k) = bc_side_t0%delz_BC(i,j,k)
+                     delz_regBC%west_t0(i,j,k) = bc_side_t0%delz_BC(i,j,k)
                   enddo
-          	  enddo
-          	  enddo
+                  enddo
+                  enddo
                 endif
 
                 if (ie == npx-1) then
@@ -2072,10 +2071,10 @@ contains
                   do j=npy,jed
                   do i=isd,0
                      delz_regBC%west_t1(i,j,k) = bc_side_t1%delz_BC(i,j,k)
-             	     delz_regBC%west_t0(i,j,k) = bc_side_t0%delz_BC(i,j,k)
+                     delz_regBC%west_t0(i,j,k) = bc_side_t0%delz_BC(i,j,k)
                   enddo
-          	  enddo
-          	  enddo
+                  enddo
+                  enddo
                 endif
 
 
@@ -2142,7 +2141,8 @@ contains
                 enddo
                 enddo
               endif
-           endif
+            endif
+
         endif
 #endif
 !
@@ -2284,39 +2284,39 @@ contains
             do k=1,nlev
               do j=js_u,je_u
               do i=is_u,ie_u
-            if (Atm%flagstruct%hrrrv3_ic) then
-                ud(i,j,k) = u_s_input(i,j,k)
-                vc(i,j,k) = v_s_input(i,j,k)
-            else
-                p1(:) = grid_reg(i,  j,1:2)
-                p2(:) = grid_reg(i+1,j,1:2)
-                call  mid_pt_sphere(p1, p2, p3)
-                call get_unit_vect2(p1, p2, e1)
-                call get_latlon_vector(p3, ex, ey)
-                ud(i,j,k) = u_s_input(i,j,k)*inner_prod(e1,ex)+v_s_input(i,j,k)*inner_prod(e1,ey)
-                p4(:) = agrid_reg(i,j,1:2) ! cell centroid
-                call get_unit_vect2(p3, p4, e2) !C-grid V-wind unit vector
-                vc(i,j,k) = u_s_input(i,j,k)*inner_prod(e2,ex)+v_s_input(i,j,k)*inner_prod(e2,ey)
-            endif
+                if (Atm%flagstruct%hrrrv3_ic) then
+                  ud(i,j,k) = u_s_input(i,j,k)
+                  vc(i,j,k) = v_s_input(i,j,k)
+                else
+                  p1(:) = grid_reg(i,  j,1:2)
+                  p2(:) = grid_reg(i+1,j,1:2)
+                  call  mid_pt_sphere(p1, p2, p3)
+                  call get_unit_vect2(p1, p2, e1)
+                  call get_latlon_vector(p3, ex, ey)
+                  ud(i,j,k) = u_s_input(i,j,k)*inner_prod(e1,ex)+v_s_input(i,j,k)*inner_prod(e1,ey)
+                  p4(:) = agrid_reg(i,j,1:2) ! cell centroid
+                  call get_unit_vect2(p3, p4, e2) !C-grid V-wind unit vector
+                  vc(i,j,k) = u_s_input(i,j,k)*inner_prod(e2,ex)+v_s_input(i,j,k)*inner_prod(e2,ey)
+                endif
               enddo
               enddo
 !
               do j=js_v,je_v
                 do i=is_v,ie_v
-              if (Atm%flagstruct%hrrrv3_ic) then
-                  vd(i,j,k) = v_w_input(i,j,k)
-                  uc(i,j,k) = u_w_input(i,j,k)
-              else
-                  p1(:) = grid_reg(i,j  ,1:2)
-                  p2(:) = grid_reg(i,j+1,1:2)
-                  call  mid_pt_sphere(p1, p2, p3)
-                  call get_unit_vect2(p1, p2, e2)
-                  call get_latlon_vector(p3, ex, ey)
-                  vd(i,j,k) = u_w_input(i,j,k)*inner_prod(e2,ex)+v_w_input(i,j,k)*inner_prod(e2,ey)
-                  p4(:) = agrid_reg(i,j,1:2) ! cell centroid
-                  call get_unit_vect2(p3, p4, e1) !C-grid U-wind unit vector
-                  uc(i,j,k) = u_w_input(i,j,k)*inner_prod(e1,ex)+v_w_input(i,j,k)*inner_prod(e1,ey)
-              endif
+                  if (Atm%flagstruct%hrrrv3_ic) then
+                    vd(i,j,k) = v_w_input(i,j,k)
+                    uc(i,j,k) = u_w_input(i,j,k)
+                  else
+                    p1(:) = grid_reg(i,j  ,1:2)
+                    p2(:) = grid_reg(i,j+1,1:2)
+                    call  mid_pt_sphere(p1, p2, p3)
+                    call get_unit_vect2(p1, p2, e2)
+                    call get_latlon_vector(p3, ex, ey)
+                    vd(i,j,k) = u_w_input(i,j,k)*inner_prod(e2,ex)+v_w_input(i,j,k)*inner_prod(e2,ey)
+                    p4(:) = agrid_reg(i,j,1:2) ! cell centroid
+                    call get_unit_vect2(p3, p4, e1) !C-grid U-wind unit vector
+                    uc(i,j,k) = u_w_input(i,j,k)*inner_prod(e1,ex)+v_w_input(i,j,k)*inner_prod(e1,ey)
+                  endif
                 enddo
               enddo
             enddo
@@ -2556,7 +2556,7 @@ contains
           BC_t1%south%w_BC(i,j,k)=w_input(i,j,k)
           BC_t1%south%delz_BC(i,j,k)=delz_input(i,j,k)
 #endif
-       enddo
+        enddo
         enddo
         enddo
 !
@@ -2619,7 +2619,7 @@ contains
           BC_t1%east%w_BC(i,j,k)=w_input(i,j,k)
           BC_t1%east%delz_BC(i,j,k)=delz_input(i,j,k)
 #endif
-       enddo
+        enddo
         enddo
         enddo
 !
@@ -2682,7 +2682,7 @@ contains
           BC_t1%west%w_BC(i,j,k)=w_input(i,j,k)
           BC_t1%west%delz_BC(i,j,k)=delz_input(i,j,k)
 #endif
-       enddo
+        enddo
         enddo
         enddo
 !
@@ -3310,7 +3310,7 @@ contains
               call check(status)
             endif
             if (status /= nf90_noerr) then
-              if (is_master()) write(0,*)' WARNING: Tracer ',trim(var_name),' not in input file'
+              if (east_bc.and.is_master()) write(0,*)' WARNING: Tracer ',trim(var_name),' not in input file'
               array_4d(:,:,:,tlev)=0.                                        !<-- Tracer not in input so set to zero in boundary.
 !
               blend_this_tracer(tlev)=.false.                                !<-- Tracer not in input so do not apply blending.
@@ -3746,32 +3746,33 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
 ! Compute true temperature using hydrostatic balance if not read from input.
 
 #ifndef SW_DYNAMICS
-        if (data_source /= 'FV3GFS GAUSSIAN NEMSIO FILE') then
+        if ( .not. data_source_fv3gfs ) then
           do k=1,npz
             BC_side%pt_BC(i,j,k) = (gz_fv(k)-gz_fv(k+1))/( rdgas*(pn1(i,k+1)-pn1(i,k))*(1.+zvir*BC_side%q_BC(i,j,k,sphum)) )
           enddo
         endif
+
+
         if ( .not. Atm%flagstruct%hydrostatic ) then
           do k=1,npz
             BC_side%delz_BC(i,j,k) = (gz_fv(k+1) - gz_fv(k)) / grav
           enddo
         endif
 #endif
-     enddo i_loop
+      enddo i_loop
 
 !-----------------------------------------------------------------------
 ! separate cloud water and cloud ice
 ! From Jan-Huey Chen's HiRAM code
 !-----------------------------------------------------------------------
 !
-! If the source is FV3GFS GAUSSIAN NEMSIO FILE then all the tracers are in the boundary files
+! If the source is FV3GFS GAUSSIAN NEMSIO/NETCDF and GRIB2 FILE then all the tracers are in the boundary files
 ! and will be read in.
 ! If the source is from old GFS or operational GSM then the tracers will be fixed in the boundaries
 ! and may not provide a very good result
 !
-      !  if (cld_amt .gt. 0) BC_side%q_BC(:,:,:,cld_amt) = 0.
 #ifndef SW_DYNAMICS
-  if (trim(data_source) /= 'FV3GFS GAUSSIAN NEMSIO FILE') then
+  if ( .not. data_source_fv3gfs ) then
    if ( Atm%flagstruct%nwat .eq. 6 ) then
       do k=1,npz
          do i=is,ie
@@ -3814,8 +3815,8 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
                                     BC_side%q_BC(i,j,k,ice_wat), BC_side%q_BC(i,j,k,snowwat) )
          enddo
       enddo
-   endif
-endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
+    endif
+  endif ! data source /= FV3GFS GAUSSIAN NEMSIO/NETCDF and GRIB2 FILE
 #endif
 !
 ! For GFS spectral input, omega in pa/sec is stored as w in the input data so actual w(m/s) is calculated
@@ -3833,7 +3834,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
 
       call mappm(km, pe0, qp, npz, pe1, qn1, is,ie, -1, 4, Atm%ptop)
 
-      if (data_source == 'FV3GFS GAUSSIAN NEMSIO FILE') then
+      if ( data_source_fv3gfs ) then
         do k=1,npz
           do i=is,ie
             BC_side%w_BC(i,j,k) = qn1(i,k)
@@ -3856,7 +3857,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
           enddo
         enddo
 
-      else          !<-- datasource /= 'FV3GFS GAUSSIAN NEMSIO FILE'
+      else          !<-- datasource /= 'FV3GFS GAUSSIAN NEMSIO/NETCDF and GRIB2 FILE'
         do k=1,npz
           do i=is,ie
             BC_side%w_BC(i,j,k) = qn1(i,k)/BC_side%delp_BC(i,j,k)*BC_side%delz_BC(i,j,k)
@@ -4264,7 +4265,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
                      +(side_t1%w_BC(i,j,k)-side_t0%w_BC(i,j,k))         &
                       *fraction_interval
 #endif
-       enddo
+        enddo
         enddo
 !
         do j=jstart_uvs,jend_uvs
@@ -4666,7 +4667,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
           bc_t0=>bc_side_t0%w_BC
           bc_t1=>bc_side_t1%w_BC
 #endif
-       case ('divgd')
+        case ('divgd')
           bc_t0=>bc_side_t0%divgd_BC
           bc_t1=>bc_side_t1%divgd_BC
 #ifdef MOIST_CAPPA
@@ -5094,7 +5095,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
             do j=js_s,je_s
             do i=is_w,ie_w
               bc_side_t0%divgd_BC(i,j,k)=bc_side_t1%divgd_BC(i,j,k)
-          enddo
+            enddo
             enddo
 !
             do j=js_w,je_w
@@ -5178,7 +5179,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
         pt   =>BC_t1%north%pt_BC
         call compute_vpt             !<-- Compute the virtual potential temperature.
 #endif
-     endif
+      endif
 !
       if(south_bc)then
         i1=regional_bounds%is_south
@@ -5198,7 +5199,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
         pt   =>BC_t1%south%pt_BC
         call compute_vpt             !<-- Compute the virtual potential temperature.
 #endif
-     endif
+      endif
 !
       if(east_bc)then
         i1=regional_bounds%is_east
@@ -5218,7 +5219,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
         pt   =>BC_t1%east%pt_BC
         call compute_vpt             !<-- Compute the virtual potential temperature.
 #endif
-     endif
+      endif
 !
       if(west_bc)then
         i1=regional_bounds%is_west
@@ -5238,7 +5239,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
         pt   =>BC_t1%west%pt_BC
         call compute_vpt             !<-- Compute the virtual potential temperature.
 #endif
-     endif
+      endif
 !
 !-----------------------------------------------------------------------
 
@@ -6719,15 +6720,18 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !---------------------------------------------------------------------
 
-  subroutine get_data_source(source,regional)
+  subroutine get_data_source(data_source_fv3gfs,regional)
 !
 ! This routine extracts the data source information if it is present in the datafile.
 !
-      character (len = 80) :: source
-      integer              :: ncids,sourceLength
-      logical :: lstatus,regional
+      logical, intent(in):: regional
+      logical, intent(out):: data_source_fv3gfs
+
+      character (len=80) :: source      
+      logical :: lstatus
 !
 ! Use the fms call here so we can actually get the return code value.
+! The term 'source' is specified by 'chgres_cube'
 !
       if (regional) then
        lstatus = get_global_att_value('INPUT/gfs_data.nc',"source", source)
@@ -6738,6 +6742,18 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
        if (mpp_pe() == 0) write(0,*) 'INPUT source not found ',lstatus,' set source=No Source Attribute'
        source='No Source Attribute'
       endif
+      if (mpp_pe()==0) write(*,*) 'INPUT gfs_data source string=',source
+
+! Logical flag for fv3gfs nemsio/netcdf/grib2 --------
+      if ( trim(source)=='FV3GFS GAUSSIAN NEMSIO FILE' .or.        &
+           trim(source)=='FV3GFS GAUSSIAN NETCDF FILE' .or.        &
+           trim(source)=='FV3GFS GRIB2 FILE'                ) then
+         data_source_fv3gfs = .TRUE.
+      else
+         data_source_fv3gfs = .FALSE.
+      endif
+      if (mpp_pe()==0) write(*,*) 'data_source_fv3gfs=',data_source_fv3gfs
+
   end subroutine get_data_source
 
 !---------------------------------------------------------------------
@@ -6770,7 +6786,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
    graupel = get_tracer_index(MODEL_ATMOS, 'graupel')
    cld_amt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
 !
-   source: if (trim(data_source) == 'FV3GFS GAUSSIAN NEMSIO FILE') then
+   source: if ( data_source_fv3gfs ) then
 !
 !    if (cld_amt > 0) BC_side%q_BC(:,:,:,cld_amt) = 0.0    ! Moorthi
      do k=1,npz
@@ -6792,7 +6808,7 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
      enddo
      enddo
 !
-   else source   ! This else block is for all sources other than FV3GFS GAUSSIAN NEMSIO FILE
+   else source   ! This else block is for all sources other than FV3GFS GAUSSIAN NEMSIO/NETCDF and GRIB2 FILE
 !
 ! 20160928: Adjust the mixing ratios consistently...
      do k=1,npz
@@ -6828,4 +6844,3 @@ endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
 end module fv_regional_mod
 
 !---------------------------------------------------------------------
-
