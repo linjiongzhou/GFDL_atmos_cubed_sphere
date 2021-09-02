@@ -611,7 +611,7 @@ contains
                      hybrid_z,     &
                      flagstruct%adiabatic, do_adiabatic_init, flagstruct%do_inline_mp, &
                      inline_mp, flagstruct%c2l_ord, bd, flagstruct%fv_debug, &
-                     flagstruct%moist_phys, flagstruct%w_limiter, &
+                     flagstruct%moist_phys, flagstruct%do_aerosol, flagstruct%w_limiter, &
                      flagstruct%do_fsbm, a_step, flagstruct%fsbm_bin, flagstruct%fsbm_dx, &
                      flagstruct%fsbm_dy, pt_old, q_old, flagstruct%warm_start)
 
