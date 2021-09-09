@@ -231,8 +231,8 @@ module fv_arrays_mod
 ! Heat & air mass (delp) transport options:
    integer :: hord_tm = 9    ! virtual potential temperature
    integer :: hord_dp = 9    ! delp (positive definite)
-   integer :: kord_tm =-8    !
-
+   integer :: kord_tm =-8    ! <0: remap Tv from logp*
+                             ! >0: remap Theta_v from pe 
 ! Tracer transport options:
    integer :: hord_tr = 12   !11: PPM mono constraint (Lin 2004); fast
                              !12: Huynh 2nd constraint (Lin 2004) +
@@ -277,6 +277,7 @@ module fv_arrays_mod
    logical :: convert_ke = .false.
    logical :: do_vort_damp = .false.
    logical :: use_old_omega = .true.
+   logical :: remap_te = .false.
 ! PG off centering:
    real    :: beta  = 0.0    ! 0.5 is "neutral" but it may not be stable
 #ifdef SW_DYNAMICS
