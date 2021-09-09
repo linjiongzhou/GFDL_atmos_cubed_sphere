@@ -62,7 +62,7 @@ contains
  subroutine Lagrangian_to_Eulerian(last_step, consv, ps, pe, delp, pkz, pk,   &
                                    mdt, pdt, npx, npy, km, is,ie,js,je, isd,ied,jsd,jed,       &
                       nq, nwat, sphum, q_con, u, v, w, delz, pt, q, hs, r_vir, cp,  &
-                      akap, cappa, kord_mt, kord_wz, kord_tr, kord_tm,  peln, te0_2d,        &
+                      akap, cappa, kord_mt, kord_wz, kord_tr, kord_tm, remap_te, peln, te0_2d,        &
                       ng, ua, va, omga, te, ws, fill, reproduce_sum,      &
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, adiabatic, do_adiabatic_init, &
@@ -108,6 +108,7 @@ contains
   logical, intent(in):: fill                  ! fill negative tracers
   logical, intent(in):: reproduce_sum
   logical, intent(in):: adiabatic, do_adiabatic_init
+  logical, intent(in):: remap_te
   real, intent(in) :: ptop
   real, intent(in) :: ak(km+1)
   real, intent(in) :: bk(km+1)
@@ -159,7 +160,7 @@ contains
   real, dimension(is:ie):: gz, cvm
   real, dimension(isd:ied,jsd:jed,km):: qnl, qni
 
-  real rcp, rg, rrg, bkh, dtmp, k1k
+  real rcp, rg, rrg, bkh, dtmp, k1k, dlnp, tpe
   integer:: i,j,k
   integer:: nt, liq_wat, ice_wat, rainwat, snowwat, cld_amt, graupel, iq, n, kmp, kp, k_next
   integer:: ccn_cm3, cin_cm3, aerosol
@@ -222,12 +223,13 @@ contains
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,pe,ptop,kord_tm,hydrostatic, &
 !$OMP                                  pt,pk,rg,peln,q,nwat,liq_wat,rainwat,ice_wat,snowwat,    &
-!$OMP                                  graupel,q_con,sphum,cappa,r_vir,rcp,k1k,delp, &
+!$OMP                                  graupel,q_con,sphum,cappa,r_vir,k1k,delp, &
 !$OMP                                  delz,akap,pkz,te,u,v,ps, gridstruct, last_step, &
 !$OMP                                  ak,bk,nq,isd,ied,jsd,jed,kord_tr,fill, adiabatic, &
-!$OMP hs,w,ws,kord_wz,omga,rrg,kord_mt,pe4,w_limiter)    &
-!$OMP                          private(gz,cvm,kp,k_next,bkh,dp2,   &
+!$OMP hs,w,ws,kord_wz,omga,rrg,kord_mt,pe4,w_limiter,cp,remap_te)    &
+!$OMP                          private(gz,cvm,kp,k_next,bkh,dp2,dlnp,tpe,   &
 !$OMP                                  pe0,pe1,pe2,pe3,pk1,pk2,pn2,phis,q2,w2)
+
   do 1000 j=js,je+1
 
      do k=1,km+1
@@ -242,13 +244,15 @@ contains
      enddo
 
   if ( j /= (je+1) ) then
-       if ( kord_tm < 0 ) then
+          
+     if (  .not. remap_te ) then
+        if (  kord_tm < 0 ) then
 ! Note: pt at this stage is Theta_v
              if ( hydrostatic ) then
 ! Transform virtual pt to virtual Temp
                 do k=1,km
                    do i=is,ie
-                      pt(i,j,k) = pt(i,j,k)*(pk(i,j,k+1)-pk(i,j,k))/(akap*(peln(i,k+1,j)-peln(i,k,j)))
+                       pt(i,j,k) = pt(i,j,k)*(pk(i,j,k+1)-pk(i,j,k))/(akap*(peln(i,k+1,j)-peln(i,k,j)))
                    enddo
                 enddo
              else
@@ -272,18 +276,67 @@ contains
 #endif
                enddo
              endif         ! hydro test
-       elseif ( hydrostatic ) then
-           call pkez(km, is, ie, js, je, j, pe, pk, akap, peln, pkz, ptop)
-! Compute cp*T + KE
-           do k=1,km
+
+
+        endif !kord_tm
+     else
+!----------------------------------
+! Compute cp*T + KE +phis
+            do i=is,ie
+                     phis(i,km+1) = hs(i,j)
+            enddo
+            if ( hydrostatic ) then
+               call pkez(km, is, ie, js, je, j, pe, pk, akap, peln, pkz, ptop)
+               do k=km,1,-1
+                   do i=is,ie
+                      phis(i,k) = phis(i,k+1) + cp_air*pt(i,j,k)*(pk(i,j,k+1)-pk(i,j,k))  !Pt:theta_v
+                   enddo
+               enddo
+               do k=1,km+1
+                   do i=is,ie
+                      phis(i,k) = phis(i,k) * pe1(i,k)
+                  enddo
+               enddo
+               do k=1,km
                  do i=is,ie
                     te(i,j,k) = 0.25*gridstruct%rsin2(i,j)*(u(i,j,k)**2+u(i,j+1,k)**2 +  &
                                                  v(i,j,k)**2+v(i+1,j,k)**2 -  &
                                (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j))  &
-                              + cp_air*pt(i,j,k)*pkz(i,j,k)
+                              + cp_air*pt(i,j,k)*pkz(i,j,k) +  (phis(i,k+1)-phis(i,k))/(pe1(i,k+1)-pe1(i,k))
                  enddo
-           enddo
-       endif
+               enddo
+            else
+             do k=km,1,-1
+                  do i=is,ie
+                     phis(i,k) = phis(i,k+1) - grav*delz(i,j,k)
+                  enddo
+#ifdef MOIST_CAPPA
+                  call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
+                                ice_wat, snowwat, graupel, q, gz, cvm)
+                  do i=is,ie
+                     q_con(i,j,k) = gz(i)
+                     cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
+                     pkz(i,j,k) = exp(cappa(i,j,k)/(1.-cappa(i,j,k))*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+                     te(i,j,k) = cvm(i)*pt(i,j,k)*pkz(i,j,k)/((1.+r_vir*q(i,j,k,sphum))*(1.-gz(i))) +     &
+                                0.5 * w(i,j,k)**2 + 0.25*gridstruct%rsin2(i,j)*(u(i,j,k)**2+u(i,j+1,k)**2 +  &
+                                                 v(i,j,k)**2+v(i+1,j,k)**2 -  &
+                               (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j)) +         &
+                               0.5*(phis(i,k+1)+phis(i,k))
+                  enddo
+#else
+                  do i=is,ie
+                     pkz(i,j,k) = exp(k1k*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+                     te(i,j,k) = cv_air*pt(i,j,k)*pkz(i,j,k)/(1.+r_vir*q(i,j,k,sphum)) +     &
+                                0.5 * w(i,j,k)**2 + 0.25*gridstruct%rsin2(i,j)*(u(i,j,k)**2+u(i,j+1,k)**2 +  &
+                                                 v(i,j,k)**2+v(i+1,j,k)**2 -  &
+                               (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j)) +         &
+                               0.5*(phis(i,k+1)+phis(i,k))
+                  enddo
+#endif
+             enddo
+
+            endif !end hydrostatic test
+     endif
 
      if ( .not. hydrostatic ) then
            do k=1,km
@@ -291,7 +344,7 @@ contains
                  delz(i,j,k) = -delz(i,j,k) / delp(i,j,k) ! ="specific volume"/grav
               enddo
            enddo
-      endif
+     endif
 
 ! update ps
       do i=is,ie
@@ -343,18 +396,25 @@ contains
       enddo
    enddo
 
-   if ( kord_tm<0 ) then
+   if ( remap_te ) then
+! Map Total Energy using logp
+      call map_scalar(km,  peln(is,1,j),  te, gz,   &
+                         km,  pn2,           te,              &
+                         is, ie, j, isd, ied, jsd, jed, 1, abs(kord_tm), cp_air*t_min)
+   else
+      if ( kord_tm<0 ) then
 !----------------------------------
 ! Map t using logp
 !----------------------------------
          call map_scalar(km,  peln(is,1,j),  pt, gz,   &
                          km,  pn2,           pt,              &
                          is, ie, j, isd, ied, jsd, jed, 1, abs(kord_tm), t_min)
-   else
+      else 
 ! Map pt using pe
          call map1_ppm (km,  pe1,  pt,  gz,       &
                         km,  pe2,  pt,                  &
                         is, ie, j, isd, ied, jsd, jed, 1, abs(kord_tm))
+     endif
    endif
 
 !----------------
@@ -487,55 +547,57 @@ contains
 !------------
 ! Compute pkz
 !------------
-   if ( hydrostatic ) then
-      do k=1,km
-         do i=is,ie
-            pkz(i,j,k) = (pk2(i,k+1)-pk2(i,k))/(akap*(peln(i,k+1,j)-peln(i,k,j)))
+   if ( .not. remap_te ) then
+      if ( hydrostatic ) then
+         do k=1,km
+            do i=is,ie
+               pkz(i,j,k) = (pk2(i,k+1)-pk2(i,k))/(akap*(peln(i,k+1,j)-peln(i,k,j)))
+            enddo
          enddo
-      enddo
-   else
+      else
 ! Note: pt at this stage is T_v or T_m , unless kord_tm > 0
          do k=1,km
 #ifdef MOIST_CAPPA
             call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
                           ice_wat, snowwat, graupel, q, gz, cvm)
             if ( kord_tm < 0 ) then
-              do i=is,ie
-                 q_con(i,j,k) = gz(i)
-                 cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
-                 pkz(i,j,k) = exp(cappa(i,j,k)*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
-              enddo
-            else
-              do i=is,ie
+               do i=is,ie
+                  q_con(i,j,k) = gz(i)
+                  cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
+                  pkz(i,j,k) = exp(cappa(i,j,k)*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+               enddo
+            else 
+               do i=is,ie
+                   q_con(i,j,k) = gz(i)
                    cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
                    pkz(i,j,k) = exp(cappa(i,j,k)/(1.-cappa(i,j,k))*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
-             enddo
+               enddo
             endif
 #else
-         if ( kord_tm < 0 ) then
-           do i=is,ie
-              pkz(i,j,k) = exp(akap*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+            if ( kord_tm < 0 ) then
+               do i=is,ie
+                  pkz(i,j,k) = exp(akap*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
 ! Using dry pressure for the definition of the virtual potential temperature
 !             pkz(i,j,k) = exp(akap*log(rrg*(1.-q(i,j,k,sphum))*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)/(1.+r_vir*q(i,j,k,sphum))))
-           enddo
-         else
-           do i=is,ie
-              pkz(i,j,k) = exp(k1k*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+               enddo
+            else 
+               do i=is,ie
+                pkz(i,j,k) = exp(k1k*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
 ! Using dry pressure for the definition of the virtual potential temperature
 !             pkz(i,j,k) = exp(k1k*log(rrg*(1.-q(i,j,k,sphum))*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)/(1.+r_vir*q(i,j,k,sphum))))
-           enddo
-         endif
+               enddo
+            endif
 #endif
          enddo
-   endif
-   if ( kord_tm > 0 ) then
+      endif
+      if ( kord_tm > 0 ) then
          do k=1,km
            do i=is,ie
-                 pt(i,j,k) = pt(i,j,k)*pkz(i,j,k) !Need T for energy calculations
+                 pt(i,j,k) = pt(i,j,k)*pkz(i,j,k) !Need Tv for energy calculations
            enddo
          enddo
-   endif
-
+      endif
+   endif  ! end not remap_te
 ! Interpolate omega/pe3 (defined at pe0) to remapped cell center (dp2)
    if ( last_step ) then
    do k=1,km
@@ -568,7 +630,7 @@ contains
 ! map u
 !------
       do k=2,km+1
-         do i=is,ie
+      do i=is,ie
             pe0(i,k) = 0.5*(pe(i,k,j-1)+pe1(i,k))
          enddo
       enddo
@@ -603,6 +665,50 @@ contains
        call map1_ppm (km, pe0,  v, gz,    &
                       km, pe3,  v, is, ie+1,    &
                       j, isd, ied+1, jsd, jed, -1, kord_mt)
+  if ( remap_te ) then
+       do i=is,ie
+          phis(i,km+1) = hs(i,j)
+       enddo
+! calculate Tv from TE
+      if ( hydrostatic ) then
+            do k=km,1,-1
+               do i=is,ie
+                  tpe = te(i,j,k) - phis(i,k+1) - 0.25*gridstruct%rsin2(i,j)*(    &
+                        u(i,j,k)**2+u(i,j+1,k)**2 + v(i,j,k)**2+v(i+1,j,k)**2 -  &
+                       (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j) )
+                  dlnp = rg*(peln(i,k+1,j) - peln(i,k,j))
+                  pt(i,j,k)= tpe / (cp - pe2(i,k)*dlnp/delp(i,j,k))
+
+                  phis(i,k) = phis(i,k+1) + dlnp*pt(i,j,k)
+               enddo
+            enddo           ! end k-loop
+      else
+            do k=km,1,-1
+#ifdef MOIST_CAPPA
+               call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
+                      ice_wat, snowwat, graupel, q, gz, cvm)
+               do i=is,ie
+                   q_con(i,j,k) = gz(i)
+                   cappa(i,j,k) = rdgas / ( rdgas + cvm(i)/(1.+r_vir*q(i,j,k,sphum)) )
+               enddo
+#endif
+               do i=is,ie
+                  phis(i,k) = phis(i,k+1) - delz(i,j,k)*grav 
+                  tpe = te(i,j,k) - 0.5*(phis(i,k)+phis(i,k+1)) - 0.5*w(i,j,k)**2 - 0.25*gridstruct%rsin2(i,j)*(    &
+                        u(i,j,k)**2+u(i,j+1,k)**2 + v(i,j,k)**2+v(i+1,j,k)**2 -  &
+                       (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j) )
+#ifdef MOIST_CAPPA
+                  pt(i,j,k)= tpe / cvm(i)*(1.+r_vir*q(i,j,k,sphum))*(1.-gz(i)) 
+                  pkz(i,j,k) = exp(cappa(i,j,k)*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+#else
+                  pt(i,j,k)= tpe / cv_air *(1.+r_vir*q(i,j,k,sphum))
+                  pkz(i,j,k) = exp(akap*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+#endif
+               enddo
+
+            enddo           ! end k-loop
+      endif
+   endif
    endif ! (j < je+1)
 
      do k=1,km
@@ -610,6 +716,7 @@ contains
            pe4(i,j,k) = pe2(i,k+1)
         enddo
      enddo
+
 
 1000  continue
 
@@ -630,10 +737,20 @@ if( last_step .and. (.not.do_adiabatic_init)  ) then
 !$OMP parallel do default(none) shared(is,ie,js,je,km,ptop,u,v,pe,isd,ied,jsd,jed,te_2d,delp, &
 !$OMP                                  hydrostatic,hs,rg,pt,peln,cp,delz,nwat,rainwat,liq_wat, &
 !$OMP                                  ice_wat,snowwat,graupel,q_con,r_vir,sphum,w,pk,pkz,zsum1, &
-!$OMP                                  zsum0,te0_2d,gridstruct,q) &
+!$OMP                                  zsum0,te0_2d,gridstruct,q,kord_tm,te,remap_te) &
 !$OMP                          private(cvm,gz,phis)
     do j=js,je
-       if ( hydrostatic ) then
+      if ( remap_te ) then
+          do i=is,ie
+             te_2d(i,j) = te(i,j,1)*delp(i,j,1)
+          enddo
+          do k=2,km
+             do i=is,ie
+                te_2d(i,j) = te_2d(i,j) + te(i,j,k)*delp(i,j,k)
+             enddo
+          enddo
+      else
+         if ( hydrostatic ) then
             do i=is,ie
                gz(i) = hs(i,j)
                do k=1,km
@@ -652,7 +769,7 @@ if( last_step .and. (.not.do_adiabatic_init)  ) then
                            (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*gridstruct%cosa_s(i,j)))
             enddo
             enddo
-       else
+         else
            do i=is,ie
               te_2d(i,j) = 0.
               phis(i,km+1) = hs(i,j)
@@ -685,6 +802,7 @@ if( last_step .and. (.not.do_adiabatic_init)  ) then
 #endif
            enddo   ! k-loop
        endif  ! end non-hydro
+      endif  ! end non remapping te
 
          do i=is,ie
             te_2d(i,j) = te0_2d(i,j) - te_2d(i,j)
@@ -3786,5 +3904,4 @@ else ! all others
   end select
 
  end subroutine moist_cp
-
 end module fv_mapz_mod

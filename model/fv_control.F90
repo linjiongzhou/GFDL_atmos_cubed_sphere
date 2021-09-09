@@ -174,6 +174,7 @@ module fv_control_mod
      logical , pointer :: convert_ke
      logical , pointer :: do_vort_damp
      logical , pointer :: use_old_omega
+     logical , pointer :: remap_te
      ! PG off centering:
      real    , pointer :: beta
      integer , pointer :: n_sponge
@@ -713,6 +714,7 @@ module fv_control_mod
        hord_tm                       => Atm%flagstruct%hord_tm
        hord_dp                       => Atm%flagstruct%hord_dp
        kord_tm                       => Atm%flagstruct%kord_tm
+       remap_te                      => Atm%flagstruct%remap_te
        hord_tr                       => Atm%flagstruct%hord_tr
        kord_tr                       => Atm%flagstruct%kord_tr
        scale_z                       => Atm%flagstruct%scale_z
@@ -979,7 +981,7 @@ module fv_control_mod
             use_logp, p_fac, a_imp, k_split, n_split, m_split, q_split, print_freq, write_3d_diags, &
             do_schmidt, do_cube_transform, &
             hord_mt, hord_vt, hord_tm, hord_dp, hord_tr, shift_fac, stretch_fac, target_lat, target_lon, &
-            kord_mt, kord_wz, kord_tm, kord_tr, fv_debug, fv_land, nudge, do_sat_adj, do_inline_mp, do_fsbm, do_aerosol, do_f3d, &
+            kord_mt, kord_wz, kord_tm, kord_tr, remap_te, fv_debug, fv_land, nudge, do_sat_adj, do_inline_mp, do_fsbm, do_aerosol, do_f3d, &
             external_ic, read_increment, ncep_ic, nggps_ic, hrrrv3_ic, ecmwf_ic, use_new_ncep, use_ncep_phy, fv_diag_ic, &
             external_eta, res_latlon_dynamics, res_latlon_tracers, scale_z, w_max, z_min, lim_fac, &
             dddmp, d2_bg, d4_bg, vtdm4, trdm2, d_ext, delt_max, beta, non_ortho, n_sponge, &
