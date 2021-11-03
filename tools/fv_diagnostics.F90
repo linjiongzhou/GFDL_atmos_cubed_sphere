@@ -2027,6 +2027,11 @@ contains
                enddo
                call mqs3d (iec-isc+1, jec-jsc+1, 1, Atm(n)%pt(isc:iec,jsc:jec,k), a2, &
                            Atm(n)%q(isc:iec,jsc:jec,k,sphum), wk(isc:iec,jsc:jec,k))
+               do j=jsc,jec
+               do i=isc,iec
+                   wk(i,j,k) = 100.*Atm(n)%q(i,j,k,sphum)/wk(i,j,k)
+               enddo
+               enddo
            enddo
            if (id_rh50>0) then
                call interpolate_vertical(isc, iec, jsc, jec, npz, 50.e2, Atm(n)%peln, wk(isc:iec,jsc:jec,:), a2)
@@ -2146,6 +2151,11 @@ contains
                enddo
                call mqs3d (iec-isc+1, jec-jsc+1, 1, Atm(n)%pt(isc:iec,jsc:jec,k), a2, &
                            Atm(n)%q(isc:iec,jsc:jec,k,sphum), wk(isc:iec,jsc:jec,k))
+               do j=jsc,jec
+               do i=isc,iec
+                   wk(i,j,k) = 100.*Atm(n)%q(i,j,k,sphum)/wk(i,j,k)
+               enddo
+               enddo
            enddo
            if (id_rh10_cmip>0) then
                call interpolate_vertical(isc, iec, jsc, jec, npz, 10.e2, Atm(n)%peln, wk(isc:iec,jsc:jec,:), a2)
