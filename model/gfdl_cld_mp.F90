@@ -6712,8 +6712,8 @@ subroutine qs_table_core (n, n_blend, do_smith_table, table)
     
     do i = 1, n_blend
         tem = tice + delt * (real (i - 1) - n_blend)
-        wice = 1.0 / n_blend * (tice - tem)
-        wh2o = 1.0 / n_blend * (tem - tice + delt * n_blend)
+        wice = 1.0 / (delt * n_blend) * (tice - tem)
+        wh2o = 1.0 / (delt * n_blend) * (tem - tice + delt * n_blend)
         table (i + n_min - n_blend) = wice * table (i + n_min - n_blend) + wh2o * esupc (i)
     enddo
     
