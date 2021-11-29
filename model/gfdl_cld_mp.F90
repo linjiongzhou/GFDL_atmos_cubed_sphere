@@ -5310,8 +5310,8 @@ subroutine pgfr_simp (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, &
         
         if (tc .lt. 0. .and. qr (k) .gt. qcmin) then
             
-            sink = (tc * 0.025) ** 2 * qr (k)
-            sink = min (qr (k), sink, fac_r2g * tc / icpk (k))
+            sink = (- tc * 0.025) ** 2 * qr (k)
+            sink = min (qr (k), sink, - fac_r2g * tc / icpk (k))
             
             call update_qt (qv (k), ql (k), qr (k), qi (k), qs (k), qg (k), &
                 0., 0., - sink, 0., 0., sink, te8 (k), cvm (k), tz (k), &
