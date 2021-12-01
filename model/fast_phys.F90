@@ -183,7 +183,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
     !-----------------------------------------------------------------------
 
     ! Note: pt at this stage is T_v
-    if (do_adiabatic_init .or. (.not. do_inline_mp)) then
+    if (do_adiabatic_init .or. (.not. do_inline_mp) .or. do_sat_adj) then
 
         call timing_on ('fast_sat_adj')
 
