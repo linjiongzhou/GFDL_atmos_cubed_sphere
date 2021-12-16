@@ -136,7 +136,7 @@ module gfdl_mp_mod
     
     integer, parameter :: length = 2621 ! length of the saturation table
     
-    real, parameter :: qcmin = 1.0e-12 ! min value for cloud condensates (kg/kg)
+    real, parameter :: qcmin = 1.0e-15 ! min value for cloud condensates (kg/kg)
     real, parameter :: qfmin = 1.0e-8 ! min value for sedimentation (kg/kg)
     
     real, parameter :: dz_min = 1.0e-2 ! used for correcting flipped height (m)
