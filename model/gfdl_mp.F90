@@ -6608,7 +6608,7 @@ subroutine qs_init
         des4 (length) = des4 (length - 1)
         
         tables_are_initialized = .true.
-        
+
     endif
     
 end subroutine qs_init

@@ -622,19 +622,6 @@ contains
                                    grid(isection_s:isection_e,jsection_s:jsection_e,1),grid_global(1-ng:npx+ng,1-ng:npy+ng,1,1),is_master(),ng,ng)
                    call mpp_gather(isection_s,isection_e,jsection_s,jsection_e,atm%pelist, &
                                    grid(isection_s:isection_e,jsection_s:jsection_e,2),grid_global(1-ng:npx+ng,1-ng:npy+ng,2,1),is_master(),ng,ng)
-                   !do we need the haloes?!
-                   !do j=jsd,jed
-                   !do i=isd,ied
-                     !grid_global(i,j,1,1)=grid(i,j,1)
-                     !grid_global(i,j,2,1)=grid(i,j,2)
-                   !enddo
-                   !enddo
-                   !do j=1,npy
-                   !do i=1,npx
-                     !call mpp_max(grid_global(i,j,1,1),atm%pelist)
-                     !call mpp_max(grid_global(i,j,2,1),atm%pelist)
-                   !enddo
-                   !enddo
                 endif
 
              else
@@ -932,38 +919,6 @@ contains
           enddo
        endif
 
-       if ( sw_corner ) then
-             i=1; j=1
-             p1(1:2) = grid(i,j,1:2)
-             call mid_pt_sphere(grid(i,j,1:2), grid(i+1,j,1:2), p2)
-             p3(1:2) = agrid(i,j,1:2)
-             call mid_pt_sphere(grid(i,j,1:2), grid(i,j+1,1:2), p4)
-             area_c(i,j) = 3.*get_area(p1, p4, p2, p3, radius)
-       endif
-       if ( se_corner ) then
-             i=npx; j=1
-             call mid_pt_sphere(grid(i-1,j,1:2), grid(i,j,1:2), p1)
-             p2(1:2) = grid(i,j,1:2)
-             call mid_pt_sphere(grid(i,j,1:2), grid(i,j+1,1:2), p3)
-             p4(1:2) = agrid(i,j,1:2)
-             area_c(i,j) = 3.*get_area(p1, p4, p2, p3, radius)
-       endif
-       if ( ne_corner ) then
-             i=npx; j=npy
-             p1(1:2) = agrid(i-1,j-1,1:2)
-             call mid_pt_sphere(grid(i,j-1,1:2), grid(i,j,1:2), p2)
-             p3(1:2) = grid(i,j,1:2)
-             call mid_pt_sphere(grid(i-1,j,1:2), grid(i,j,1:2), p4)
-             area_c(i,j) = 3.*get_area(p1, p4, p2, p3, radius)
-       endif
-       if ( nw_corner ) then
-             i=1; j=npy
-             call mid_pt_sphere(grid(i,j-1,1:2), grid(i,j,1:2), p1)
-             p2(1:2) = agrid(i,j-1,1:2)
-             call mid_pt_sphere(grid(i,j,1:2), grid(i+1,j,1:2), p3)
-             p4(1:2) = grid(i,j,1:2)
-             area_c(i,j) = 3.*get_area(p1, p4, p2, p3, radius)
-       endif
    endif
 !-----------------
 

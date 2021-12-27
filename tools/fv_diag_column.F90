@@ -39,6 +39,8 @@ module fv_diag_column_mod
  character(10) :: init_str
  real, parameter    ::     rad2deg = 180./pi
 
+ logical :: m_calendar
+ 
  public :: do_diag_debug_dyn, debug_column, debug_column_dyn, fv_diag_column_init, sounding_column
 
 
@@ -51,15 +53,18 @@ module fv_diag_column_mod
 
 contains
  
- subroutine fv_diag_column_init(Atm, yr_init, mo_init, dy_init, hr_init, do_diag_debug_out, do_diag_sonde_out, sound_freq_out)
+ subroutine fv_diag_column_init(Atm, yr_init, mo_init, dy_init, hr_init, do_diag_debug_out, do_diag_sonde_out, sound_freq_out, m_calendar_in)
 
    type(fv_atmos_type), intent(inout), target :: Atm
    integer, intent(IN) :: yr_init, mo_init, dy_init, hr_init
+   logical, intent(IN) :: m_calendar_in
    logical, intent(OUT) :: do_diag_debug_out, do_diag_sonde_out
    integer, intent(OUT) :: sound_freq_out
 
    integer :: ios, nlunit
    logical :: exists
+
+   m_calendar = m_calendar_in
    
    call write_version_number ( 'FV_DIAG_COLUMN_MOD', version )
 
@@ -356,8 +361,13 @@ contains
        
        write(unit, *) "DEBUG POINT ",  diag_debug_names(n)
        write(unit, *)
-       call get_date(Time, yr, mon, dd, hr, mn, seconds)
-       write(unit, '(A, I6, A12, 4I4)') " Time: ", yr, month_name(mon), dd, hr, mn, seconds
+       if (m_calendar) then
+          call get_date(Time, yr, mon, dd, hr, mn, seconds)
+          write(unit, '(A, I6, A12, 4I4)') " Time: ", yr, month_name(mon), dd, hr, mn, seconds
+       else
+          call get_time (Time, seconds,  days)
+          write(unit, '(A, I6, I6)') " Time: ", days, seconds
+       endif
        write(unit, *)
        write(unit, '(A, F8.3, A, F8.3)') ' longitude = ', diag_debug_lon(n), ' latitude = ', diag_debug_lat(n)
        write(unit, '(A, I8, A, I6, A, I6, A, I3)') ' on processor # ', mpp_pe(), ' :  local i = ', i, ',   local j = ', j, ' tile = ', diag_debug_tile(n)
@@ -439,8 +449,13 @@ contains
 
        write(unit, *) "DEBUG POINT ",  diag_debug_names(n)
        write(unit, *)
-       call get_date(Time, yr, mon, dd, hr, mn, seconds)
-       write(unit, '(A, I6, A12, 4I4)') " Time: ", yr, month_name(mon), dd, hr, mn, seconds
+       if (m_calendar) then
+          call get_date(Time, yr, mon, dd, hr, mn, seconds)
+          write(unit, '(A, I6, A12, 4I4)') " Time: ", yr, month_name(mon), dd, hr, mn, seconds
+       else
+          call get_time (Time, seconds,  dd)
+          write(unit, '(A, I6, I6)') " Time: ", dd, seconds
+       endif
        write(unit,*) 'k_split = ', k_step, ', n_split = ', n_step
        write(unit, *)
        write(unit, '(A, F8.3, A, F8.3)') ' longitude = ', diag_debug_lon(n), ' latitude = ', diag_debug_lat(n)
@@ -521,7 +536,11 @@ contains
     integer :: i, j, k, n, unit
     integer :: yr_v, mo_v, dy_v, hr_v, mn_v, sec_v ! need to get numbers for these
 
-    call get_date(Time, yr_v, mo_v, dy_v, hr_v, mn_v, sec_v)
+    if (m_calendar) then
+       call get_date(Time, yr_v, mo_v, dy_v, hr_v, mn_v, sec_v)
+    else
+       call get_time (Time, sec_v,  dy_v)
+    endif
 
     do n=1,size(diag_sonde_units)
 
@@ -533,11 +552,13 @@ contains
        if (j < bd%js .or. j > bd%je) cycle
 
 
+       if (m_calendar) then
           write(unit,600)        &
                trim(diag_sonde_names(n)), yr_v, mo_v, dy_v, hr_v, init_str, trim(runname)
 600       format(A,'.v', I4, I2.2, I2.2, I2.2, '.i', A10, '.', A, '.dat########################################################')
           write(unit,601) trim(diag_sonde_names(n)), yr_v, mo_v, dy_v, hr_v, init_str(1:8),init_str(9:10)
 601       format(3x, A16, ' Valid ', I4, I2.2, I2.2, '.', I2.2, 'Z  Init ', A8, '.', A2, 'Z')
+       endif
           write(unit,'(5x, A, 2F8.3)') trim(runname), diag_sonde_lon(n), diag_sonde_lat(n)
           write(unit,*)
           write(unit,*)        '-------------------------------------------------------------------------------'

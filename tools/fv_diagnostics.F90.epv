@@ -856,8 +856,6 @@ contains
           id_qp = register_diag_field ( trim(field), 'qp', axes(1:3), Time,       &
                'precip condensate', 'kg/m/s^2', missing_value=missing_value )
           ! fast moist phys tendencies:
-          idiag%id_mdt = register_diag_field ( trim(field), 'mdt', axes(1:3), Time,       &
-               'DT/Dt: fast moist phys', 'deg/sec', missing_value=missing_value )
           id_qdt = register_diag_field ( trim(field), 'qdt', axes(1:3), Time,       &
                'Dqv/Dt: fast moist phys', 'kg/kg/sec', missing_value=missing_value )
           id_dbz = register_diag_field ( trim(field), 'reflectivity', axes(1:3), time, &

@@ -113,6 +113,7 @@ public :: fv_phys, fv_nudge
   logical:: uniform_sst = .true.
   real:: sst0 = 302.15    ! K
   real:: sst_restore_timescale = 5. !days
+  integer :: sst_type = 0 ! choice of SST profile
   real:: shift_n = 12.
   logical:: do_t_strat = .false.
   real:: p_strat = 50.E2
@@ -151,6 +152,8 @@ public :: fv_phys, fv_nudge
   real, allocatable:: prec_total(:,:)
   real    :: missing_value = -1.e10
 
+  logical :: first_call = .true.
+  
 namelist /sim_phys_nml/do_strat_HS_forcing, &
                        print_freq, tau_winds, &
                        tau_temp, tau_press, sst_restore_timescale,  &
@@ -159,7 +162,7 @@ namelist /sim_phys_nml/do_strat_HS_forcing, &
                        tau_surf_drag, do_terminator
 
 namelist /GFDL_sim_phys_nml/ diurnal_cycle, mixed_layer, gray_rad, strat_rad, do_abl, do_mon_obkv, &
-     heating_rate, cooling_rate, uniform_sst, sst0, shift_n, do_t_strat, p_strat, t_strat, tau_strat, &
+     heating_rate, cooling_rate, uniform_sst, sst0, sst_type, shift_n, do_t_strat, p_strat, t_strat, tau_strat, &
      mo_t_fac, tau_difz, prog_low_cloud, low_cf0, zero_winds, tau_zero, do_mo_fixed_cd, mo_cd, mo_u_mean, &
      abl_s_fac, ml_c0, sw_abs
 
@@ -297,6 +300,7 @@ contains
      enddo
 
      if ( fv_sg_adj > 0 ) then
+        if (is_master() .and. first_call) print*, " Calling fv_subgrid_z ", fv_sg_adj, flagstruct%n_sponge
          call fv_subgrid_z(isd, ied, jsd, jed, is, ie, js, je, npz, min(6,nq), pdt,  &
                            fv_sg_adj, nwat, delp, pe, peln, pkz, pt, q, ua, va,  &
                            hydrostatic, w, delz, u_dt, v_dt, t_dt, q_dt, flagstruct%n_sponge )
@@ -450,7 +454,7 @@ contains
                                              call timing_on('GFDL_SIM_PHYS')
        call GFDL_sim_phys(npx, npy, npz, is, ie, js, je, ng, nq, nwat, pk, pkz, &
                      u_dt, v_dt, t_dt, q_dt, u, v, w, ua, va, pt, delz, q, &
-                     pe, delp, peln, ts, oro, hydrostatic, pdt, grid, ak, bk, &
+                     pe, delp, peln, ts, oro, hydrostatic, pdt, grid, ak, bk, & !ts --> sst
                      p_ref, Time, time_total, flagstruct%grid_type, gridstruct)
                                             call timing_off('GFDL_SIM_PHYS')
        no_tendency = .false.
@@ -603,7 +607,9 @@ contains
     deallocate ( t_dt )
     deallocate ( q_dt )
 
- end subroutine fv_phys
+    first_call = .false.
+
+  end subroutine fv_phys
 
 
  subroutine GFDL_sim_phys(npx, npy, npz, is, ie, js, je, ng, nq, nwat, pk, pkz,  &
@@ -750,15 +756,29 @@ contains
 
 ! Need to save sst in a restart file if mixed_layer = .T.
  if ( .not. mixed_layer ) then
-   if ( uniform_sst ) then
-        sst(:,:) = sst0
-   else
-      do j=js,je
-         do i=is,ie
-            ts0(i,j) = 270.5 + 32.*exp( -((agrid(i,j,2)-shift_n*deg2rad)/(pi/3.))**2 )
-         enddo
-      enddo
-   endif
+!!$   if ( uniform_sst ) then
+!!$      sst(:,:) = sst0
+!!$   else
+!!$      if (sst_type == 1) then !SST in equib with lower atmosphere
+!!$         do j=js,je
+!!$         do i=is,ie
+!!$            !ts0(i,j) = pt(i,j,km)
+!!$            sst(i,j) = ts0(i,j)
+!!$         enddo
+!!$         enddo         
+!!$      else
+!!$         do j=js,je
+!!$         do i=is,ie
+!!$            ts0(i,j) = 270.5 + 32.*exp( -((agrid(i,j,2)-shift_n*deg2rad)/(pi/3.))**2 )
+!!$         enddo
+!!$         enddo
+!!$      endif
+!!$   endif
+    do j=js,je
+       do i=is,ie
+          sst(i,j) = ts0(i,j)
+       enddo
+    enddo
  endif
 
 
@@ -987,6 +1007,8 @@ endif
   if ( mixed_layer ) then
      do j=js, je
         do i=is, ie
+#ifdef RAIN_FLUX           
+           !rain, etc. never defined
            precip = (rain(i,j)+snow(i,j)+ice(i,j)+graup(i,j)) / 86400.
 #ifdef NO_WET_T
            if ( precip > 0. ) then
@@ -998,6 +1020,9 @@ endif
            rflux(i,j) = c_liq*precip*(sst(i,j)-wet_t(i,j))
 #else
            rflux(i,j) = c_liq*precip*(sst(i,j)-t3(i,j,km))
+#endif
+#else
+           rflux(i,j) = 0.0
 #endif
            qflux(i,j) = hlv*flux_q(i,j)
         enddo
@@ -1541,10 +1566,11 @@ endif
 
  end subroutine get_low_clouds
 
- subroutine fv_phys_init(is, ie, js, je, nwat, ts, time, axes, lat)
- integer, intent(IN) :: is, ie, js, je
+ subroutine fv_phys_init(is, ie, js, je, km, nwat, ts, pt, time, axes, lat)
+ integer, intent(IN) :: is, ie, js, je, km
  integer, intent(IN) :: nwat
  real, INTENT(inout)::    ts(is:ie,js:je)
+ real, INTENT(in)::    pt(is:ie,js:je,km)
  real, INTENT(IN) :: lat(is:ie,js:je)
  integer,         intent(in) :: axes(4)
  type(time_type), intent(in) :: time
@@ -1628,13 +1654,28 @@ endif
     if ( uniform_sst ) then
          ts0(:,:) = sst0
     else
-      do j=js,je
+      if (sst_type == 1) then !SST in equib with lower atmosphere
+         do j=js,je
+         do i=is,ie
+            ts0(i,j) = pt(i,j,km)            
+         enddo
+         enddo         
+      else
+         do j=js,je
          do i=is,ie
             ts0(i,j) = 270.5 + 32.*exp( -((lat(i,j)-shift_n*deg2rad)/(pi/3.))**2 )
          enddo
+         enddo
+      endif
+   endif
+   do j=js,je
+      do i=is,ie
+         ts(i,j) = ts0(i,j)
       enddo
-    endif
-    ts(:,:) = ts0(:,:)
+   enddo
+
+
+    
     call prt_maxmin('TS initialized:', ts, is, ie, js, je, 0,  1, 1.0)
     call qs_wat_init
 
