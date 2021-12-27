@@ -68,7 +68,7 @@ contains
                       ptop, ak, bk, pfull, gridstruct, domain, do_sat_adj, &
                       hydrostatic, hybrid_z, adiabatic, do_adiabatic_init, &
                       do_inline_mp, inline_mp, c2l_ord, bd, fv_debug, &
-                      moist_phys, do_aerosol, w_limiter, do_am4_remap, &
+                      do_aerosol, w_limiter, do_am4_remap, &
                       do_fsbm, a_step, fsbm_bin, fsbm_dx, fsbm_dy, pt_old, q_old, warm_start)
   logical, intent(in):: last_step
   logical, intent(in):: fv_debug
@@ -139,7 +139,6 @@ contains
   logical, intent(in):: hydrostatic
   logical, intent(in):: hybrid_z
   logical, intent(in):: out_dt
-  logical, intent(in):: moist_phys !not used --- lmh 13 may 21
 
   real, intent(inout)::   ua(isd:ied,jsd:jed,km)   ! u-wind (m/s) on physics grid
   real, intent(inout)::   va(isd:ied,jsd:jed,km)   ! v-wind (m/s) on physics grid
