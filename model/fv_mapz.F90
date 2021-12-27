@@ -213,15 +213,6 @@ contains
   qn_num = get_tracer_index (MODEL_ATMOS, 'qn_num')
   aerosol = get_tracer_index (MODEL_ATMOS, 'aerosol')
 
-  if ( do_adiabatic_init .or. do_sat_adj ) then
-     fast_mp_consv = (.not.do_adiabatic_init) .and. consv>consv_min
-     do k=1,km
-        kmp = k
-        if ( pfull(k) > 10.E2 ) exit
-     enddo
-     call qsmith_init
-  endif
-
 !$OMP parallel do default(none) shared(is,ie,js,je,km,pe,ptop,kord_tm,hydrostatic, &
 !$OMP                                  pt,pk,rg,peln,q,nwat,liq_wat,rainwat,ice_wat,snowwat,    &
 !$OMP                                  graupel,q_con,sphum,cappa,r_vir,k1k,delp, &
