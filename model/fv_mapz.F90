@@ -185,7 +185,7 @@ contains
   real, allocatable, dimension(:,:,:) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
   real, allocatable, dimension(:,:,:) :: cldnucl_rate, icenucl_rate, n_reg_ccn
   real, allocatable, dimension(:,:,:) :: th_old, qv_old
-  real, allocatable, dimension(:,:,:) :: pkz0, delz0, dlnp
+  real, allocatable, dimension(:,:,:) :: pkz0, delz0, dpeln
   real, allocatable, dimension(:,:,:,:) :: chem_new
   real, allocatable, dimension(:,:,:,:) :: sbmradar
   character(len=4) :: ind

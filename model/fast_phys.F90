@@ -142,7 +142,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
     real, allocatable, dimension (:,:,:) :: ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy, sbqna, sbqnn
     real, allocatable, dimension (:,:,:) :: sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng
     real, allocatable, dimension (:,:,:) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, th_old, qv_old
-    real, allocatable, dimension (:,:,:) :: cldnucl_rate, icenucl_rate, n_reg_ccn, pkz0, delz0, dlnp
+    real, allocatable, dimension (:,:,:) :: cldnucl_rate, icenucl_rate, n_reg_ccn, pkz0, delz0, dpeln
     real, allocatable, dimension (:,:,:,:) :: chem_new
     real, allocatable, dimension (:,:,:,:) :: sbmradar
 
@@ -616,16 +616,16 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
         allocate (th_old (is-1:ie+1, km, js-1:je+1), qv_old (is-1:ie+1, km, js-1:je+1))
         allocate (pkz0 (isd:ied, jsd:jed, km), delz0 (isd:ied, jsd:jed, km))
         allocate (sbmradar (is:ie, km, js:je, num_sbmradar), rho_phy (is-1:ie+1, km, js-1:je+1))
-        allocate (chem_new (is:ie, km, js:je, n_chem), dlnp (isd:ied, jsd:jed, km))
+        allocate (chem_new (is:ie, km, js:je, n_chem), dpeln (isd:ied, jsd:jed, km))
 
-!$OMP parallel do default (none) shared (is, ie, js, je, km, pkz, pkz0, delz, delz0, dlnp, peln, hydrostatic)
+!$OMP parallel do default (none) shared (is, ie, js, je, km, pkz, pkz0, delz, delz0, dpeln, peln, hydrostatic)
 
         do k = 1, km
             do j = js, je
                 do i = is, ie
                     pkz0 (i, j, k) = pkz (i, j, k)
                     if (hydrostatic) then
-                        dlnp (i, j, k) = peln (i, k+1, j) - peln (i, k, j)
+                        dpeln (i, j, k) = peln (i, k+1, j) - peln (i, k, j)
                     else
                         delz0 (i, j, k) = delz (i, j, k)
                     endif
@@ -639,7 +639,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
         call mpp_update_domains (q (:,:,:, sphum), domain)
         call mpp_update_domains (delp, domain)
         if (hydrostatic) then
-            call mpp_update_domains (dlnp, domain)
+            call mpp_update_domains (dpeln, domain)
         else
             call mpp_update_domains (w, domain)
             call mpp_update_domains (delz0, domain)
@@ -650,7 +650,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
 
 !$OMP parallel do default (none) shared (is, ie, js, je, km, ua, va, w, ur, vr, wr, dz8w, delz0, rho_phy, delp, &
 !$OMP                                    p_phy, pt, pi_phy, pkz0, th_phy, pt_old, th_old, q_old, qv_old, &
-!$OMP                                    sbqv, q, sphum, dlnp, hydrostatic, omga)
+!$OMP                                    sbqv, q, sphum, dpeln, hydrostatic, omga)
 
         do k = 1, km
             do j = js-1, je+1
@@ -660,7 +660,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
                     vr (i, k, j) = va (i, j, km+1-k)
 
                     if (hydrostatic) then
-                        p_phy (i, k, j) = delp (i, j, km+1-k) / dlnp (i, j, km+1-k)
+                        p_phy (i, k, j) = delp (i, j, km+1-k) / dpeln (i, j, km+1-k)
                         rho_phy (i, k, j) = p_phy (i, k, j) / (rdgas * pt (i, j, km+1-k))
                         dz8w (i, k, j) = delp (i, j, km+1-k) / (rho_phy (i, k, j) * grav)
                         wr (i, k, j) = - omga (i, j, km+1-k) * dz8w (i, k, j) / delp (i, j, km+1-k)
@@ -948,7 +948,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, &
         !write (unit,*) 'fsbm chksum after: ccn', mpp_chksum (q (is:ie, js:je,:, 7+100:7+132))
   
         deallocate (xland, rainnc, rainncv, snownc, snowncv, graupelnc, graupelncv, sbmradar, chem_new)
-        deallocate (ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy, pkz0, delz0, dlnp, th_old, qv_old)
+        deallocate (ur, vr, wr, dz8w, p_phy, pi_phy, rho_phy, th_phy, pkz0, delz0, dpeln, th_old, qv_old)
         deallocate (sbqv, sbqc, sbqr, sbqi, sbqs, sbqg, sbqnc, sbqnr, sbqni, sbqns, sbqng, sbqna, sbqnn)
         deallocate (ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate, cldnucl_rate, icenucl_rate, n_reg_ccn)
 

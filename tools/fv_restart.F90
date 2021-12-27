@@ -138,7 +138,7 @@ contains
     integer :: nest_level
     integer, allocatable :: BC_remap_level(:)
 
-    integer :: m, qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind
+    integer :: qlr_ind, qis_ind, qg_ind, qa_ind, qn_ind
     character (len=4) :: ind
 
     rgrav = 1. / grav
