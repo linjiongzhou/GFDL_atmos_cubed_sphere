@@ -193,7 +193,7 @@ contains
   real, allocatable, dimension(:,:,:) :: ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate
   real, allocatable, dimension(:,:,:) :: cldnucl_rate, icenucl_rate, n_reg_ccn
   real, allocatable, dimension(:,:,:) :: th_old, qv_old
-  real, allocatable, dimension(:,:,:) :: pkz0, delz0, dlnp
+  real, allocatable, dimension(:,:,:) :: pkz0, delz0, dpeln
   real, allocatable, dimension(:,:,:,:) :: chem_new
   real, allocatable, dimension(:,:,:,:) :: sbmradar
   character(len=4) :: ind
@@ -1205,16 +1205,16 @@ contains
         allocate(ce_rate(is:ie,km,js:je), ds_rate(is:ie,km,js:je), melt_rate(is:ie,km,js:je))
         allocate(frz_rate(is:ie,km,js:je), cldnucl_rate(is:ie,km,js:je), icenucl_rate(is:ie,km,js:je))
         allocate(th_old(is-1:ie+1,km,js-1:je+1), qv_old(is-1:ie+1,km,js-1:je+1), chem_new(is:ie,km,js:je,n_chem))
-        allocate(pkz0(is-ng:ie+ng,js-ng:je+ng,km), delz0(is-ng:ie+ng,js-ng:je+ng,km), dlnp(is-ng:ie+ng,js-ng:je+ng,km))
+        allocate(pkz0(is-ng:ie+ng,js-ng:je+ng,km), delz0(is-ng:ie+ng,js-ng:je+ng,km), dpeln(is-ng:ie+ng,js-ng:je+ng,km))
         allocate(sbmradar(is:ie,km,js:je,num_sbmradar))
 
-!$OMP parallel do default(none) shared(is,ie,js,je,km,pkz,pkz0,delz,delz0,dlnp,peln,hydrostatic)
+!$OMP parallel do default(none) shared(is,ie,js,je,km,pkz,pkz0,delz,delz0,dpeln,peln,hydrostatic)
         do j = js, je
             do i = is, ie
                 do k = 1, km
                     pkz0(i,j,k) = pkz(i,j,k)
                     if (hydrostatic) then
-                        dlnp(i,j,k) = peln(i,k+1,j) - peln(i,k,j)
+                        dpeln(i,j,k) = peln(i,k+1,j) - peln(i,k,j)
                     else
                         delz0(i,j,k) = delz(i,j,k)
                     endif
@@ -1228,7 +1228,7 @@ contains
         call mpp_update_domains(q(:,:,:,sphum), domain)
         call mpp_update_domains(delp, domain)
         if (hydrostatic) then
-            call mpp_update_domains(dlnp, domain)
+            call mpp_update_domains(dpeln, domain)
         else
             call mpp_update_domains(w, domain)
             call mpp_update_domains(delz0, domain)
@@ -1239,14 +1239,14 @@ contains
 
 !$OMP parallel do default(none) shared(is,ie,js,je,km,ua,va,w,ur,vr,wr,dz8w,delz0,rho_phy,delp, &
 !$OMP                                  p_phy,pt,pi_phy,pkz0,th_phy,pt_old,th_old,q_old,qv_old, &
-!$OMP                                  sbqv,q,sphum,dlnp,hydrostatic,omga)
+!$OMP                                  sbqv,q,sphum,dpeln,hydrostatic,omga)
         do j = js-1, je+1
             do i = is-1, ie+1
                 do k = 1, km
                     ur(i,k,j) = ua(i,j,km+1-k)
                     vr(i,k,j) = va(i,j,km+1-k)
                     if (hydrostatic) then
-                        p_phy(i,k,j) = delp(i,j,km+1-k) / dlnp(i,j,km+1-k)
+                        p_phy(i,k,j) = delp(i,j,km+1-k) / dpeln(i,j,km+1-k)
                         rho_phy(i,k,j) = p_phy(i,k,j) / (rdgas * pt(i,j,km+1-k))
                         dz8w(i,k,j) = delp(i,j,km+1-k) / (rho_phy(i,k,j) * grav)
                         wr(i,k,j) = - omga(i,j,km+1-k) * dz8w(i,k,j) / delp(i,j,km+1-k)
@@ -1488,7 +1488,7 @@ contains
         deallocate(ma, lh_rate, ce_rate, ds_rate, melt_rate, frz_rate)
         deallocate(cldnucl_rate, icenucl_rate, n_reg_ccn)
         deallocate(th_old, qv_old)
-        deallocate(pkz0, delz0, dlnp)
+        deallocate(pkz0, delz0, dpeln)
         deallocate(chem_new)
         deallocate(sbmradar)
 
