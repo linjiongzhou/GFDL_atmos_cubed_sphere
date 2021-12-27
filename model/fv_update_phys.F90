@@ -547,7 +547,7 @@ module fv_update_phys_mod
 
        call fv_climate_nudge ( Time, dt, is, ie, js, je, npz, pfull,    &
              lona(is:ie,js:je), lata(is:ie,js:je), phis(is:ie,js:je), &
-             ptop, ak, bk, &
+             ak, bk, &
              ps(is:ie,js:je), ua(is:ie,js:je,:), va(is:ie,js:je,:), &
              pt(is:ie,js:je,:), q(is:ie,js:je,:,sphum:sphum),   &
              ps_dt(is:ie,js:je), u_dt(is:ie,js:je,:),  &
@@ -595,7 +595,7 @@ module fv_update_phys_mod
          enddo
         enddo
         call fv_ada_nudge ( Time, dt, npx, npy, npz,  ps_dt, u_dt, v_dt, t_dt, q_dt_nudge,   &
-                            zvir, ptop, ak, bk, ts, ps, delp, ua, va, pt,    &
+                            zvir, ak, bk, ts, ps, delp, ua, va, pt,    &
                             nwat, q,  phis, gridstruct, bd, domain )
 
        if (allocated(nudge_diag%nudge_t_dt)) nudge_diag%nudge_t_dt = (pt(is:ie,js:je,:) - nudge_diag%nudge_t_dt) / dt
@@ -625,7 +625,7 @@ module fv_update_phys_mod
          enddo
         enddo
         call fv_nwp_nudge ( Time, dt, npx, npy, npz,  ps_dt, u_dt, v_dt, t_dt, q_dt_nudge,   &
-                            zvir, ptop, ak, bk, ts, ps, delp, ua, va, pt,    &
+                            zvir, ak, bk, ts, ps, delp, ua, va, pt,    &
                             nwat, q,  phis, gridstruct, bd, domain )
 
        if (allocated(nudge_diag%nudge_t_dt)) nudge_diag%nudge_t_dt = (pt(is:ie,js:je,:) - nudge_diag%nudge_t_dt) / dt

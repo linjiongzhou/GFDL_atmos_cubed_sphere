@@ -75,6 +75,7 @@ module external_ic_mod
    real, parameter:: zvir = rvgas/rdgas - 1.
    real(kind=R_GRID), parameter :: cnst_0p20=0.20d0
    real :: deg2rad
+   character(len=128) :: inputdir
    logical :: source_fv3gfs
 
 ! version number of this module
@@ -85,11 +86,12 @@ module external_ic_mod
 
 contains
 
-   subroutine get_external_ic( Atm, fv_domain, cold_start )
+   subroutine get_external_ic( Atm, fv_domain, cold_start, icdir )
 
       type(fv_atmos_type), intent(inout), target :: Atm
       type(domain2d),      intent(inout) :: fv_domain
       logical, intent(IN) :: cold_start
+      character(len=*), intent(in), optional :: icdir
       real:: alpha = 0.
       real rdg
       integer i,j,k,nq
@@ -100,6 +102,9 @@ contains
       integer :: is,  ie,  js,  je
       integer :: isd, ied, jsd, jed, ng
       integer :: sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, o3mr, sgs_tke, cld_amt
+
+      inputdir = 'INPUT'
+      if(present(icdir)) inputdir = icdir
 
       is  = Atm%bd%is
       ie  = Atm%bd%ie
@@ -209,13 +214,14 @@ contains
         call prt_maxmin('cld_amt', Atm%q(:,:,:,cld_amt), is, ie, js, je, ng, Atm%npz, 1.)
       endif
 
-!Now in fv_restart
-!!$      call p_var(Atm%npz,  is, ie, js, je, Atm%ak(1),  ptop_min,         &
-!!$                 Atm%delp, Atm%delz, Atm%pt, Atm%ps,               &
-!!$                 Atm%pe,   Atm%peln, Atm%pk, Atm%pkz,              &
-!!$                 kappa, Atm%q, ng, Atm%ncnst, Atm%gridstruct%area_64, Atm%flagstruct%dry_mass,           &
-!!$                 Atm%flagstruct%adjust_dry_mass, Atm%flagstruct%mountain, Atm%flagstruct%moist_phys,   &
-!!$                 Atm%flagstruct%hydrostatic, Atm%flagstruct%nwat, Atm%domain, Atm%flagstruct%adiabatic, Atm%flagstruct%make_nh)
+! If used in replay mode
+      if(present(icdir)) &
+      call p_var(Atm%npz,  is, ie, js, je, Atm%ak(1),  ptop_min,         &
+                 Atm%delp, Atm%delz, Atm%pt, Atm%ps,               &
+                 Atm%pe,   Atm%peln, Atm%pk, Atm%pkz,              &
+                 kappa, Atm%q, ng, Atm%ncnst, Atm%gridstruct%area_64, Atm%flagstruct%dry_mass,           &
+                 Atm%flagstruct%adjust_dry_mass, Atm%flagstruct%mountain, Atm%flagstruct%moist_phys,   &
+                 Atm%flagstruct%hydrostatic, Atm%flagstruct%nwat, Atm%domain, Atm%flagstruct%adiabatic, Atm%flagstruct%make_nh)
 
   end subroutine get_external_ic
 
@@ -402,23 +408,23 @@ contains
     call set_filename_appendix('')
 
 !--- test for existence of the GFS control file
-    if (.not. file_exist('INPUT/'//trim(fn_gfs_ctl), no_domain=.TRUE.)) then
+    if (.not. file_exist(trim(inputdir)//'/'//trim(fn_gfs_ctl), no_domain=.TRUE.)) then
       call mpp_error(FATAL,'==> Error in External_ic::get_nggps_ic: file '//trim(fn_gfs_ctl)//' for NGGPS IC does not exist')
     endif
     call mpp_error(NOTE,'==> External_ic::get_nggps_ic: using control file '//trim(fn_gfs_ctl)//' for NGGPS IC')
 
 !--- read in the number of tracers in the NCEP NGGPS ICs
-    call read_data ('INPUT/'//trim(fn_gfs_ctl), 'ntrac', ntrac, no_domain=.TRUE.)
+    call read_data (trim(inputdir)//'/'//trim(fn_gfs_ctl), 'ntrac', ntrac, no_domain=.TRUE.)
     if (ntrac > ntracers) call mpp_error(FATAL,'==> External_ic::get_nggps_ic: more NGGPS tracers &
                                &than defined in field_table '//trim(fn_gfs_ctl)//' for NGGPS IC')
 
 
 !
-    call get_data_source(source_fv3gfs,Atm%flagstruct%regional)
+    call get_data_source(source_fv3gfs,Atm%flagstruct%regional,inputdir)
 
 
 !--- read in the number of levp
-    call open_ncfile( 'INPUT/'//trim(fn_gfs_ctl), ncid )        ! open the file
+    call open_ncfile( trim(inputdir)//'/'//trim(fn_gfs_ctl), ncid )        ! open the file
     call get_ncdim1( ncid, 'levsp', levsp )
     call close_ncfile( ncid )
 
@@ -730,13 +736,13 @@ contains
         allocate (ak(levp+1))
         allocate (bk(levp+1))
 
-        call read_data('INPUT/'//trim(fn_gfs_ctl),'vcoord',wk2, no_domain=.TRUE.)
+        call read_data(trim(inputdir)//'/'//trim(fn_gfs_ctl),'vcoord',wk2, no_domain=.TRUE.)
         ak(1:levp+1) = wk2(1:levp+1,1)
         bk(1:levp+1) = wk2(1:levp+1,2)
         deallocate (wk2)
 
 
-        if (.not. file_exist('INPUT/'//trim(fn_gfs_ics), domain=Atm%domain)) then
+        if (.not. file_exist(trim(inputdir)//'/'//trim(fn_gfs_ics), domain=Atm%domain)) then
           call mpp_error(FATAL,'==> Error in External_ic::get_nggps_ic: tiled file '//trim(fn_gfs_ics)//' for NGGPS IC does not exist')
         endif
         call mpp_error(NOTE,'==> External_ic::get_nggps_ic: using tiled data file '//trim(fn_gfs_ics)//' for NGGPS IC')
@@ -781,7 +787,7 @@ contains
         enddo
 
         ! read in the gfs_data and free the restart type to be re-used by the nest
-        call restore_state(GFS_restart)
+        call restore_state(GFS_restart,trim(inputdir))
         call free_restart_type(GFS_restart)
 
 
@@ -1751,7 +1757,7 @@ contains
       real(kind=R_GRID), dimension(3):: e1, e2, ex, ey
       real, allocatable:: ps_gfs(:,:), zh_gfs(:,:,:), o3mr_gfs(:,:,:)
       real, allocatable:: ak_gfs(:), bk_gfs(:)
-      integer :: id_res, ntprog, ntracers, ks, iq, nt
+      integer :: id_res, ntprog, ntracers, ks, iq, nt, levsp
       character(len=64) :: tracer_name
       integer :: levp_gfs = 64
       type (restart_file_type) :: ORO_restart, GFS_restart
@@ -1769,6 +1775,11 @@ contains
       ied = Atm%bd%ied
       jsd = Atm%bd%jsd
       jed = Atm%bd%jed
+
+      call open_ncfile( trim(inputdir)//'/'//trim(fn_gfs_ctl), ncid )
+      call get_ncdim1( ncid, 'levsp', levsp )
+      call close_ncfile( ncid )
+      levp_gfs = levsp-1
 
       deg2rad = pi/180.
 
@@ -1834,7 +1845,7 @@ contains
                                        mandatory=.false.,domain=Atm%domain)
       id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ps', ps_gfs, domain=Atm%domain)
       id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ZH', zh_gfs, domain=Atm%domain)
-      call restore_state (GFS_restart)
+      call restore_state (GFS_restart,trim(inputdir))
       call free_restart_type(GFS_restart)
 
 
@@ -1842,7 +1853,7 @@ contains
       allocate (wk2(levp_gfs+1,2))
       allocate (ak_gfs(levp_gfs+1))
       allocate (bk_gfs(levp_gfs+1))
-      call read_data('INPUT/'//trim(fn_gfs_ctl),'vcoord',wk2, no_domain=.TRUE.)
+      call read_data(trim(inputdir)//'/'//trim(fn_gfs_ctl),'vcoord',wk2, no_domain=.TRUE.)
       ak_gfs(1:levp_gfs+1) = wk2(1:levp_gfs+1,1)
       bk_gfs(1:levp_gfs+1) = wk2(1:levp_gfs+1,2)
       deallocate (wk2)
@@ -2785,7 +2796,7 @@ contains
                qp(i,k) = qa(i,j,k,iq)
             enddo
          enddo
-         call mappm(km, pe0, qp, npz, pe1,  qn1, is,ie, 0, 8, Atm%ptop)
+         call mappm(km, pe0, qp, npz, pe1,  qn1, is,ie, 0, 8)
          if ( iq==sphum ) then
             call fillq(ie-is+1, npz, 1, qn1, dp2)
          else
@@ -2870,8 +2881,8 @@ contains
             qp(i,k) = t_in(i,j,k)
         enddo
 
-        call mappm(km, log(pe0), qp, npz, log(pe1), qn1, is,ie, 2, 4, Atm%ptop) ! pn0 and pn1 are higher-precision
-                                                                                ! and cannot be passed to mappm
+        call mappm(km, log(pe0), qp, npz, log(pe1), qn1, is,ie, 2, 4) ! pn0 and pn1 are higher-precision
+                                                                      ! and cannot be passed to mappm
         do k=1,npz
             Atm%pt(i,j,k) = qn1(i,k)
         enddo
@@ -2950,7 +2961,7 @@ contains
             qp(i,k) = omga(i,j,k)
          enddo
       enddo
-      call mappm(km, pe0, qp, npz, pe1, qn1, is,ie, -1, 4, Atm%ptop)
+      call mappm(km, pe0, qp, npz, pe1, qn1, is,ie, -1, 4)
     if (source_fv3gfs) then
       do k=1,npz
          do i=is,ie
@@ -3094,7 +3105,7 @@ contains
            qp(i,k) = qa(i,j,k)
         enddo
      enddo
-     call mappm(km, pe0, qp, npz, pe1,  qn1, is,ie, 0, 8, Atm%ptop)
+     call mappm(km, pe0, qp, npz, pe1,  qn1, is,ie, 0, 8)
      if ( iq==1 ) then
         call fillq(ie-is+1, npz, 1, qn1, dp2)
      else
@@ -3193,7 +3204,7 @@ contains
         enddo
      enddo
      call mappm(km, pe0(is:ie,1:km+1), ud(is:ie,j,1:km), npz, pe1(is:ie,1:npz+1),   &
-                qn1(is:ie,1:npz), is,ie, -1, 8, Atm%ptop)
+                qn1(is:ie,1:npz), is,ie, -1, 8)
      do k=1,npz
         do i=is,ie
            Atm%u(i,j,k) = qn1(i,k)
@@ -3215,7 +3226,7 @@ contains
         enddo
      enddo
      call mappm(km, pe0(is:ie+1,1:km+1), vd(is:ie+1,j,1:km), npz, pe1(is:ie+1,1:npz+1),  &
-                qn1(is:ie+1,1:npz), is,ie+1, -1, 8, Atm%ptop)
+                qn1(is:ie+1,1:npz), is,ie+1, -1, 8)
      do k=1,npz
         do i=is,ie+1
            Atm%v(i,j,k) = qn1(i,k)
@@ -3275,7 +3286,7 @@ contains
 !------
 ! map u
 !------
-      call mappm(km, pe0, ua(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 8, Atm%ptop)
+      call mappm(km, pe0, ua(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 8)
       do k=1,npz
          do i=is,ie
             ut(i,j,k) = qn1(i,k)
@@ -3284,7 +3295,7 @@ contains
 !------
 ! map v
 !------
-      call mappm(km, pe0, va(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 8, Atm%ptop)
+      call mappm(km, pe0, va(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 8)
       do k=1,npz
          do i=is,ie
             vt(i,j,k) = qn1(i,k)
@@ -3511,7 +3522,7 @@ contains
 !------
 ! map u
 !------
-      call mappm(km, pe0, up, npz, pe1, qn1, is,ie, -1, 9, Atm%ptop)
+      call mappm(km, pe0, up, npz, pe1, qn1, is,ie, -1, 9)
       do k=1,npz
          do i=is,ie
             ut(i,j,k) = qn1(i,k)
@@ -3520,7 +3531,7 @@ contains
 !------
 ! map v
 !------
-      call mappm(km, pe0, vp, npz, pe1, qn1, is,ie, -1, 9, Atm%ptop)
+      call mappm(km, pe0, vp, npz, pe1, qn1, is,ie, -1, 9)
       do k=1,npz
          do i=is,ie
             vt(i,j,k) = qn1(i,k)
@@ -3533,7 +3544,7 @@ contains
       do iq=1,ncnst
 ! Note: AM2 physics tracers only
 !         if ( iq==sphum .or. iq==liq_wat .or. iq==ice_wat .or. iq==cld_amt ) then
-         call mappm(km, pe0, qp(is,1,iq), npz, pe1,  qn1, is,ie, 0, 11, Atm%ptop)
+         call mappm(km, pe0, qp(is,1,iq), npz, pe1,  qn1, is,ie, 0, 11)
          do k=1,npz
             do i=is,ie
                Atm%q(i,j,k,iq) = qn1(i,k)
@@ -3545,7 +3556,7 @@ contains
 !-------------------------------------------------------------
 ! map virtual temperature using geopotential conserving scheme.
 !-------------------------------------------------------------
-      call mappm(km, pn0, tp, npz, pn1, qn1, is,ie, 1, 9, Atm%ptop)
+      call mappm(km, pn0, tp, npz, pn1, qn1, is,ie, 1, 9)
       do k=1,npz
          do i=is,ie
             Atm%pt(i,j,k) = qn1(i,k)/(1.+zvir*Atm%q(i,j,k,sphum))

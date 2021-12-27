@@ -181,6 +181,10 @@ module fv_control_mod
      real    , pointer :: d_ext
      integer , pointer :: nwat
      logical , pointer :: warm_start
+     integer , pointer :: replay
+     integer , pointer :: nrestartbg
+     logical , pointer :: write_replay_ic
+     
      logical , pointer :: inline_q
      real , pointer :: shift_fac
      logical , pointer :: do_schmidt, do_cube_transform
@@ -254,6 +258,7 @@ module fv_control_mod
 
      logical , pointer :: old_divg_damp
      logical , pointer :: fv_land
+     logical , pointer :: do_am4_remap
      logical , pointer :: nudge
      logical , pointer :: nudge_ic
      logical , pointer :: ncep_ic
@@ -752,6 +757,9 @@ module fv_control_mod
        nwat                          => Atm%flagstruct%nwat
        use_logp                      => Atm%flagstruct%use_logp
        warm_start                    => Atm%flagstruct%warm_start
+       replay                        => Atm%flagstruct%replay 
+       nrestartbg                    => Atm%flagstruct%nrestartbg
+       write_replay_ic               => Atm%flagstruct%write_replay_ic
        inline_q                      => Atm%flagstruct%inline_q
        shift_fac                     => Atm%flagstruct%shift_fac
        do_schmidt                    => Atm%flagstruct%do_schmidt
@@ -823,6 +831,7 @@ module fv_control_mod
        z_tracer                      => Atm%flagstruct%z_tracer
        old_divg_damp                 => Atm%flagstruct%old_divg_damp
        fv_land                       => Atm%flagstruct%fv_land
+       do_am4_remap                  => Atm%flagstruct%do_am4_remap
        nudge                         => Atm%flagstruct%nudge
        nudge_ic                      => Atm%flagstruct%nudge_ic
        ncep_ic                       => Atm%flagstruct%ncep_ic
@@ -979,7 +988,8 @@ module fv_control_mod
             use_logp, p_fac, a_imp, k_split, n_split, m_split, q_split, print_freq, write_3d_diags, &
             do_schmidt, do_cube_transform, &
             hord_mt, hord_vt, hord_tm, hord_dp, hord_tr, shift_fac, stretch_fac, target_lat, target_lon, &
-            kord_mt, kord_wz, kord_tm, kord_tr, remap_te, fv_debug, fv_land, nudge, do_sat_adj, do_inline_mp, do_fsbm, do_aerosol, do_f3d, &
+            kord_mt, kord_wz, kord_tm, kord_tr, remap_te, fv_debug, fv_land, &
+            do_am4_remap, nudge, do_sat_adj, do_inline_mp, do_fsbm, do_aerosol, do_f3d, &
             external_ic, read_increment, ncep_ic, nggps_ic, hrrrv3_ic, ecmwf_ic, use_new_ncep, use_ncep_phy, fv_diag_ic, &
             external_eta, res_latlon_dynamics, res_latlon_tracers, scale_z, w_max, z_min, lim_fac, &
             dddmp, d2_bg, d4_bg, vtdm4, trdm2, d_ext, delt_max, beta, non_ortho, n_sponge, &
@@ -1000,7 +1010,9 @@ module fv_control_mod
             bc_update_interval,  nrows_blend, write_restart_with_bcs, regional_bcs_from_gsi, &
             w_limiter, write_coarse_restart_files, write_coarse_diagnostics,&
             write_only_coarse_intermediate_restarts, &
-            write_coarse_agrid_vel_rst, write_coarse_dgrid_vel_rst, pass_full_omega_to_physics_in_non_hydrostatic_mode, &
+            write_coarse_agrid_vel_rst, write_coarse_dgrid_vel_rst, &
+            pass_full_omega_to_physics_in_non_hydrostatic_mode, &
+            replay, nrestartbg, write_replay_ic, &
             fsbm_bin, fsbm_dx, fsbm_dy
 
 #ifdef INTERNAL_FILE_NML

@@ -36,7 +36,8 @@ module fv_nggps_diags_mod
 
  real, parameter:: missing_value = -1.e10
  logical master
- integer :: id_ua, id_va, id_pt, id_delp, id_pfhy, id_pfnh, id_w, id_delz
+ integer :: id_ua, id_va, id_pt, id_delp, id_pfhy, id_pfnh
+ integer :: id_w, id_delz, id_diss 
  integer, allocatable :: id_tracer(:)
 
  logical :: module_is_initialized=.false.
@@ -45,6 +46,7 @@ module fv_nggps_diags_mod
  real :: vrange(2) = (/ -330.,  330. /)  ! winds
  real :: wrange(2) = (/ -100.,  100. /)  ! vertical wind
  real :: trange(2) = (/  100.,  350. /)  ! temperature
+ real :: skrange(2) = (/ -10000000.0,  10000000.0 /)  !< dissipation estimate for SKEB
 
 ! file name
  character(len=64) :: field = 'gfs_dyn'
@@ -111,6 +113,10 @@ contains
 
        id_delp = register_diag_field ( trim(field), 'delp', axes(1:3), Time,        &
             'pressure thickness', 'pa', missing_value=missing_value )
+
+       !--- diagnostic output for skeb: dissipation estimate
+       id_diss = register_diag_field ( trim(field), 'diss_est', axes(1:3), Time,    &
+            'dissipation estimate', 'none', missing_value=missing_value, range=skrange )
 
 !--------------------
 ! Tracer diagnostics:
@@ -247,6 +253,9 @@ contains
        used=send_data(id_pfnh, wk, Time)
     endif
 #endif
+
+    !--- DISS_EST (skeb: dissipation estimate)
+    if(id_diss > 0) used=send_data(id_diss, Atm(n)%diss_est(isc:iec,jsc:jec,:), Time)
 
     deallocate ( wk )
 

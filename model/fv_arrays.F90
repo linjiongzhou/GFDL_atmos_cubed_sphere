@@ -50,7 +50,7 @@ module fv_arrays_mod
 
      real, allocatable :: zxg(:,:)
 
-     integer :: id_u_dt_sg, id_v_dt_sg, id_t_dt_sg, id_qv_dt_sg
+     integer :: id_u_dt_sg, id_v_dt_sg, id_t_dt_sg, id_qv_dt_sg, id_diss
      integer :: id_ws, id_te, id_amdt, id_mdt, id_divg, id_aam
      logical :: initialized = .false.
 
@@ -161,7 +161,10 @@ module fv_arrays_mod
 
      real(kind=R_GRID) :: global_area
      logical :: g_sum_initialized = .false. !Not currently used but can be useful
-     logical:: sw_corner, se_corner, ne_corner, nw_corner
+     logical:: sw_corner = .false.
+     logical:: se_corner = .false.
+     logical:: ne_corner = .false.
+     logical:: nw_corner = .false.
 
      real(kind=R_GRID) :: da_min, da_max, da_min_c, da_max_c
 
@@ -277,7 +280,8 @@ module fv_arrays_mod
    logical :: convert_ke = .false.
    logical :: do_vort_damp = .false.
    logical :: use_old_omega = .true.
-   logical :: remap_te = .false.
+   logical :: remap_te = .false.    ! A developmental option, remap total energy based on abs(kord_tm)
+                                    ! if kord_tm=0 use GMAO Cubic, otherwise as Tv remapping 
 ! PG off centering:
    real    :: beta  = 0.0    ! 0.5 is "neutral" but it may not be stable
 #ifdef SW_DYNAMICS
@@ -296,6 +300,12 @@ module fv_arrays_mod
    logical :: inline_q = .false.
    logical :: adiabatic = .false.     ! Run without physics (full or idealized).
 #endif
+! Replay options
+   integer :: replay = 0     ! replay=0: replay turned off
+                             ! replay=1: compute replay increments inside the model
+                             ! replay=2: use preprocessed increments  
+   integer :: nrestartbg = 1 ! number of backgrounds for background averaging
+   logical :: write_replay_ic = .false. ! write out replay increments on cubed-sphere grid
 !-----------------------------------------------------------
 ! Grid shifting, rotation, and cube transformations:
 !-----------------------------------------------------------
@@ -423,6 +433,7 @@ module fv_arrays_mod
                                       !    damp_k_k1 = 0.2         damp_k_k2 = 0.12
 
    logical :: fv_land = .false.       ! To cold starting the model with USGS terrain
+   logical :: do_am4_remap = .false.   ! Use AM4 vertical remapping operators
 !--------------------------------------------------------------------------------------
 ! The following options are useful for NWP experiments using datasets on the lat-lon grid
 !--------------------------------------------------------------------------------------
@@ -443,6 +454,9 @@ module fv_arrays_mod
    logical :: external_eta = .false.  ! allow the use of externally defined ak/bk values and not
                                       ! require coefficients to be defined vi set_eta
    logical :: read_increment = .false.   ! read in analysis increment and add to restart
+! following are namelist parameters for Stochastic Energy Baskscatter
+! dissipation estimate
+   logical :: do_diss_est  = .false.     !< compute and save dissipation estimate
 ! Default restart files from the "Memphis" latlon FV core:
    character(len=128) :: res_latlon_dynamics = 'INPUT/fv_rst.res.nc'
    character(len=128) :: res_latlon_tracers  = 'INPUT/atmos_tracers.res.nc'
@@ -813,6 +827,8 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: oro(:,:)      _NULL  ! land fraction (1: all land; 0: all water)
     real, _ALLOCATABLE :: ts(:,:)       _NULL  ! skin temperature (sst) from NCEP/GFS (K) -- tile
     real, _ALLOCATABLE :: ci(:,:)       _NULL  ! sea-ice fraction from external file
+! For stochastic kinetic energy backscatter (SKEB)
+    real, _ALLOCATABLE :: diss_est(:,:,:) _NULL !< dissipation estimate taken from 'heat_source'
 
 !-----------------------------------------------------------------------
 ! Others:
@@ -1047,6 +1063,7 @@ contains
     endif
 
     ! Allocate others
+    allocate ( Atm%diss_est(isd:ied  ,jsd:jed  ,npz) )
     allocate ( Atm%ts(is:ie,js:je) )
     allocate ( Atm%phis(isd:ied  ,jsd:jed  ) )
     allocate ( Atm%omga(isd:ied  ,jsd:jed  ,npz) ); Atm%omga=0.
@@ -1409,6 +1426,7 @@ contains
     deallocate (   Atm%pk )
     deallocate ( Atm%peln )
     deallocate (  Atm%pkz )
+    deallocate (   Atm%ts )
     deallocate ( Atm%phis )
     deallocate ( Atm%omga )
     deallocate (   Atm%ua )
@@ -1421,6 +1439,7 @@ contains
     deallocate (  Atm%cy )
     deallocate (  Atm%ak )
     deallocate (  Atm%bk )
+    deallocate ( Atm%diss_est )
 
     deallocate ( Atm%inline_mp%prer )
     deallocate ( Atm%inline_mp%prei )

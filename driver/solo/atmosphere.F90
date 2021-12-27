@@ -161,14 +161,14 @@ contains
            zvir = rvgas/rdgas - 1.
            Atm(n)%flagstruct%moist_phys = .true.
            if ( grids_on_this_pe(n) ) then
-                call fv_phys_init(isc,iec,jsc,jec,Atm(n)%flagstruct%nwat, Atm(n)%ts,   &
+                call fv_phys_init(isc,iec,jsc,jec,Atm(n)%npz,Atm(n)%flagstruct%nwat, Atm(n)%ts, Atm(n)%pt(isc:iec,jsc:jec,:),   &
                              Time, axes, Atm(n)%gridstruct%agrid(isc:iec,jsc:jec,2))
 !                if ( Atm(n)%flagstruct%nwat==6) call gfdl_cld_mp_init(mpp_pe(),  &
 !                                                mpp_root_pe(), nlunit, input_nml_file, stdlog(), fn_nml) 
 !                if ( Atm(n)%flagstruct%nwat==6) call cld_eff_rad_init(nlunit, input_nml_file, stdlog(), fn_nml)
-                if ( Atm(n)%flagstruct%nwat==6) call gfdl_mp_init (mpp_pe(), mpp_root_pe(), nlunit, input_nml_file, stdlog(), fn_nml)
            endif
         endif
+        if (.not. Atm(n)%flagstruct%adiabatic) call gfdl_mp_init (mpp_pe(), mpp_root_pe(), nlunit, input_nml_file, stdlog(), fn_nml)
 
 
 
@@ -345,9 +345,8 @@ contains
                      Atm(n)%cx, Atm(n)%cy, Atm(n)%ze0, Atm(n)%flagstruct%hybrid_z,    &
                      Atm(n)%gridstruct, Atm(n)%flagstruct,                            &
                      Atm(n)%neststruct, Atm(n)%idiag, Atm(n)%bd, Atm(n)%parent_grid,  &
-                     Atm(n)%domain, Atm(n)%inline_mp,                                 &
-                     Atm(n)%pt_old, Atm(n)%q_old,                                     &
-                     Atm(n)%lagrangian_tendency_of_hydrostatic_pressure)
+                     Atm(n)%domain, Atm(n)%inline_mp, Atm(n)%diss_est,                &
+                     Atm(n)%pt_old, Atm(n)%q_old)
 ! Forwardward call
     call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  Atm(n)%ncnst, Atm(n)%ng, dt_atmos, 0.,      &
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
@@ -361,9 +360,8 @@ contains
                      Atm(n)%cx, Atm(n)%cy, Atm(n)%ze0, Atm(n)%flagstruct%hybrid_z,    &
                      Atm(n)%gridstruct, Atm(n)%flagstruct,                            &
                      Atm(n)%neststruct, Atm(n)%idiag, Atm(n)%bd, Atm(n)%parent_grid,  &
-                     Atm(n)%domain, Atm(n)%inline_mp,                                 &
-                     Atm(n)%pt_old, Atm(n)%q_old,                                     &
-                     Atm(n)%lagrangian_tendency_of_hydrostatic_pressure)
+                     Atm(n)%domain, Atm(n)%inline_mp, Atm(n)%diss_est,                &
+                     Atm(n)%pt_old, Atm(n)%q_old)
 ! Nudging back to IC
 !$omp parallel do default(shared)
        do k=1,npz
@@ -461,8 +459,8 @@ contains
             Atm(n)%ak, Atm(n)%bk, Atm(n)%mfx, Atm(n)%mfy, Atm(n)%cx, Atm(n)%cy,    &
             Atm(n)%ze0, Atm(n)%flagstruct%hybrid_z, Atm(n)%gridstruct, Atm(n)%flagstruct, &
             Atm(n)%neststruct, Atm(n)%idiag, Atm(n)%bd, Atm(n)%parent_grid, Atm(n)%domain, &
-            Atm(n)%inline_mp, Atm(n)%pt_old, Atm(n)%q_old, &
-            Atm(n)%lagrangian_tendency_of_hydrostatic_pressure, time_total=time_total)
+            Atm(n)%inline_mp, Atm(n)%diss_est, Atm(n)%pt_old, Atm(n)%q_old, &
+            time_total=time_total)
                                               call timing_off('fv_dynamics')
     end do
 
