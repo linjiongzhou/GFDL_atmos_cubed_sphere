@@ -96,39 +96,49 @@ module gfdl_cld_mp_mod
     real, parameter :: rgrav = 1.0 / grav ! inversion of gravity acceleration (s^2/m)
     
     real, parameter :: pi = 4.0 * atan (1.0) ! ratio of circle circumference to diameter
+
+    real, parameter :: boltzmann = 1.38064852e-23 ! boltzmann constant (J/K)
+    real, parameter :: avogadro = 6.02214076e23 ! avogadro number (1/mol)
+    real, parameter :: runiver = avogadro * boltzmann ! 8.314459727525675, universal gas constant (J/K/mol)
+    real, parameter :: mmd = 2.89647e-2 ! dry air molar mass (kg/mol)
+    real, parameter :: mmv = 1.801528e-2 ! water vapor molar mass (kg/mol)
     
-    real, parameter :: rdgas = 287.05 ! gas constant for dry air (J/kg/K)
-    real, parameter :: rvgas = 461.50 ! gas constant for water vapor (J/kg/K)
+    real, parameter :: rdgas = runiver / mmd ! 287.0549229760942 gas constant for dry air (J/kg/K)
+    real, parameter :: rvgas = runiver / mmv ! 461.5226478592436 gas constant for water vapor (J/kg/K)
     
-    real, parameter :: eps = rdgas / rvgas ! 0.6219934995
-    real, parameter :: zvir = rvgas / rdgas - 1. ! 0.6077338443
+    real, parameter :: zvir = rvgas / rdgas - 1. ! 0.6078035185507751
     
     real, parameter :: tice = 273.16 ! freezing temperature (K)
     
-    real, parameter :: cp_air = 1.0046e3 ! heat capacity of dry air at constant pressure (J/kg/K)
-    real, parameter :: cp_vap = 4.0 * rvgas ! 1846.0, heat capacity of water vapore at constnat pressure (J/kg/K)
-    real, parameter :: cv_air = cp_air - rdgas ! 717.55, heat capacity of dry air at constant volume (J/kg/K)
-    real, parameter :: cv_vap = 3.0 * rvgas ! 1384.5, heat capacity of water vapor at constant volume (J/kg/K)
+    real, parameter :: cp_air = 7. / 2. * rdgas ! 1004.6922304163297 ! heat capacity of dry air at constant pressure (J/kg/K)
+    real, parameter :: cp_vap = 4.0 * rvgas ! 1846.0905914369744, heat capacity of water vapor at constnat pressure (J/kg/K)
+    real, parameter :: cv_air = 5. / 2. * rdgas ! 717.6373074402354, heat capacity of dry air at constant volume (J/kg/K)
+    real, parameter :: cv_vap = 3.0 * rvgas ! 1384.5679435777308, heat capacity of water vapor at constant volume (J/kg/K)
     
-    real, parameter :: c_ice = 2.106e3 ! heat capacity of ice at 0 deg C (J/kg/K)
-    real, parameter :: c_liq = 4.218e3 ! heat capacity of water at 0 deg C (J/kg/K)
+    real, parameter :: c_ice = 2.106e3 ! heat capacity of ice at 0 deg C (J/kg/K), ref: IFS
+    real, parameter :: c_liq = 4.218e3 ! heat capacity of water at 0 deg C (J/kg/K), ref: IFS
     
-    real, parameter :: dc_vap = cp_vap - c_liq ! - 2.372e3, isobaric heating / cooling (J/kg/K)
-    real, parameter :: dc_ice = c_liq - c_ice ! 2.112e3, isobaric heating / colling (J/kg/K)
-    real, parameter :: d2_ice = cp_vap - c_ice ! - 260.0, isobaric heating / cooling (J/kg/K)
+    real, parameter :: dc_vap = cp_vap - c_liq ! - 2371.909408563026, isobaric heating / cooling (J/kg/K)
+    real, parameter :: dc_ice = c_liq - c_ice ! 2112.0, isobaric heating / colling (J/kg/K)
+    real, parameter :: d2_ice = cp_vap - c_ice ! - 259.90940856302564, isobaric heating / cooling (J/kg/K)
     
-    real, parameter :: hlv = 2.5e6 ! latent heat of evaporation (J/kg)
-    real, parameter :: hlf = 3.3358e5 ! latent heat of fusion (J/kg)
+    real, parameter :: hlv = 2.5008e6 ! latent heat of evaporation (J/kg), ref: IFS
+    real, parameter :: hlf = 3.345e5 ! latent heat of fusion (J/kg), ref: IFS
     
-    real, parameter :: visk = 1.259e-5 ! kinematic viscosity of air (m^2/s)
-    real, parameter :: vdifu = 2.11e-5 ! diffusivity of water vapor in air (m^2/s)
-    real, parameter :: tcond = 2.36e-2 ! thermal conductivity of air (J/m/s/K)
+    real, parameter :: visd = 1.729e-5 ! dynamics viscosity of air at 0 deg C (kg/m/s)
+    real, parameter :: visk = 1.338e-5 ! kinematic viscosity of air at 0 deg C (m^2/s)
+    real, parameter :: vdifu = 2.19e-5 ! diffusivity of water vapor in air at 0 deg C (m^2/s)
+    real, parameter :: tcond = 2.364e-2 ! thermal conductivity of air at 0 deg C (J/m/s/K)
+
+    real, parameter :: rho0 = 1.2 ! simple assumption of surface air density (kg/m^3)
+    real, parameter :: cdg = 2.626 ! drag coefficient of graupel (Locatelli and Hobbs, 1974)
+    real, parameter :: cdh = 0.5 ! drag coefficient of hail (Heymsfield and Wright, 2014)
     
     real (kind = r8), parameter :: lv0 = hlv - dc_vap * tice ! 3.14893552e6, evaporation latent heat coeff. at 0 deg K (J/kg)
     real (kind = r8), parameter :: li0 = hlf - dc_ice * tice ! - 2.2691392e5, fussion latent heat coeff. at 0 deg K (J/kg)
     real (kind = r8), parameter :: li2 = lv0 + li0 ! 2.9220216e6, sublimation latent heat coeff. at 0 deg K (J/kg)
     
-    real (kind = r8), parameter :: e00 = 611.21 ! saturation vapor pressure at 0 deg C (Pa)
+    real (kind = r8), parameter :: e00 = 611.65 ! saturation vapor pressure at 0 deg C (Pa)
     
     ! -----------------------------------------------------------------------
     ! predefined parameters
@@ -141,13 +151,11 @@ module gfdl_cld_mp_mod
     
     real, parameter :: dz_min = 1.0e-2 ! used for correcting flipped height (m)
     
-    real, parameter :: sfcrho = 1.2 ! surface air density (kg/m^3)
-    
-    real, parameter :: rhow = 1.0e3 ! density of cloud water (kg/m^3)
-    real, parameter :: rhoi = 9.17e2 ! density of cloud ice (kg/m^3)
+    real, parameter :: rhow = 9.9985e2 ! density of cloud water (kg/m^3)
+    real, parameter :: rhoi = 9.162e2 ! density of cloud ice (kg/m^3)
     real, parameter :: rhor = 1.0e3 ! density of rain (Lin et al. 1983) (kg/m^3)
-    real, parameter :: rhos = 0.1e3 ! density of snow (Lin et al. 1983) (kg/m^3)
-    real, parameter :: rhog = 0.4e3 ! density of graupel (Rutledge and Hobbs 1984) (kg/m^3)
+    real, parameter :: rhos = 1.0e2 ! density of snow (Lin et al. 1983) (kg/m^3)
+    real, parameter :: rhog = 4.0e2 ! density of graupel (Rutledge and Hobbs 1984) (kg/m^3)
     real, parameter :: rhoh = 9.17e2 ! density of hail (Lin et al. 1983) (kg/m^3)
     
     real, parameter :: dt_fr = 8.0 ! t_wfr - dt_fr: minimum temperature water can exist (Moore and Molinero 2011)
@@ -282,6 +290,9 @@ module gfdl_cld_mp_mod
 
     logical :: do_psd_water_fall = .false. ! calculate cloud water terminal velocity based on PSD
     logical :: do_psd_ice_fall = .false. ! calculate cloud ice terminal velocity based on PSD
+
+    logical :: do_psd_water_num = .false. ! calculate cloud water number concentration based on PSD
+    logical :: do_psd_ice_num = .false. ! calculate cloud ice number concentration based on PSD
 
     logical :: do_new_acc_water = .false. ! perform the new accretion for cloud water
     logical :: do_new_acc_ice = .false. ! perform the new accretion for cloud ice
@@ -443,6 +454,8 @@ module gfdl_cld_mp_mod
     real (kind = r8) :: vconw, vconr, vconi, vcons, vcong, vconh
     real (kind = r8) :: normw, normr, normi, norms, normg, normh
     real (kind = r8) :: expow, expor, expoi, expos, expog, expoh
+    real (kind = r8) :: coeaw, coear, coeai, coeas, coeag, coeah
+    real (kind = r8) :: coebw, coebr, coebi, coebs, coebg, coebh
     
     real, allocatable :: table0 (:), table1 (:), table2 (:), table3 (:), table4 (:)
     real, allocatable :: des0 (:), des1 (:), des2 (:), des3 (:), des4 (:)
@@ -472,7 +485,7 @@ module gfdl_cld_mp_mod
         n0r_exp, n0s_exp, n0g_exp, n0h_exp, muw, mui, mur, mus, mug, muh, &
         alinw, alini, alinr, alins, aling, alinh, blinw, blini, blinr, blins, bling, blinh, &
         do_new_acc_water, do_new_acc_ice, is_fac, ss_fac, gs_fac, rh_fac, &
-        snow_grauple_combine
+        snow_grauple_combine, do_psd_water_num, do_psd_ice_num
     
 contains
 
@@ -630,7 +643,7 @@ subroutine setup_mp
     
     integer :: i, k
     
-    real :: gcon, hcon, scm3, pisq, act (20), ace (20), occ (3)
+    real :: gcon, hcon, scm3, pisq, act (20), ace (20), occ (3), aone
     
     ! -----------------------------------------------------------------------
     ! complete freezing temperature
@@ -646,16 +659,17 @@ subroutine setup_mp
     ! cloud water autoconversion, Hong et al. (2004)
     ! -----------------------------------------------------------------------
     
-    fac_rc = (4. / 3.) * pi * rhor * rthresh ** 3
+    fac_rc = (4. / 3.) * pi * rhow * rthresh ** 3
     
-    cpaut = c_paut * 0.104 * grav / 1.717e-5
+    aone = 2. / 9. * (3. / 4.) ** (4. / 3.) / pi ** (1. / 3.)
+    cpaut = c_paut * aone * grav / visd
     
     ! -----------------------------------------------------------------------
-    ! terminal velocities parameters of rain, snow, and graupel or hail, Lin et al. (1983)
+    ! terminal velocities parameters, Lin et al. (1983)
     ! -----------------------------------------------------------------------
     
-    gcon = 40.74 ! (4 * g * rhog / (3 * CD * rho0)) ** 0.5 in Lin et al. (1983)
-    hcon = gcon * sqrt (rhoh / rhog)
+    gcon = (4. * grav * rhog / (3. * cdg * rho0)) ** 0.5
+    hcon = (4. * grav * rhoh / (3. * cdh * rho0)) ** 0.5
     
     vconw = alinw * gamma (3 + muw + blinw) / gamma (3 + muw)
     vconi = alini * gamma (3 + mui + blini) / gamma (3 + mui)
@@ -665,7 +679,7 @@ subroutine setup_mp
     vconh = alinh * gamma (3 + muh + blinh) / gamma (3 + muh) * hcon
     
     ! -----------------------------------------------------------------------
-    ! slope parameters of rain, snow, and graupel or hail, Lin et al. (1983)
+    ! slope parameters, Lin et al. (1983)
     ! -----------------------------------------------------------------------
     
     normw = pi * rhow * n0w_sig * gamma (muw + 3)
@@ -681,6 +695,20 @@ subroutine setup_mp
     expos = exp (n0s_exp / (mus + 3) * log (10.))
     expog = exp (n0g_exp / (mug + 3) * log (10.))
     expoh = exp (n0h_exp / (muh + 3) * log (10.))
+
+    coeaw = exp (3 / (muw + 3) * log (n0w_sig)) * gamma (muw) * exp (3 * n0w_exp / (muw + 3) * log (10.))
+    coeai = exp (3 / (mui + 3) * log (n0i_sig)) * gamma (muw) * exp (3 * n0i_exp / (mui + 3) * log (10.))
+    coear = exp (3 / (mur + 3) * log (n0r_sig)) * gamma (muw) * exp (3 * n0r_exp / (mur + 3) * log (10.))
+    coeas = exp (3 / (mus + 3) * log (n0s_sig)) * gamma (muw) * exp (3 * n0s_exp / (mus + 3) * log (10.))
+    coeag = exp (3 / (mug + 3) * log (n0g_sig)) * gamma (muw) * exp (3 * n0g_exp / (mug + 3) * log (10.))
+    coeah = exp (3 / (muh + 3) * log (n0h_sig)) * gamma (muw) * exp (3 * n0h_exp / (muh + 3) * log (10.))
+
+    coebw = exp (muw / (muw + 3) * log (pi / 6 * rhow * gamma (muw + 3)))
+    coebi = exp (mui / (mui + 3) * log (pi / 6 * rhoi * gamma (mui + 3)))
+    coebr = exp (mur / (mur + 3) * log (pi / 6 * rhor * gamma (mur + 3)))
+    coebs = exp (mus / (mus + 3) * log (pi / 6 * rhos * gamma (mus + 3)))
+    coebg = exp (mug / (mug + 3) * log (pi / 6 * rhog * gamma (mug + 3)))
+    coebh = exp (muh / (muh + 3) * log (pi / 6 * rhoh * gamma (muh + 3)))
     
     ! -----------------------------------------------------------------------
     ! Schmidt number, Sc ** (1 / 3) in Lin et al. (1983)
@@ -1567,9 +1595,9 @@ subroutine mp_full (ks, ke, ntimes, tz, qv, ql, qr, qi, qs, qg, dp, dz, u, v, w,
     
     real, intent (in) :: dts, rh_adj, rh_rain, h_var, convt
     
-    real, intent (in), dimension (ks:ke) :: dp, dz, den, denfac, ccn
+    real, intent (in), dimension (ks:ke) :: dp, dz, den, denfac
     
-    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, u, v, w, cin
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, u, v, w, ccn, cin
     real, intent (inout), dimension (ks:ke) :: prefluxw, prefluxr, prefluxi, prefluxs, prefluxg
     
     real (kind = r8), intent (inout), dimension (ks:ke) :: tz
@@ -1661,9 +1689,9 @@ subroutine mp_fast (ks, ke, tz, qv, ql, qr, qi, qs, qg, dtm, dp, den, &
     
     real, intent (in) :: dtm, convt
     
-    real, intent (in), dimension (ks:ke) :: dp, den, ccn
+    real, intent (in), dimension (ks:ke) :: dp, den
     
-    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, cin
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, ccn, cin
     
     real (kind = r8), intent (inout), dimension (ks:ke) :: tz
     
@@ -1744,7 +1772,7 @@ subroutine mp_fast (ks, ke, tz, qv, ql, qr, qi, qs, qg, dtm, dp, den, &
         ! Bigg freezing mechanism
         ! -----------------------------------------------------------------------
         
-        call pbigg (ks, ke, dtm, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, &
+        call pbigg (ks, ke, dtm, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, ccn, &
             lcpk, icpk, tcpk, tcp3)
         
         ! -----------------------------------------------------------------------
@@ -2443,9 +2471,9 @@ subroutine warm_rain (dts, ks, ke, dp, dz, tz, qv, ql, qr, qi, qs, qg, &
     
     real, intent (in) :: dts, rh_rain, h_var
     
-    real, intent (in), dimension (ks:ke) :: dp, dz, den, denfac, ccn, vtw, vtr
+    real, intent (in), dimension (ks:ke) :: dp, dz, den, denfac, vtw, vtr
     
-    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, ccn
     
     real (kind = r8), intent (inout), dimension (ks:ke) :: tz
     
@@ -2660,9 +2688,9 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
     
     real, intent (in) :: dts, h_var
     
-    real, intent (in), dimension (ks:ke) :: den, ccn
+    real, intent (in), dimension (ks:ke) :: den
     
-    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, ccn
     
     real (kind = r8), intent (inout), dimension (ks:ke) :: tz
     
@@ -2678,6 +2706,12 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
     real :: sink, dq, qc
     
     real, dimension (ks:ke) :: dl, c_praut
+
+    if (do_psd_water_num) then
+        do k = ks, ke
+            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k)))
+        enddo
+    endif
     
     if (irain_f .eq. 0) then
         
@@ -2693,9 +2727,9 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
                 
                 if (dq .gt. 0.) then
                     
-                    c_praut (k) = cpaut * exp (so1 * log (ccn (k) * rhor))
-                    sink = min (1., dq / dl (k)) * dts * c_praut (k) * den (k) * &
-                        exp (so3 * log (ql (k)))
+                    c_praut (k) = cpaut * exp (so1 * log (ccn (k) * rhow))
+                    sink = min (dq, min (1., dq / dl (k)) * dts * c_praut (k) * den (k) * &
+                        exp (so3 * log (ql (k))))
                     sink = min (ql (k), sink)
                     
                     call update_qq (qv (k), ql (k), qr (k), qi (k), qs (k), qg (k), &
@@ -2720,7 +2754,7 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
                 
                 if (dq .gt. 0.) then
                     
-                    c_praut (k) = cpaut * exp (so1 * log (ccn (k) * rhor))
+                    c_praut (k) = cpaut * exp (so1 * log (ccn (k) * rhow))
                     sink = min (dq, dts * c_praut (k) * den (k) * exp (so3 * log (ql (k))))
                     sink = min (ql (k), sink)
                     
@@ -3574,9 +3608,9 @@ subroutine subgrid_z_proc (ks, ke, den, denfac, dts, rh_adj, tz, qv, ql, qr, &
     
     real, intent (in) :: dts, rh_adj
     
-    real, intent (in), dimension (ks:ke) :: den, denfac, ccn, dp
+    real, intent (in), dimension (ks:ke) :: den, denfac, dp
     
-    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, cin
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, ccn, cin
     
     real, intent (out) :: cond, dep, reevap, sub
     
@@ -3642,7 +3676,7 @@ subroutine subgrid_z_proc (ks, ke, den, denfac, dts, rh_adj, tz, qv, ql, qr, &
         ! Bigg freezing mechanism
         ! -----------------------------------------------------------------------
         
-        call pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, lcpk, icpk, tcpk, tcp3)
+        call pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, ccn, lcpk, icpk, tcpk, tcp3)
         
         ! -----------------------------------------------------------------------
         ! cloud ice deposition and sublimation
@@ -3917,7 +3951,7 @@ subroutine pwbf (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, lcpk, i
         qsi = iqs (tin, den (k), dqdt)
 
         if (tc .gt. 0. .and. ql (k) .gt. qcmin .and. qi (k) .gt. qcmin .and. &
-			qv (k) .gt. qsi .and. qv (k) .lt. qsw) then
+            qv (k) .gt. qsi .and. qv (k) .lt. qsw) then
 
             sink = min (fac_wbf * ql (k), tc / icpk (k))
             qim = qi0_crt / den (k)
@@ -3937,7 +3971,7 @@ end subroutine pwbf
 ! Bigg freezing mechanism, Bigg (1953)
 ! =======================================================================
 
-subroutine pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, lcpk, icpk, tcpk, tcp3)
+subroutine pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, ccn, lcpk, icpk, tcpk, tcp3)
     
     implicit none
     
@@ -3949,11 +3983,11 @@ subroutine pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, lcpk, 
     
     real, intent (in) :: dts
     
-    real, intent (in), dimension (ks:ke) :: ccn
+    real, intent (in), dimension (ks:ke) :: den
     
     real (kind = r8), intent (in), dimension (ks:ke) :: te8
     
-    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg
+    real, intent (inout), dimension (ks:ke) :: qv, ql, qr, qi, qs, qg, ccn
     real, intent (inout), dimension (ks:ke) :: lcpk, icpk, tcpk, tcp3
     
     real (kind = r8), intent (inout), dimension (ks:ke) :: cvm, tz
@@ -3968,6 +4002,10 @@ subroutine pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, ccn, lcpk, 
     
     do k = ks, ke
         
+        if (do_psd_water_num) then
+            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k)))
+        endif
+
         tc = tice - tz (k)
         
         if (tc .gt. 0 .and. ql (k) .gt. qcmin) then
@@ -4023,6 +4061,10 @@ subroutine pidep_pisub (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, dp, cvm, te8, d
     
     do k = ks, ke
         
+        if (do_psd_ice_num) then
+            cin (k) = coeai / coebi * exp (mui / (mui + 3) * log (den (k) * qi (k)))
+        endif
+
         if (tz (k) .lt. tice) then
             
             pidep = 0.
