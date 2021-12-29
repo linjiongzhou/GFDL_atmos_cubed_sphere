@@ -134,9 +134,9 @@ module gfdl_cld_mp_mod
     real, parameter :: cdg = 2.626 ! drag coefficient of graupel (Locatelli and Hobbs, 1974)
     real, parameter :: cdh = 0.5 ! drag coefficient of hail (Heymsfield and Wright, 2014)
     
-    real (kind = r8), parameter :: lv0 = hlv - dc_vap * tice ! 3.14893552e6, evaporation latent heat coeff. at 0 deg K (J/kg)
-    real (kind = r8), parameter :: li0 = hlf - dc_ice * tice ! - 2.2691392e5, fussion latent heat coeff. at 0 deg K (J/kg)
-    real (kind = r8), parameter :: li2 = lv0 + li0 ! 2.9220216e6, sublimation latent heat coeff. at 0 deg K (J/kg)
+    real (kind = r8), parameter :: lv0 = hlv - dc_vap * tice ! 3148710.774043076, evaporation latent heat coeff. at 0 deg K (J/kg)
+    real (kind = r8), parameter :: li0 = hlf - dc_ice * tice ! - 242413.92000000004, fussion latent heat coeff. at 0 deg K (J/kg)
+    real (kind = r8), parameter :: li2 = lv0 + li0 ! 2906296.8540430763, sublimation latent heat coeff. at 0 deg K (J/kg)
     
     real (kind = r8), parameter :: e00 = 611.65 ! saturation vapor pressure at 0 deg C (Pa)
     
