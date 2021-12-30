@@ -2728,8 +2728,8 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
                 if (dq .gt. 0.) then
                     
                     c_praut (k) = cpaut * exp (so1 * log (ccn (k) * rhow))
-                    sink = min (dq, min (1., dq / dl (k)) * dts * c_praut (k) * den (k) * &
-                        exp (so3 * log (ql (k))))
+                    sink = min (1., dq / dl (k)) * dts * c_praut (k) * den (k) * &
+                        exp (so3 * log (ql (k)))
                     sink = min (ql (k), sink)
                     
                     call update_qq (qv (k), ql (k), qr (k), qi (k), qs (k), qg (k), &
