@@ -91,7 +91,7 @@ module gfdl_cld_mp_mod
     ! physics constants
     ! -----------------------------------------------------------------------
     
-    real, parameter :: grav = 9.80665 ! acceleration due to gravity (m/s^2)
+    real, parameter :: grav = 9.80665 ! acceleration due to gravity (m/s^2), ref: IFS
     
     real, parameter :: rgrav = 1.0 / grav ! inversion of gravity acceleration (s^2/m)
     
@@ -100,45 +100,52 @@ module gfdl_cld_mp_mod
     real, parameter :: boltzmann = 1.38064852e-23 ! boltzmann constant (J/K)
     real, parameter :: avogadro = 6.02214076e23 ! avogadro number (1/mol)
     real, parameter :: runiver = avogadro * boltzmann ! 8.314459727525675, universal gas constant (J/K/mol)
-    real, parameter :: mmd = 2.89647e-2 ! dry air molar mass (kg/mol)
-    real, parameter :: mmv = 1.801528e-2 ! water vapor molar mass (kg/mol)
+    real, parameter :: mmd = 2.89644e-2 ! dry air molar mass (kg/mol), ref: IFS
+    real, parameter :: mmv = 1.80153e-2 ! water vapor molar mass (kg/mol), ref: IFS
     
-    real, parameter :: rdgas = runiver / mmd ! 287.0549229760942 gas constant for dry air (J/kg/K)
-    real, parameter :: rvgas = runiver / mmv ! 461.5226478592436 gas constant for water vapor (J/kg/K)
+    real, parameter :: rdgas = 287.05 ! gas constant for dry air (J/kg/K): ref: GFDL, GFS
+    real, parameter :: rvgas = 461.50 ! gas constant for water vapor (J/kg/K): ref: GFDL, GFS
+    !real, parameter :: rdgas = runiver / mmd ! 287.0578961596192, gas constant for dry air (J/kg/K)
+    !real, parameter :: rvgas = runiver / mmv ! 461.52213549181386, gas constant for water vapor (J/kg/K)
+
+    real, parameter :: zvir = rvgas / rdgas - 1. ! 0.6077667316114637
     
-    real, parameter :: zvir = rvgas / rdgas - 1. ! 0.6078035185507751
+    real, parameter :: tice = 273.15 ! freezing temperature (K): ref: GFDL, GFS
+    !real, parameter :: tice = 273.16 ! freezing temperature (K), ref: IFS
     
-    real, parameter :: tice = 273.16 ! freezing temperature (K)
-    
-    real, parameter :: cp_air = 7. / 2. * rdgas ! 1004.6922304163297 ! heat capacity of dry air at constant pressure (J/kg/K)
-    real, parameter :: cp_vap = 4.0 * rvgas ! 1846.0905914369744, heat capacity of water vapor at constnat pressure (J/kg/K)
-    real, parameter :: cv_air = 5. / 2. * rdgas ! 717.6373074402354, heat capacity of dry air at constant volume (J/kg/K)
-    real, parameter :: cv_vap = 3.0 * rvgas ! 1384.5679435777308, heat capacity of water vapor at constant volume (J/kg/K)
+    real, parameter :: cp_air = 1004.6 ! heat capacity of dry air at constant pressure (J/kg/K): ref: GFDL, GFS
+    real, parameter :: cv_air = cp_air - rdgas ! 717.55, heat capacity of dry air at constant volume (J/kg/K): ref: GFDL, GFS
+    !real, parameter :: cp_air = 7. / 2. * rdgas ! 1004.7026365586671, heat capacity of dry air at constant pressure (J/kg/K)
+    !real, parameter :: cv_air = 5. / 2. * rdgas ! 717.644740399048, heat capacity of dry air at constant volume (J/kg/K)
+    real, parameter :: cp_vap = 4.0 * rvgas ! 1846.0885419672554, heat capacity of water vapor at constnat pressure (J/kg/K)
+    real, parameter :: cv_vap = 3.0 * rvgas ! 1384.5664064754415, heat capacity of water vapor at constant volume (J/kg/K)
     
     real, parameter :: c_ice = 2.106e3 ! heat capacity of ice at 0 deg C (J/kg/K), ref: IFS
     real, parameter :: c_liq = 4.218e3 ! heat capacity of water at 0 deg C (J/kg/K), ref: IFS
     
-    real, parameter :: dc_vap = cp_vap - c_liq ! - 2371.909408563026, isobaric heating / cooling (J/kg/K)
+    real, parameter :: dc_vap = cp_vap - c_liq ! - 2371.9114580327446, isobaric heating / cooling (J/kg/K)
     real, parameter :: dc_ice = c_liq - c_ice ! 2112.0, isobaric heating / colling (J/kg/K)
-    real, parameter :: d2_ice = cp_vap - c_ice ! - 259.90940856302564, isobaric heating / cooling (J/kg/K)
+    real, parameter :: d2_ice = cp_vap - c_ice ! - 259.9114580327446, isobaric heating / cooling (J/kg/K)
     
-    real, parameter :: hlv = 2.5008e6 ! latent heat of evaporation (J/kg), ref: IFS
-    real, parameter :: hlf = 3.345e5 ! latent heat of fusion (J/kg), ref: IFS
+    real, parameter :: hlv = 2.5e6 ! latent heat of evaporation at 0 deg C (J/kg): ref: GFDL, GFS
+    real, parameter :: hlf = 3.3358e5 ! latent heat of fusion at 0 deg C (J/kg): ref: GFDL, GFS
+    !real, parameter :: hlv = 2.5008e6 ! latent heat of evaporation at 0 deg C (J/kg), ref: IFS
+    !real, parameter :: hlf = 3.345e5 ! latent heat of fusion at 0 deg C (J/kg), ref: IFS
     
-    real, parameter :: visd = 1.729e-5 ! dynamics viscosity of air at 0 deg C (kg/m/s)
-    real, parameter :: visk = 1.338e-5 ! kinematic viscosity of air at 0 deg C (m^2/s)
-    real, parameter :: vdifu = 2.19e-5 ! diffusivity of water vapor in air at 0 deg C (m^2/s)
-    real, parameter :: tcond = 2.364e-2 ! thermal conductivity of air at 0 deg C (J/m/s/K)
+    real, parameter :: visd = 1.717e-5 ! dynamics viscosity of air at 0 deg C and 1000 hPa (Mason, 1971) (kg/m/s)
+    real, parameter :: visk = 1.35e-5 ! kinematic viscosity of air at 0 deg C  and 1000 hPa (Mason, 1971) (m^2/s)
+    real, parameter :: vdifu = 2.25e-5 ! diffusivity of water vapor in air at 0 deg C  and 1000 hPa (Mason, 1971) (m^2/s)
+    real, parameter :: tcond = 2.40e-2 ! thermal conductivity of air at 0 deg C  and 1000 hPa (Mason, 1971) (J/m/s/K)
 
-    real, parameter :: rho0 = 1.2 ! simple assumption of surface air density (kg/m^3)
-    real, parameter :: cdg = 2.626 ! drag coefficient of graupel (Locatelli and Hobbs, 1974)
+    real, parameter :: rho0 = 1.0 ! reference air density (kg/m^3), ref: IFS
+    real, parameter :: cdg = 3.15121 ! drag coefficient of graupel (Locatelli and Hobbs, 1974)
     real, parameter :: cdh = 0.5 ! drag coefficient of hail (Heymsfield and Wright, 2014)
     
-    real (kind = r8), parameter :: lv0 = hlv - dc_vap * tice ! 3148710.774043076, evaporation latent heat coeff. at 0 deg K (J/kg)
+    real (kind = r8), parameter :: lv0 = hlv - dc_vap * tice ! 3148711.3338762247, evaporation latent heat coeff. at 0 deg K (J/kg)
     real (kind = r8), parameter :: li0 = hlf - dc_ice * tice ! - 242413.92000000004, fussion latent heat coeff. at 0 deg K (J/kg)
-    real (kind = r8), parameter :: li2 = lv0 + li0 ! 2906296.8540430763, sublimation latent heat coeff. at 0 deg K (J/kg)
+    real (kind = r8), parameter :: li2 = lv0 + li0 ! 2906297.413876225, sublimation latent heat coeff. at 0 deg K (J/kg)
     
-    real (kind = r8), parameter :: e00 = 611.65 ! saturation vapor pressure at 0 deg C (Pa)
+    real (kind = r8), parameter :: e00 = 611.21 ! saturation vapor pressure at 0 deg C (Pa), ref: IFS
     
     ! -----------------------------------------------------------------------
     ! predefined parameters
@@ -151,8 +158,8 @@ module gfdl_cld_mp_mod
     
     real, parameter :: dz_min = 1.0e-2 ! used for correcting flipped height (m)
     
-    real, parameter :: rhow = 9.9985e2 ! density of cloud water (kg/m^3)
-    real, parameter :: rhoi = 9.162e2 ! density of cloud ice (kg/m^3)
+    real, parameter :: rhow = 1.0e3 ! density of cloud water (kg/m^3)
+    real, parameter :: rhoi = 9.17e2 ! density of cloud ice (kg/m^3)
     real, parameter :: rhor = 1.0e3 ! density of rain (Lin et al. 1983) (kg/m^3)
     real, parameter :: rhos = 1.0e2 ! density of snow (Lin et al. 1983) (kg/m^3)
     real, parameter :: rhog = 4.0e2 ! density of graupel (Rutledge and Hobbs 1984) (kg/m^3)
