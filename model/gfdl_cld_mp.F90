@@ -2716,7 +2716,7 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
 
     if (do_psd_water_num) then
         do k = ks, ke
-            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k)))
+            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k))) / den (k)
         enddo
     endif
     
@@ -4010,7 +4010,7 @@ subroutine pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, ccn, l
     do k = ks, ke
         
         if (do_psd_water_num) then
-            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k)))
+            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k))) / den (k)
         endif
 
         tc = tice - tz (k)
@@ -4069,7 +4069,7 @@ subroutine pidep_pisub (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, dp, cvm, te8, d
     do k = ks, ke
         
         if (do_psd_ice_num) then
-            cin (k) = coeai / coebi * exp (mui / (mui + 3) * log (den (k) * qi (k)))
+            cin (k) = coeai / coebi * exp (mui / (mui + 3) * log (den (k) * qi (k))) / den (k)
         endif
 
         if (tz (k) .lt. tice) then
