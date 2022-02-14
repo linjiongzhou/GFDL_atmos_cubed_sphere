@@ -264,7 +264,9 @@ module gfdl_cld_mp_mod
     logical :: do_cld_adj = .false. ! do cloud fraction adjustment
     
     logical :: use_ppm = .false. ! use ppm fall scheme
-    logical :: mono_prof = .true. ! perform terminal fall with mono ppm scheme
+    
+    logical :: use_implicit_fall = .true. ! use implicit fall scheme
+    logical :: use_explicit_fall = .false. ! use explicit fall scheme
     
     logical :: z_slope_liq = .true. ! use linear mono slope for autocconversions
     logical :: z_slope_ice = .true. ! use linear mono slope for autocconversions
@@ -480,7 +482,7 @@ module gfdl_cld_mp_mod
         tau_l2r, qi_lim, ql_gen, do_hail, inflag, c_psacw, c_psaci, c_pracs, &
         c_psacr, c_pgacr, c_pgacs, c_pgacw, c_pgaci, z_slope_liq, z_slope_ice, &
         prog_ccn, c_pracw, c_praci, rad_snow, rad_graupel, rad_rain, cld_min, &
-        use_ppm, mono_prof, do_sedi_uv, do_sedi_w, do_sedi_heat, icloud_f, &
+        use_ppm, do_sedi_uv, do_sedi_w, do_sedi_heat, icloud_f, &
         irain_f, xr_a, xr_b, xr_c, ntimes, tau_revp, tice_mlt, do_cond_timescale, &
         mp_time, consv_checker, te_err, use_rhc_cevap, use_rhc_revap, tau_wbf, &
         do_warm_rain_mp, rh_thres, f_dq_p, f_dq_m, do_cld_adj, rhc_cevap, &
@@ -492,7 +494,8 @@ module gfdl_cld_mp_mod
         n0r_exp, n0s_exp, n0g_exp, n0h_exp, muw, mui, mur, mus, mug, muh, &
         alinw, alini, alinr, alins, aling, alinh, blinw, blini, blinr, blins, bling, blinh, &
         do_new_acc_water, do_new_acc_ice, is_fac, ss_fac, gs_fac, rh_fac, &
-        snow_grauple_combine, do_psd_water_num, do_psd_ice_num
+        snow_grauple_combine, do_psd_water_num, do_psd_ice_num, use_implicit_fall, &
+        use_explicit_fall
     
 contains
 
@@ -2303,11 +2306,20 @@ subroutine terminal_fall (dts, ks, ke, tz, qv, ql, qr, qi, qs, qg, dz, dp, &
         case default
             print *, "gfdl_mp: qflag error!"
     end select
+
+    if (use_implicit_fall .eq. use_explicit_fall) then
+        write (6, *) 'gfdl_mp: use_implicit_fall and use_explicit_fall cannot be the same.'
+        stop
+    endif
     
     if (use_ppm) then
-        call lagrangian_fall_ppm (ks, ke, zs, ze, zt, dp, q, x1, m1, mono_prof)
+        call lagrangian_fall_ppm (ks, ke, zs, ze, zt, dp, q, x1, m1)
     else
-        call implicit_fall (dts, ks, ke, ze, vt, dp, q, x1, m1)
+        if (use_implicit_fall) then
+            call implicit_fall (dts, ks, ke, ze, vt, dp, q, x1, m1)
+        elseif (use_explicit_fall) then
+            call explicit_fall (dts, ks, ke, ze, vt, dp, q, x1, m1)
+        endif
     endif
     
     select case (qflag)
@@ -2714,12 +2726,6 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
     
     real, dimension (ks:ke) :: dl, c_praut
 
-    if (do_psd_water_num) then
-        do k = ks, ke
-            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k))) / den (k)
-        enddo
-    endif
-    
     if (irain_f .eq. 0) then
         
         call linear_prof (ke - ks + 1, ql (ks), dl (ks), z_slope_liq, h_var)
@@ -2728,6 +2734,10 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
             
             if (tz (k) .gt. t_wfr .and. ql (k) .gt. qcmin) then
                 
+                if (do_psd_water_num) then
+                    ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k))) / den (k)
+                endif
+
                 qc = fac_rc * ccn (k)
                 dl (k) = min (max (qcmin, dl (k)), 0.5 * ql (k))
                 dq = 0.5 * (ql (k) + dl (k) - qc)
@@ -2756,6 +2766,10 @@ subroutine praut (ks, ke, dts, tz, qv, ql, qr, qi, qs, qg, den, ccn, h_var)
             
             if (tz (k) .gt. t_wfr .and. ql (k) .gt. qcmin) then
                 
+                if (do_psd_water_num) then
+                    ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k))) / den (k)
+                endif
+
                 qc = fac_rc * ccn (k)
                 dq = ql (k) - qc
                 
@@ -4009,14 +4023,14 @@ subroutine pbigg (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, cvm, te8, den, ccn, l
     
     do k = ks, ke
         
-        if (do_psd_water_num) then
-            ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k))) / den (k)
-        endif
-
         tc = tice - tz (k)
         
         if (tc .gt. 0 .and. ql (k) .gt. qcmin) then
             
+            if (do_psd_water_num) then
+                ccn (k) = coeaw / coebw * exp (muw / (muw + 3) * log (den (k) * ql (k))) / den (k)
+            endif
+
             sink = 100. / (rhow * ccn (k)) * dts * (exp (0.66 * tc) - 1.) * ql (k) ** 2
             sink = min (ql (k), sink, tc / icpk (k))
             
@@ -4068,10 +4082,6 @@ subroutine pidep_pisub (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, dp, cvm, te8, d
     
     do k = ks, ke
         
-        if (do_psd_ice_num) then
-            cin (k) = coeai / coebi * exp (mui / (mui + 3) * log (den (k) * qi (k))) / den (k)
-        endif
-
         if (tz (k) .lt. tice) then
             
             pidep = 0.
@@ -4081,6 +4091,9 @@ subroutine pidep_pisub (ks, ke, dts, qv, ql, qr, qi, qs, qg, tz, dp, cvm, te8, d
             tmp = dq / (1. + tcpk (k) * dqdt)
             
             if (qi (k) .gt. qcmin) then
+                 if (do_psd_ice_num) then
+                     cin (k) = coeai / coebi * exp (mui / (mui + 3) * log (den (k) * qi (k))) / den (k)
+                 endif
                 if (.not. prog_ccn) then
                     if (inflag .eq. 1) &
                         cin (k) = 5.38e7 * exp (0.75 * log (qi (k) * den (k)))
@@ -4474,9 +4487,10 @@ end subroutine cloud_fraction
 
 ! =======================================================================
 ! piecewise parabolic lagrangian scheme
+! this subroutine is the same as map1_q2 in fv_mapz_mod.
 ! =======================================================================
 
-subroutine lagrangian_fall_ppm (ks, ke, zs, ze, zt, dp, q, precip, m1, mono)
+subroutine lagrangian_fall_ppm (ks, ke, zs, ze, zt, dp, q, precip, m1)
     
     implicit none
     
@@ -4485,8 +4499,6 @@ subroutine lagrangian_fall_ppm (ks, ke, zs, ze, zt, dp, q, precip, m1, mono)
     ! -----------------------------------------------------------------------
     
     integer, intent (in) :: ks, ke
-    
-    logical, intent (in) :: mono
     
     real, intent (in) :: zs
     
@@ -4527,7 +4539,7 @@ subroutine lagrangian_fall_ppm (ks, ke, zs, ze, zt, dp, q, precip, m1, mono)
     ! construct vertical profile with zt as coordinate
     ! -----------------------------------------------------------------------
     
-    call cs_profile (a4 (1, ks), dz (ks), ke - ks + 1, mono)
+    call cs_profile (a4 (1, ks), dz (ks), ke - ks + 1)
     
     k0 = ks
     do k = ks, ke
@@ -4585,10 +4597,11 @@ subroutine lagrangian_fall_ppm (ks, ke, zs, ze, zt, dp, q, precip, m1, mono)
 end subroutine lagrangian_fall_ppm
 
 ! =======================================================================
-! construct vertical profile
+! vertical profile reconstruction
+! this subroutine is the same as cs_profile in fv_mapz_mod where iv = 0 and kord = 9
 ! =======================================================================
 
-subroutine cs_profile (a4, del, km, do_mono)
+subroutine cs_profile (a4, del, km)
     
     implicit none
     
@@ -4597,8 +4610,6 @@ subroutine cs_profile (a4, del, km, do_mono)
     ! -----------------------------------------------------------------------
     
     integer, intent (in) :: km
-    
-    logical, intent (in) :: do_mono
     
     real, intent (in) :: del (km)
     
@@ -4611,8 +4622,6 @@ subroutine cs_profile (a4, del, km, do_mono)
     integer :: k
     
     logical :: extm (km)
-    
-    real, parameter :: qp_min = 1.e-6
     
     real :: gam (km), q (km + 1), d4, bet, a_bot, grat, pmp, lac
     real :: pmp_1, lac_1, pmp_2, lac_2, da1, da2, a6da
@@ -4646,10 +4655,6 @@ subroutine cs_profile (a4, del, km, do_mono)
     enddo
     
     ! -----------------------------------------------------------------------
-    ! apply large - scale constraints to all fields if not local max / min
-    ! -----------------------------------------------------------------------
-    
-    ! -----------------------------------------------------------------------
     ! top:
     ! -----------------------------------------------------------------------
     
@@ -4663,6 +4668,7 @@ subroutine cs_profile (a4, del, km, do_mono)
     
     do k = 3, km - 1
         if (gam (k - 1) * gam (k + 1) .gt. 0.) then
+            ! apply large - scale constraints to all fields if not local max / min
             q (k) = min (q (k), max (a4 (1, k - 1), a4 (1, k)))
             q (k) = max (q (k), min (a4 (1, k - 1), a4 (1, k)))
         else
@@ -4672,69 +4678,71 @@ subroutine cs_profile (a4, del, km, do_mono)
             else
                 ! there exists a local min
                 q (k) = min (q (k), max (a4 (1, k - 1), a4 (1, k)))
+                ! positive-definite
                 q (k) = max (q (k), 0.0)
             endif
         endif
     enddo
     
     ! -----------------------------------------------------------------------
-    ! bottom :
+    ! bottom:
     ! -----------------------------------------------------------------------
     
     q (km) = min (q (km), max (a4 (1, km - 1), a4 (1, km)))
     q (km) = max (q (km), min (a4 (1, km - 1), a4 (1, km)), 0.)
-    ! q (km + 1) = max (q (km + 1), 0.)
+    q (km + 1) = max (q (km + 1), 0.)
     
-    ! -----------------------------------------------------------------------
-    ! f (s) = al + s * [ (ar - al) + a6 * (1 - s) ] (0 <= s <= 1)
-    ! -----------------------------------------------------------------------
-    
-    do k = 1, km - 1
+    do k = 1, km
         a4 (2, k) = q (k)
         a4 (3, k) = q (k + 1)
     enddo
     
-    do k = 2, km - 1
-        if (gam (k) * gam (k + 1) .gt. 0.0) then
-            extm (k) = .false.
+    do k = 1, km
+        if (k .eq. 1 .or. k .eq. km) then
+            extm (k) = (a4 (2, k) - a4 (1, k)) * (a4 (3, k) - a4 (1, k)) .gt. 0.
         else
-            extm (k) = .true.
+            extm (k) = gam (k) * gam (k + 1) .lt. 0.
         endif
     enddo
+
+    ! -----------------------------------------------------------------------
+    ! apply constraints
+    ! f (s) = al + s * [ (ar - al) + a6 * (1 - s) ] (0 <= s <= 1)
+    ! always use monotonic mapping
+    ! -----------------------------------------------------------------------
+
+    ! -----------------------------------------------------------------------
+    ! top:
+    ! -----------------------------------------------------------------------
+
+    a4 (2, 1) = max (0., a4 (2, 1))
     
-    if (do_mono) then
-        do k = 3, km - 2
-            if (extm (k)) then
-                ! positive definite constraint only if true local extrema
-                if (a4 (1, k) .lt. qp_min .or. extm (k - 1) .or. extm (k + 1)) then
-                    a4 (2, k) = a4 (1, k)
-                    a4 (3, k) = a4 (1, k)
-                endif
-            else
-                a4 (4, k) = 6. * a4 (1, k) - 3. * (a4 (2, k) + a4 (3, k))
-                if (abs (a4 (4, k)) .gt. abs (a4 (2, k) - a4 (3, k))) then
-                    ! check within the smooth region if subgrid profile is non - monotonic
-                    pmp_1 = a4 (1, k) - 2.0 * gam (k + 1)
-                    lac_1 = pmp_1 + 1.5 * gam (k + 2)
-                    a4 (2, k) = min (max (a4 (2, k), min (a4 (1, k), pmp_1, lac_1)), &
-                        max (a4 (1, k), pmp_1, lac_1))
-                    pmp_2 = a4 (1, k) + 2.0 * gam (k)
-                    lac_2 = pmp_2 - 1.5 * gam (k - 1)
-                    a4 (3, k) = min (max (a4 (3, k), min (a4 (1, k), pmp_2, lac_2)), &
-                        max (a4 (1, k), pmp_2, lac_2))
-                endif
+    ! -----------------------------------------------------------------------
+    ! Huynh's 2nd constraint for interior:
+    ! -----------------------------------------------------------------------
+
+    do k = 3, km - 2
+        if (extm (k)) then
+            ! positive definite constraint only if true local extrema
+            if (a4 (1, k) .lt. qcmin .or. extm (k - 1) .or. extm (k + 1)) then
+                a4 (2, k) = a4 (1, k)
+                a4 (3, k) = a4 (1, k)
             endif
-        enddo
-    else
-        do k = 3, km - 2
-            if (extm (k)) then
-                if (a4 (1, k) .lt. qp_min .or. extm (k - 1) .or. extm (k + 1)) then
-                    a4 (2, k) = a4 (1, k)
-                    a4 (3, k) = a4 (1, k)
-                endif
+        else
+            a4 (4, k) = 6. * a4 (1, k) - 3. * (a4 (2, k) + a4 (3, k))
+            if (abs (a4 (4, k)) .gt. abs (a4 (2, k) - a4 (3, k))) then
+                ! check within the smooth region if subgrid profile is non - monotonic
+                pmp_1 = a4 (1, k) - 2.0 * gam (k + 1)
+                lac_1 = pmp_1 + 1.5 * gam (k + 2)
+                a4 (2, k) = min (max (a4 (2, k), min (a4 (1, k), pmp_1, lac_1)), &
+                    max (a4 (1, k), pmp_1, lac_1))
+                pmp_2 = a4 (1, k) + 2.0 * gam (k)
+                lac_2 = pmp_2 - 1.5 * gam (k - 1)
+                a4 (3, k) = min (max (a4 (3, k), min (a4 (1, k), pmp_2, lac_2)), &
+                    max (a4 (1, k), pmp_2, lac_2))
             endif
-        enddo
-    endif
+        endif
+    enddo
     
     do k = 1, km - 1
         a4 (4, k) = 6. * a4 (1, k) - 3. * (a4 (2, k) + a4 (3, k))
@@ -4761,7 +4769,7 @@ subroutine cs_profile (a4, del, km, do_mono)
     call cs_limiters (km - 1, a4)
     
     ! -----------------------------------------------------------------------
-    ! bottom layer:
+    ! bottom:
     ! -----------------------------------------------------------------------
     
     a4 (2, km) = a4 (1, km)
@@ -4771,7 +4779,10 @@ subroutine cs_profile (a4, del, km, do_mono)
 end subroutine cs_profile
 
 ! =======================================================================
-! construct vertical profile limiter
+! cubic spline (cs) limiters or boundary conditions
+! a positive-definite constraint (iv = 0) is applied to tracers in every layer, 
+! adjusting the top-most and bottom-most interface values to enforce positive.
+! this subroutine is the same as cs_limiters in fv_mapz_mod where iv = 0.
 ! =======================================================================
 
 subroutine cs_limiters (km, a4)
@@ -4794,24 +4805,27 @@ subroutine cs_limiters (km, a4)
     
     real, parameter :: r12 = 1. / 12.
     
-    ! -----------------------------------------------------------------------
-    ! positive definite constraint
-    ! -----------------------------------------------------------------------
-    
     do k = 1, km
-        if (abs (a4 (3, k) - a4 (2, k)) .lt. - a4 (4, k)) then
-            if ((a4 (1, k) + 0.25 * (a4 (3, k) - a4 (2, k)) ** 2 / a4 (4, k) + &
-                a4 (4, k) * r12) .lt. 0.) then
-                if (a4 (1, k) .lt. a4 (3, k) .and. a4 (1, k) .lt. a4 (2, k)) then
-                    a4 (3, k) = a4 (1, k)
-                    a4 (2, k) = a4 (1, k)
-                    a4 (4, k) = 0.
-                elseif (a4 (3, k) .gt. a4 (2, k)) then
-                    a4 (4, k) = 3. * (a4 (2, k) - a4 (1, k))
-                    a4 (3, k) = a4 (2, k) - a4 (4, k)
-                else
-                    a4 (4, k) = 3. * (a4 (3, k) - a4 (1, k))
-                    a4 (2, k) = a4 (3, k) - a4 (4, k)
+        if (a4 (1, k) .le. 0.) then
+            a4 (2, k) = a4 (1, k)
+            a4 (3, k) = a4 (1, k)
+            a4 (4, k) = 0.
+        else
+            if (abs (a4 (3, k) - a4 (2, k)) .lt. - a4 (4, k)) then
+                if ((a4 (1, k) + 0.25 * (a4 (3, k) - a4 (2, k)) ** 2 / a4 (4, k) + &
+                    a4 (4, k) * r12) .lt. 0.) then
+                    ! local minimum is negative
+                    if (a4 (1, k) .lt. a4 (3, k) .and. a4 (1, k) .lt. a4 (2, k)) then
+                        a4 (3, k) = a4 (1, k)
+                        a4 (2, k) = a4 (1, k)
+                        a4 (4, k) = 0.
+                    elseif (a4 (3, k) .gt. a4 (2, k)) then
+                        a4 (4, k) = 3. * (a4 (2, k) - a4 (1, k))
+                        a4 (3, k) = a4 (2, k) - a4 (4, k)
+                    else
+                        a4 (4, k) = 3. * (a4 (3, k) - a4 (1, k))
+                        a4 (2, k) = a4 (3, k) - a4 (4, k)
+                    endif
                 endif
             endif
         endif
