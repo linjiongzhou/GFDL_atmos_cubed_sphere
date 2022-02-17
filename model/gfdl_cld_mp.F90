@@ -1103,10 +1103,11 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, &
     dts = dtm / real (ntimes)
     
     ! -----------------------------------------------------------------------
-    ! initialization of total energy difference
+    ! initialization of total energy difference and condensation diag
     ! -----------------------------------------------------------------------
     
     dte = 0.0
+    cond = 0.0
     
     ! -----------------------------------------------------------------------
     ! unit convert to mm/day
