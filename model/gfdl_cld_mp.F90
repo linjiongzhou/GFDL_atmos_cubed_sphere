@@ -5688,12 +5688,7 @@ subroutine cld_eff_rad (is, ie, ks, ke, lsm, p, delp, t, qw, qi, qr, qs, qg, qa,
                         abs (mask - 1.0) * &
                          (10. ** 2.06 * (qa (i, k) * rho * 1.e9) ** 0.48)
                 else
-#ifdef MARTIN_CCN
-                    ccnw = 0.80 * (- 1.15e-3 * (ccno ** 2) + 0.963 * ccno + 5.30) * abs (mask - 1.0) + &
-                        0.67 * (- 2.10e-4 * (ccnl ** 2) + 0.568 * ccnl - 27.9) * (1.0 - abs (mask - 1.0))
-#else
                     ccnw = ccno * abs (mask - 1.0) + ccnl * (1.0 - abs (mask - 1.0))
-#endif
                 endif
                 
                 if (qmw (i, k) .gt. qcmin) then
