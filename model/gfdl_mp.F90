@@ -4944,7 +4944,7 @@ subroutine explicit_fall (dts, ks, ke, ze, vt, dp, q, precip, m1)
     do n = 1, nstep
         qm (ks) = q (ks) - q (ks) * dd (ks) / dz (ks)
         do k = ks + 1, ke
-            qm (k) = q (k) - q (k) * dd (k) / dz (k) + q (k - 1) * dd (k - 1) / dz (k)
+            qm (k) = q (k) - q (k) * dd (k) / dz (k) + q (k - 1) * dd (k - 1) / dz (k - 1)
         enddo
         q = qm
     enddo
