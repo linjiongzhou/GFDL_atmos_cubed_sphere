@@ -1729,7 +1729,7 @@ contains
       real(kind=4), allocatable:: uec(:,:,:), vec(:,:,:), tec(:,:,:), wec(:,:,:)
       real(kind=4), allocatable:: psec(:,:), zsec(:,:), zhec(:,:,:), qec(:,:,:,:)
       real(kind=4), allocatable:: psc(:,:)
-      real(kind=4), allocatable:: sphumec(:,:,:)
+      real(kind=4), allocatable:: sphumec(:,:,:),o3ec(:,:,:)
       real, allocatable:: psc_r8(:,:), zhc(:,:,:), qc(:,:,:,:)
       real, allocatable:: lat(:), lon(:), ak0(:), bk0(:)
       real, allocatable:: pt_c(:,:,:), pt_d(:,:,:)
@@ -1836,38 +1836,43 @@ contains
       if(is_master()) write(*,*) 'done reading model terrain from oro_data.nc'
       call mpp_update_domains( Atm%phis, Atm%domain )
 
-!! Read in o3mr, ps and zh from GFS_data.tile?.nc
-      allocate (o3mr_gfs(is:ie,js:je,levp_gfs))
-      allocate (ps_gfs(is:ie,js:je))
-      allocate (zh_gfs(is:ie,js:je,levp_gfs+1))
 
-      id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'o3mr', o3mr_gfs, &
-                                       mandatory=.false.,domain=Atm%domain)
-      id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ps', ps_gfs, domain=Atm%domain)
-      id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ZH', zh_gfs, domain=Atm%domain)
-      call restore_state (GFS_restart,trim(inputdir))
-      call free_restart_type(GFS_restart)
+!! No O3 in IFS IC before the DIMOSIC period (201806).
+      if ( Atm%flagstruct%use_gfsO3 ) then
+          if( is_master() ) write(*,*) 'using GFS O3 with other ECMWF ICs:'
+          !! Read in o3mr, ps and zh from GFS_data.tile?.nc
+          allocate (o3mr_gfs(is:ie,js:je,levp_gfs))
+          allocate (ps_gfs(is:ie,js:je))
+          allocate (zh_gfs(is:ie,js:je,levp_gfs+1))
+
+          id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'o3mr', o3mr_gfs, &
+                                           mandatory=.false.,domain=Atm%domain)
+          id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ps', ps_gfs, domain=Atm%domain)
+          id_res = register_restart_field (GFS_restart, fn_gfs_ics, 'ZH', zh_gfs, domain=Atm%domain)
+          call restore_state (GFS_restart,trim(inputdir))
+          call free_restart_type(GFS_restart)
 
 
-      ! Get GFS ak, bk for o3mr vertical interpolation
-      allocate (wk2(levp_gfs+1,2))
-      allocate (ak_gfs(levp_gfs+1))
-      allocate (bk_gfs(levp_gfs+1))
-      call read_data(trim(inputdir)//'/'//trim(fn_gfs_ctl),'vcoord',wk2, no_domain=.TRUE.)
-      ak_gfs(1:levp_gfs+1) = wk2(1:levp_gfs+1,1)
-      bk_gfs(1:levp_gfs+1) = wk2(1:levp_gfs+1,2)
-      deallocate (wk2)
+          ! Get GFS ak, bk for o3mr vertical interpolation
+          allocate (wk2(levp_gfs+1,2))
+          allocate (ak_gfs(levp_gfs+1))
+          allocate (bk_gfs(levp_gfs+1))
+          call read_data(trim(inputdir)//'/'//trim(fn_gfs_ctl),'vcoord',wk2, no_domain=.TRUE.)
+          ak_gfs(1:levp_gfs+1) = wk2(1:levp_gfs+1,1)
+          bk_gfs(1:levp_gfs+1) = wk2(1:levp_gfs+1,2)
+          deallocate (wk2)
 
-      if ( bk_gfs(1) < 1.E-9 ) ak_gfs(1) = max(1.e-9, ak_gfs(1))
+          if ( bk_gfs(1) < 1.E-9 ) ak_gfs(1) = max(1.e-9, ak_gfs(1))
 
-      iq = o3mr
-      if(is_master()) write(*,*) 'Reading o3mr from GFS_data.nc:'
-      if(is_master()) write(*,*) 'o3mr =', iq
-      call remap_scalar_single(Atm, levp_gfs, npz, ak_gfs, bk_gfs, ps_gfs, o3mr_gfs, zh_gfs, iq)
+          iq = o3mr
+          if(is_master()) write(*,*) 'Reading o3mr from GFS_data.nc:'
+          if(is_master()) write(*,*) 'o3mr =', iq
+          call remap_scalar_single(Atm, levp_gfs, npz, ak_gfs, bk_gfs, ps_gfs, o3mr_gfs, zh_gfs, iq)
 
-      deallocate (ak_gfs, bk_gfs)
-      deallocate (ps_gfs, zh_gfs)
-      deallocate (o3mr_gfs)
+          deallocate (ak_gfs, bk_gfs)
+          deallocate (ps_gfs, zh_gfs)
+          deallocate (o3mr_gfs)
+      endif
 
 !! Start to read EC data
       fname = Atm%flagstruct%res_latlon_dynamics
@@ -1969,6 +1974,17 @@ contains
       tec(:,:,:) = tec(:,:,:)*scale_value + offset
       if(is_master()) write(*,*) 'done reading tec'
 
+! read in ozone:
+      if ( .not. Atm%flagstruct%use_gfsO3 ) then
+          allocate ( o3ec(1:im,jbeg:jend, 1:km) )
+
+          call get_var3_r4( ncid, 'o3', 1,im, jbeg,jend, 1,km, o3ec(:,:,:) )
+          call get_var_att_double ( ncid, 'o3', 'scale_factor', scale_value )
+          call get_var_att_double ( ncid, 'o3', 'add_offset', offset )
+          o3ec(:,:,:) = o3ec(:,:,:)*scale_value + offset
+          if(is_master()) write(*,*) 'done reading o3mr ec'
+      endif
+
 ! read in specific humidity:
       allocate ( sphumec(1:im,jbeg:jend, 1:km) )
 
@@ -1979,9 +1995,9 @@ contains
       if(is_master()) write(*,*) 'done reading sphum ec'
 
 ! Read in other tracers from EC data and remap them into cubic sphere grid:
-      allocate ( qec(1:im,jbeg:jend,1:km,5) )
+      allocate ( qec(1:im,jbeg:jend,1:km,ntracers) )
 
-      do n = 1, 5
+      do n = 1, ntracers
         if (n == sphum) then
            qec(:,:,:,sphum) = sphumec(:,:,:)
            deallocate ( sphumec )
@@ -2009,8 +2025,12 @@ contains
            call get_var_att_double ( ncid, 'cswc', 'add_offset', offset )
            qec(:,:,:,snowwat) = qec(:,:,:,snowwat)*scale_value + offset
            if(is_master()) write(*,*) 'done reading cswc ec'
+        else if (n == o3mr .and. (.not. Atm%flagstruct%use_gfsO3)) then
+           qec(:,:,:,o3mr) = o3ec(:,:,:)
+           deallocate ( o3ec )
         else
-           if(is_master()) write(*,*) 'nq is more then 5!'
+           qec(:,:,:,n) = 0.0
+           if(is_master()) write(*,*) 'tracer number = ', n, 'is not in the IFS IC.'
         endif
 
       enddo
@@ -2071,10 +2091,10 @@ contains
 
       if(is_master()) write(*,*) 'done interpolate psec/zhec into cubic grid psc/zhc!'
 
-! Read in other tracers from EC data and remap them into cubic sphere grid:
-      allocate ( qc(is:ie,js:je,km,6) )
+! Remap hydrometeor tracers and ozone (if not using GFS ozone) from EC grid into cubic sphere grid:
+      allocate ( qc(is:ie,js:je,km,ntracers) )
 
-      do n = 1, 5
+      do n = 1, ntracers
 !$OMP parallel do default(none) shared(n,is,ie,js,je,km,s2c,id1,id2,jdc,qc,qec) &
 !$OMP               private(i1,i2,j1)
         do k=1,km
@@ -2090,10 +2110,9 @@ contains
         enddo
       enddo
 
-      qc(:,:,:,graupel) = 0.   ! note Graupel must be tracer #6
-
       deallocate ( qec )
       if(is_master()) write(*,*) 'done interpolate tracers (qec) into cubic (qc)'
+
 
 ! Read in vertical wind from EC data and remap them into cubic sphere grid:
       allocate ( wec(1:im,jbeg:jend, 1:km) )
@@ -2127,7 +2146,7 @@ contains
       psc_r8(:,:) = psc(:,:)
       deallocate ( psc )
 
-      call remap_scalar(Atm, km, npz, 6, ak0, bk0, psc_r8, qc, zhc, wc)
+      call remap_scalar(Atm, km, npz, ntracers, ak0, bk0, psc_r8, qc, zhc, wc)
       call mpp_update_domains(Atm%phis, Atm%domain)
       if(is_master()) write(*,*) 'done remap_scalar'
 
@@ -2297,7 +2316,7 @@ contains
                                 Atm%q(i,j,k,graupel))
                endif
                m_fac = wt / qt
-               do iq=1,ntracers
+               do iq=1,Atm%flagstruct%nwat
                   Atm%q(i,j,k,iq) = m_fac * Atm%q(i,j,k,iq)
                enddo
                Atm%delp(i,j,k) = qt
@@ -2722,7 +2741,7 @@ contains
 #endif
 
 !$OMP parallel do default(none) &
-!$OMP             shared(sphum,liq_wat,rainwat,ice_wat,snowwat,graupel,source_fv3gfs,&
+!$OMP             shared(sphum,o3mr,liq_wat,rainwat,ice_wat,snowwat,graupel,source_fv3gfs,&
 !$OMP                    cld_amt,ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,Atm,z500,t_in) &
 !$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
 
@@ -2805,7 +2824,15 @@ contains
 ! The HiRam step of blending model sphum with NCEP data is obsolete because nggps is always cold starting...
          do k=1,npz
             do i=is,ie
-               Atm%q(i,j,k,iq) = qn1(i,k)
+
+               if ( iq==o3mr ) then 
+                  if (.not. Atm%flagstruct%use_gfsO3) then  
+                     Atm%q(i,j,k,iq) = qn1(i,k)
+                  endif
+               else 
+                  Atm%q(i,j,k,iq) = qn1(i,k)
+               endif
+
             enddo
          enddo
          endif

@@ -443,6 +443,8 @@ module fv_arrays_mod
    logical :: nggps_ic = .false.      ! use NGGPS ICs
    logical :: hrrrv3_ic = .false.
    logical :: ecmwf_ic = .false.      ! use ECMWF ICs
+   logical :: use_gfsO3 = .false.     ! only work when "ecmwf_ic = .T.". 
+                                      ! Need to be 'true', when the IFS IC does not include O3 data.  
    logical :: gfs_phil = .false.      ! if .T., compute geopotential inside of GFS physics (not used?)
    logical :: agrid_vel_rst = .false. ! if .T., include ua/va (agrid winds) in the restarts
    logical :: use_new_ncep = .false.  ! use the NCEP ICs created after 2014/10/22, if want to read CWAT (not used??)
