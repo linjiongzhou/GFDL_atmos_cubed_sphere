@@ -1082,6 +1082,10 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: u_dt(:,:,:)
     real, _ALLOCATABLE :: v_dt(:,:,:)
 
+    ! GFDL MP input & output for Machine Learning
+    real, _ALLOCATABLE :: gfdlmp_qv_in(:,:,:)    _NULL
+    real, _ALLOCATABLE :: gfdlmp_qv_out(:,:,:)    _NULL
+
   end type inline_mp_type
 
   type phys_diag_type
@@ -1547,6 +1551,10 @@ contains
        allocate ( Atm%inline_mp%prefluxi(is:ie,js:je,npz) )
        allocate ( Atm%inline_mp%prefluxs(is:ie,js:je,npz) )
        allocate ( Atm%inline_mp%prefluxg(is:ie,js:je,npz) )
+
+       ! GFDL MP input & output for Machine Learning
+       allocate ( Atm%inline_mp%gfdlmp_qv_in(is:ie,js:je,npz) )
+       allocate ( Atm%inline_mp%gfdlmp_qv_out(is:ie,js:je,npz) )
     endif
 
     !--------------------------
@@ -1645,6 +1653,10 @@ contains
               Atm%inline_mp%prefluxi(i,j,:) = real_big
               Atm%inline_mp%prefluxs(i,j,:) = real_big
               Atm%inline_mp%prefluxg(i,j,:) = real_big
+
+              ! GFDL MP input & output for Machine Learning
+              Atm%inline_mp%gfdlmp_qv_in(i,j,:) = real_big
+              Atm%inline_mp%gfdlmp_qv_out(i,j,:) = real_big
            enddo
         enddo
      endif
@@ -1913,6 +1925,10 @@ contains
        deallocate ( Atm%inline_mp%prefluxi )
        deallocate ( Atm%inline_mp%prefluxs )
        deallocate ( Atm%inline_mp%prefluxg )
+
+       ! GFDL MP input & output for Machine Learning
+       deallocate ( Atm%inline_mp%gfdlmp_qv_in )
+       deallocate ( Atm%inline_mp%gfdlmp_qv_out )
     endif
 
     deallocate ( Atm%u_srf )

@@ -74,6 +74,9 @@
 ! dissipation estimates
  integer :: id_diss
 
+! GFDL MP input & output for Machine Learning
+ integer :: id_gfdlmp_qv_in, id_gfdlmp_qv_out
+
 ! ESM requested diagnostics  -  dry mass/volume mixing ratios
  integer, allocatable :: id_tracer_dmmr(:)
  integer, allocatable :: id_tracer_dvmr(:)

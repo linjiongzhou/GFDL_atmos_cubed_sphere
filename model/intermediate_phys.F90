@@ -559,6 +559,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                     rrg * pt (is:ie, j, kmp:km)
             endif
 
+            ! GFDL MP input for Machine Learning
+            inline_mp%gfdlmp_qv_in (is:ie, j, kmp:km) = q (is:ie, j, kmp:km, sphum)
+
             ! GFDL cloud microphysics main program
             call gfdl_mp_driver (q (is:ie, j, kmp:km, sphum), q (is:ie, j, kmp:km, liq_wat), &
                      q (is:ie, j, kmp:km, rainwat), q (is:ie, j, kmp:km, ice_wat), &
@@ -585,6 +588,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                      inline_mp%prefluxr(is:ie, j, kmp:km), inline_mp%prefluxi(is:ie, j, kmp:km), &
                      inline_mp%prefluxs(is:ie, j, kmp:km), inline_mp%prefluxg(is:ie, j, kmp:km), &
                      last_step, do_inline_mp)
+
+            ! GFDL MP output for Machine Learning
+            inline_mp%gfdlmp_qv_out (is:ie, j, kmp:km) = q (is:ie, j, kmp:km, sphum)
 
             ! update non-microphyiscs tracers due to mass change
             if (adj_mass_vmr) then

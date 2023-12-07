@@ -620,6 +620,13 @@ contains
        id_preg = register_diag_field ( trim(field), 'preg', axes(1:2), Time,           &
             'graupel precipitation', 'mm/day', missing_value=missing_value )
 !-------------------
+!! GFDL MP input & output for Machine Learning
+!-------------------
+       id_gfdlmp_qv_in = register_diag_field ( trim(field), 'gfdlmp_qv_in', axes(1:3), Time,           &
+            'water vapor input to GFDL MP', 'kg/kg', missing_value=missing_value )
+       id_gfdlmp_qv_out = register_diag_field ( trim(field), 'gfdlmp_qv_out', axes(1:3), Time,           &
+            'water vapor output from GFDL MP', 'kg/kg', missing_value=missing_value )
+!-------------------
 !! 3D Tendency terms from GFDL MP and physics
 !-------------------
        if (Atm(n)%flagstruct%write_3d_diags) then
@@ -1743,6 +1750,9 @@ contains
           if(id_prei > 0) used=send_data(id_prei, Atm(n)%inline_mp%prei(isc:iec,jsc:jec), Time)
           if(id_pres > 0) used=send_data(id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
           if(id_preg > 0) used=send_data(id_preg, Atm(n)%inline_mp%preg(isc:iec,jsc:jec), Time)
+          ! GFDL MP input & output for Machine Learning
+          if(id_gfdlmp_qv_in > 0) used=send_data(id_gfdlmp_qv_in, Atm(n)%inline_mp%gfdlmp_qv_in(isc:iec,jsc:jec,1:npz), Time)
+          if(id_gfdlmp_qv_out > 0) used=send_data(id_gfdlmp_qv_out, Atm(n)%inline_mp%gfdlmp_qv_out(isc:iec,jsc:jec,1:npz), Time)
        endif
 
        if (id_qv_dt_gfdlmp > 0) used=send_data(id_qv_dt_gfdlmp, Atm(n)%inline_mp%qv_dt(isc:iec,jsc:jec,1:npz), Time)
