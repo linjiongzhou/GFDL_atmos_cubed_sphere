@@ -29,7 +29,11 @@ module coarse_grained_restart_files_mod
   use coarse_graining_mod, only: PRESSURE_LEVEL, PRESSURE_LEVEL_EXTRAPOLATE, BLENDED_AREA_WEIGHTED
   use coarse_graining_mod, only: compute_blending_weights_agrid, compute_blending_weights_dgrid_u, compute_blending_weights_dgrid_v
   use coarse_graining_mod, only: blended_area_weighted_coarse_grain_field, blended_length_weighted_coarse_grain_u, blended_length_weighted_coarse_grain_v
+#ifdef OVERLOAD_R4
+  use constantsR4_mod, only: GRAV, RDGAS, RVGAS
+#else
   use constants_mod, only: GRAV, RDGAS, RVGAS
+#endif
   use field_manager_mod, only: MODEL_ATMOS
   use fms2_io_mod,      only: register_restart_field, write_restart, open_file, close_file, register_variable_attribute, variable_exists
   use fv_arrays_mod, only: coarse_restart_type, fv_atmos_type

@@ -23,7 +23,11 @@
 ! Revise the OpenMP code to avoid crash
 module fv_mapz_mod
 
+#ifdef OVERLOAD_R4
+  use constantsR4_mod,   only: pi=>pi_8, rdgas, grav, cp_air, cp_vapor
+#else
   use constants_mod,     only: pi=>pi_8, rdgas, grav, cp_air, cp_vapor
+#endif
   use fv_arrays_mod,     only: radius ! scaled for small earth
   use tracer_manager_mod,only: get_tracer_index
   use field_manager_mod, only: MODEL_ATMOS
