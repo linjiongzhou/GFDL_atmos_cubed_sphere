@@ -3477,8 +3477,10 @@ contains
             used=send_data(id_sl13, a2, Time)
        endif
 
-       call make_plevs( Atm(n)%w(isc:iec,jsc:jec,:), plevs_ln, Atm(n)%peln(isc:iec,1:npz+1,jsc:jec), &
-                        npz, -1, id_w_plev, id_w_levs, nplev, Atm(n)%bd, Time)
+       if ( .not. Atm(n)%flagstruct%hydrostatic ) then
+          call make_plevs( Atm(n)%w(isc:iec,jsc:jec,:), plevs_ln, Atm(n)%peln(isc:iec,1:npz+1,jsc:jec), &
+                           npz, -1, id_w_plev, id_w_levs, nplev, Atm(n)%bd, Time)
+       endif
 
 
        if ( (.not.Atm(n)%flagstruct%hydrostatic) .and. id_x850>0) then
