@@ -152,7 +152,7 @@ contains
     if (.not. inline_q) tracer_nest_timestep = 0
 
 
-    if (neststruct%nested .and. (.not. (neststruct%first_step) .or. make_nh) ) then
+    if (neststruct%nested .and. (.not. (neststruct%first_step)) ) then
        do_pd = .true.
        call set_BCs_t0(ncnst, flagstruct%hydrostatic, neststruct, thermostruct)
     else
@@ -565,10 +565,6 @@ contains
     if (neststruct%first_step) then
        if (neststruct%nested) call set_BCs_t0(ncnst, flagstruct%hydrostatic, neststruct, thermostruct)
        neststruct%first_step = .false.
-       if (.not. flagstruct%hydrostatic) flagstruct%make_nh= .false.
-    else if (flagstruct%make_nh) then
-       if (neststruct%nested) call set_NH_BCs_t0(neststruct)
-       flagstruct%make_nh= .false.
     endif
 
     call mpp_sync_self
