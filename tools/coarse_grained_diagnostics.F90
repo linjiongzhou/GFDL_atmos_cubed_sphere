@@ -154,6 +154,15 @@ contains
     index = index + 1
     coarse_diagnostics(index)%axes = 3
     coarse_diagnostics(index)%module_name = DYNAMICS
+    coarse_diagnostics(index)%name = 'rh_coarse'
+    coarse_diagnostics(index)%description = 'coarse-grained relative humidity'
+    coarse_diagnostics(index)%units = '%'
+    coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+    coarse_diagnostics(index)%special_case = 'rh'
+
+    index = index + 1
+    coarse_diagnostics(index)%axes = 3
+    coarse_diagnostics(index)%module_name = DYNAMICS
     coarse_diagnostics(index)%name = 'delp_coarse'
     coarse_diagnostics(index)%description = 'coarse-grained pressure thickness'
     coarse_diagnostics(index)%units = 'Pa'
@@ -169,6 +178,51 @@ contains
     coarse_diagnostics(index)%units = 'Pa'
     coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
     coarse_diagnostics(index)%data%var2 => Atm(tile_count)%ps(is:ie,js:je)
+
+    index = index + 1
+    coarse_diagnostics(index)%axes = 2
+    coarse_diagnostics(index)%module_name = DYNAMICS
+    coarse_diagnostics(index)%name = 'prew_coarse'
+    coarse_diagnostics(index)%description = 'coarse-grained water precipitation'
+    coarse_diagnostics(index)%units = 'mm/day'
+    coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+    coarse_diagnostics(index)%data%var2 => Atm(tile_count)%inline_mp%prew(is:ie,js:je)
+
+    index = index + 1
+    coarse_diagnostics(index)%axes = 2
+    coarse_diagnostics(index)%module_name = DYNAMICS
+    coarse_diagnostics(index)%name = 'prei_coarse'
+    coarse_diagnostics(index)%description = 'coarse-grained ice precipitation'
+    coarse_diagnostics(index)%units = 'mm/day'
+    coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+    coarse_diagnostics(index)%data%var2 => Atm(tile_count)%inline_mp%prei(is:ie,js:je)
+
+    index = index + 1
+    coarse_diagnostics(index)%axes = 2
+    coarse_diagnostics(index)%module_name = DYNAMICS
+    coarse_diagnostics(index)%name = 'prer_coarse'
+    coarse_diagnostics(index)%description = 'coarse-grained rain precipitation'
+    coarse_diagnostics(index)%units = 'mm/day'
+    coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+    coarse_diagnostics(index)%data%var2 => Atm(tile_count)%inline_mp%prer(is:ie,js:je)
+
+    index = index + 1
+    coarse_diagnostics(index)%axes = 2
+    coarse_diagnostics(index)%module_name = DYNAMICS
+    coarse_diagnostics(index)%name = 'pres_coarse'
+    coarse_diagnostics(index)%description = 'coarse-grained snow precipitation'
+    coarse_diagnostics(index)%units = 'mm/day'
+    coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+    coarse_diagnostics(index)%data%var2 => Atm(tile_count)%inline_mp%pres(is:ie,js:je)
+
+    index = index + 1
+    coarse_diagnostics(index)%axes = 2
+    coarse_diagnostics(index)%module_name = DYNAMICS
+    coarse_diagnostics(index)%name = 'preg_coarse'
+    coarse_diagnostics(index)%description = 'coarse-grained graupel precipitation'
+    coarse_diagnostics(index)%units = 'mm/day'
+    coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+    coarse_diagnostics(index)%data%var2 => Atm(tile_count)%inline_mp%preg(is:ie,js:je)
 
     if (.not. Atm(tile_count)%flagstruct%hydrostatic) then
        index = index + 1
@@ -530,6 +584,23 @@ contains
     coarse_diagnostics(index)%reduction_method = MASS_WEIGHTED
 
     ! Vertically integrated diagnostics
+    do t = 1, n_tracers
+      call get_tracer_names(MODEL_ATMOS, t, tracer_name, tracer_long_name, tracer_units)
+      index = index + 1
+      coarse_diagnostics(index)%axes = 2
+      coarse_diagnostics(index)%module_name = DYNAMICS
+      coarse_diagnostics(index)%name = 'int_' // trim(tracer_name) // '_coarse'
+      coarse_diagnostics(index)%description = 'coarse-grained vertically integrated ' // trim(tracer_long_name)
+      coarse_diagnostics(index)%units = tracer_units
+      coarse_diagnostics(index)%vertically_integrated = .true.
+      coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+      if (t .gt. n_prognostic) then
+        coarse_diagnostics(index)%data%var3 => Atm(tile_count)%qdiag(is:ie,js:je,1:npz,t)
+      else
+        coarse_diagnostics(index)%data%var3 => Atm(tile_count)%q(is:ie,js:je,1:npz,t)
+      endif
+    enddo
+
     index = index + 1
     coarse_diagnostics(index)%axes = 2
     coarse_diagnostics(index)%module_name = DYNAMICS
@@ -907,6 +978,16 @@ contains
       coarse_diagnostics(index)%units = '1/s'
       coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
       coarse_diagnostics(index)%special_case = 'vorticity'
+
+      index = index + 1
+      coarse_diagnostics(index)%pressure_level = pressure_levels(p)
+      coarse_diagnostics(index)%axes = 2
+      coarse_diagnostics(index)%module_name = DYNAMICS
+      coarse_diagnostics(index)%name = 'rh' // trim(adjustl(pressure_level_label)) // '_coarse'
+      coarse_diagnostics(index)%description = 'coarse-grained ' // trim(adjustl(pressure_level_label)) // '-mb relative humidity'
+      coarse_diagnostics(index)%units = '%'
+      coarse_diagnostics(index)%reduction_method = AREA_WEIGHTED
+      coarse_diagnostics(index)%special_case = 'rh'
 
       do t = 1, n_tracers
         call get_tracer_names(MODEL_ATMOS, t, tracer_name, tracer_long_name, tracer_units)
