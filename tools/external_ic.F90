@@ -775,8 +775,6 @@ contains
                            Atm%gridstruct%agrid_64(is:ie,js:je,2), 9., 9.)
     endif
 
-    Atm%flagstruct%make_nh = .false.
-
     deallocate (ak)
     deallocate (bk)
     deallocate (ps)
@@ -1251,8 +1249,6 @@ contains
                                Atm%gridstruct%agrid_64(is:ie,js:je,1),     &
                                Atm%gridstruct%agrid_64(is:ie,js:je,2), 9., 9.)
         endif
-
-      Atm%flagstruct%make_nh = .false.
 
       deallocate (ak)
       deallocate (bk)
@@ -2558,8 +2554,6 @@ contains
 !     deallocate ( psc )
       deallocate ( psc_r8 )
       deallocate ( lat, lon )
-
-      Atm%flagstruct%make_nh = .false.
 
   end subroutine get_ecmwf_ic
 !------------------------------------------------------------------
