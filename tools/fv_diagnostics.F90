@@ -246,7 +246,7 @@ contains
        endif
     enddo
     if ( (user_prt_level >= PRT_LEVEL_2 .or. Atm(1)%flagstruct%fv_debug) .and. is_master() ) then
-       write(*,'(2x, A, G, A, G)') 'radar reflectivity: mp_top=', mp_top, 'pfull=', pfull(mp_top)
+       write(*,'(2x, A, G11.3, A, G11.3)') 'radar reflectivity: mp_top=', mp_top, 'pfull=', pfull(mp_top)
     endif
 
 !   allocate(grid_xt(npx-1), grid_yt(npy-1), grid_xe(npx), grid_ye(npy-1), grid_xn(npx-1), grid_yn(npy))
@@ -1733,7 +1733,7 @@ contains
          if ( m_calendar ) then
               if(master) write(*,'(A,I6,5I3)') ' Simulation Time: ', yr, mon, dd, hr, mn, seconds
          else
-              if(master) write(*,'(A,2I)') ' Simulation Time: ', Days, seconds
+              if(master) write(*,'(A,2I3)') ' Simulation Time: ', Days, seconds
          endif
      endif
 
@@ -1777,7 +1777,7 @@ contains
            idiag%efx_sum = idiag%efx_sum + E_Flux
            if ( idiag%steps <= max_step ) idiag%efx(idiag%steps) = E_Flux
            if (master)  then
-              write(*,'(2x, A, 2A, G)') '   Energy_Deficit (W/m**2)', trim(gn), ' = ', E_Flux
+              write(*,'(2x, A, 2A, G14.5)') '   Energy_Deficit (W/m**2)', trim(gn), ' = ', E_Flux
            endif
 
 
@@ -1919,7 +1919,7 @@ contains
        if(id_mppxg > 0) used=send_data(id_mppxg, Atm(n)%inline_mp%mppxg(isc:iec,jsc:jec), Time)
 
        if (id_qcw > 0 .and. id_qcr > 0 .and. id_qci > 0 .and. id_qcs > 0 .and. id_qcg > 0 .and. &
-           id_rew > 0 .and. id_rer > 0 .and. id_rei > 0 .and. id_res > 0 .and. id_reg > 0 .and. id_cld) then
+           id_rew > 0 .and. id_rer > 0 .and. id_rei > 0 .and. id_res > 0 .and. id_reg > 0 .and. id_cld >0) then
          allocate(lsm(isc:iec,jsc:jec))
          allocate(dz(isc:iec,jsc:jec,1:npz))
          allocate(ptmp(isc:iec,jsc:jec,1:npz))
@@ -2242,7 +2242,7 @@ contains
                 call mp_reduce_sum(sar)
                 call mp_reduce_sum(tmp)
                 if ( sar > 0. .and. user_prt_level >= PRT_LEVEL_2) then
-                   if (master) write(*,'(2x, A, G)') 'RH200 = ', tmp/sar
+                   if (master) write(*,'(2x, A, G13.5)') 'RH200 = ', tmp/sar
                 endif
              endif
           endif
@@ -2623,7 +2623,7 @@ contains
                 call mp_reduce_sum(sar)
                 call mp_reduce_sum(tmp)
                 if ( sar > 0. .and. user_prt_level >= PRT_LEVEL_2) then
-                   if (master) write(*,'(2x, A, G)') 'Tropical [10s,10n] mean T100 = ', tmp/sar
+                   if (master) write(*,'(2x, A, G13.5)') 'Tropical [10s,10n] mean T100 = ', tmp/sar
                 else
                    if (master) write(*,*) 'Warning: problem computing tropical mean T100'
                 endif
@@ -2647,7 +2647,7 @@ contains
                 call mp_reduce_sum(sar)
                 call mp_reduce_sum(tmp)
                 if ( sar > 0.  .and. user_prt_level >= PRT_LEVEL_2) then
-                   if (master) write(*,'(2x, A, G)') 'Tropical [-20.,20.] mean T200 = ', tmp/sar
+                   if (master) write(*,'(2x, A, G13.5)') 'Tropical [-20.,20.] mean T200 = ', tmp/sar
                 endif
              endif
           endif
@@ -2676,7 +2676,7 @@ contains
               tot_mq  = g_sum( Atm(n)%domain, a2, isc, iec, jsc, jec, ngc, Atm(n)%gridstruct%area_64, 0)
               idiag%mtq_sum = idiag%mtq_sum + tot_mq
               if ( idiag%steps <= max_step ) idiag%mtq(idiag%steps) = tot_mq
-              if(master) write(*,'(2x, A, G)') 'Total (global) mountain torque (Hadleys)=', tot_mq
+              if(master) write(*,'(2x, A, G13.5)') 'Total (global) mountain torque (Hadleys)=', tot_mq
           endif
        endif
 
@@ -2780,9 +2780,9 @@ contains
                 call mp_reduce_sum(e2)
                 if (master) then
                    write(*,'(2x, A)') ' TERMINATOR TEST: '
-                   write(*,'(2x, A, G)') '      chlorine mass: ', qm/(4.*pi*RADIUS*RADIUS)
-                   write(*,'(2x, A, G)') '             L2 err: ', sqrt(e2)/sqrt(4.*pi*RADIUS*RADIUS)/qcly0
-                   write(*,'(2x, A, G)') '            max err: ', einf/qcly0
+                   write(*,'(2x, A, G13.5)') '      chlorine mass: ', qm/(4.*pi*RADIUS*RADIUS)
+                   write(*,'(2x, A, G13.5)') '             L2 err: ', sqrt(e2)/sqrt(4.*pi*RADIUS*RADIUS)/qcly0
+                   write(*,'(2x, A, G13.5)') '            max err: ', einf/qcly0
                 endif
              endif
           endif
@@ -3423,7 +3423,7 @@ contains
 
           if (prt_minmax .and. user_prt_level >= PRT_LEVEL_1) then
              call mpp_max(allmax)
-             if (master) write(*,'(2x, A16, G, A4)') 'max reflectivity = ', allmax, ' dBZ'
+             if (master) write(*,'(2x, A20, G11.4, A4)') 'max reflectivity = ', allmax, ' dBZ'
           endif
 
           deallocate(a3)
@@ -4259,7 +4259,7 @@ contains
       if(master) then
          j = min(len(trim(qname)),16)
          display_name = qname(1:j)
-         write(*,'(2x, A16, A, A1, A5, G, A5, G)') display_name, trim(gn), ':', ' max=', qmax*fac, 'min=',qmin*fac
+         write(*,'(2x, A16, A, A1, A5, G14.5, A5, G14.5)') display_name, trim(gn), ':', ' max=', qmax*fac, 'min=',qmin*fac
       endif
 
  end subroutine prt_maxmin
@@ -4314,7 +4314,7 @@ contains
       if(master) then
          j = min(len(trim(qname)),16)
          display_name = qname(1:j)
-         write(6,'(2x,A16,A,A1,3G)') display_name, trim(gn), ':', qmax*fac, qmin*fac, gmean*fac
+         write(6,'(2x,A16,A,A1,3G14.5)') display_name, trim(gn), ':', qmax*fac, qmin*fac, gmean*fac
       endif
 
  end subroutine prt_mxm
@@ -4684,8 +4684,8 @@ contains
      if (is_master()) then
         j = min(len(trim(qname)),16)
         display_name = qname(1:j)
-        write(6,'(2x,A16,A6,G,A4,G)') display_name, ': GB =',t_gb/area_gb, 'NH =',t_nh/area_nh
-        write(6,'(20x,A4,G,A4,G)') 'SH =',t_sh/area_sh, 'EQ =',t_eq/area_eq
+        write(6,'(2x,A16,A6,G14.5,A4,G14.5)') display_name, ': GB =',t_gb/area_gb, 'NH =',t_nh/area_nh
+        write(6,'(20x,A4,G14.5,A4,G14.5)') 'SH =',t_sh/area_sh, 'EQ =',t_eq/area_eq
      endif
 
  end subroutine prt_gb_nh_sh
