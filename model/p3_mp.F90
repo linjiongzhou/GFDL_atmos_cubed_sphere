@@ -37,6 +37,8 @@
  use tdpack_const, only: aerk1w
 #endif
 
+ use fms_mod, only: check_nml_error
+
  implicit none
 
  private
@@ -118,7 +120,7 @@
 
 !==================================================================================================!
 
- subroutine p3_init(lookup_file_dir,nCat,trplMomI,liqfrac,model,stat,abort_on_err,dowr)
+ subroutine p3_init(input_nml_file,logunit,lookup_file_dir,model,stat,abort_on_err,dowr)
 
 !------------------------------------------------------------------------------------------!
 ! This subroutine initializes all physical constants and parameters needed by the P3       !
@@ -134,14 +136,17 @@
  implicit none
 
 ! Passed arguments:
+ integer, intent(in)                      :: logunit
+ character(len=*), intent(in)             :: input_nml_file(:)
  character(len=*), intent(in)             :: lookup_file_dir    ! directory of the lookup tables (model library)
- integer,          intent(in)             :: nCat               ! number of free ice categories
- logical,          intent(in)             :: trplMomI           ! .T.=3-moment / .F.=2-moment (ice)
- logical,          intent(in)             :: liqfrac            ! .T.=Fi,liq / .F.=no Fi,liq (ice)
  integer,          intent(out), optional  :: stat               ! return status of subprogram
  logical,          intent(in),  optional  :: abort_on_err       ! abort when an error is encountered [.false.]
  character(len=*), intent(in),  optional  :: model              ! driving model
  logical,          intent(in),  optional  :: dowr
+
+ integer :: nCat     = 1         ! number of free ice categories
+ logical :: trplMomI = .false.   ! .T.=3-moment / .F.=2-moment (ice)
+ logical :: liqfrac  = .false.   ! .T.=Fi,liq / .F.=no Fi,liq (ice)
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
@@ -161,6 +166,21 @@
  double precision               :: dp_dum1, dp_dum2
  logical                        :: err_abort
  logical                        :: owr = .true.
+
+ ! namelist
+
+ namelist / p3_mp_nml / nCat, trplMomI, liqfrac
+
+!------------------------------------------------------------------------------------------!
+
+ read (input_nml_file, nml = p3_mp_nml, iostat = istat)
+ ierr = check_nml_error (istat, 'p3_mp_nml')
+
+!------------------------------------------------------------------------------------------!
+
+ write (logunit, *) " ================================================================== "
+ write (logunit, *) "p3_mp_mod"
+ write (logunit, nml = p3_mp_nml)
 
 !------------------------------------------------------------------------------------------!
 

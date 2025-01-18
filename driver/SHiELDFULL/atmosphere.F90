@@ -90,6 +90,7 @@ use fv_grid_utils_mod,  only: g_sum
 
 use mpp_domains_mod, only:  mpp_get_data_domain, mpp_get_compute_domain
 use gfdl_mp_mod,        only: gfdl_mp_init, gfdl_mp_end
+use microphy_p3,        only: p3_init
 use diag_manager_mod,   only: send_data
 use external_aero_mod,  only: load_aero, read_aero, clean_aero
 use coarse_graining_mod, only: coarse_graining_init
@@ -332,7 +333,13 @@ contains
 !--- allocate pref
    allocate(pref(npz+1,2), dum1d(npz+1))
 
-   call gfdl_mp_init(input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
+   if (Atm(mygrid)%flagstruct%mp_flag .eq. 1) then
+     call gfdl_mp_init(input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
+   elseif (Atm(mygrid)%flagstruct%mp_flag .eq. 2) then
+       call p3_init(input_nml_file, stdlog(), "INPUT", abort_on_err=.true., dowr=is_master())
+   else
+     call mpp_error (FATAL, 'atmosphere_init: the value of mp_flag is not supported.')
+   endif
 
    call timing_on('FV_RESTART')
    call fv_restart(Atm(mygrid)%domain, Atm, dt_atmos, seconds, days, cold_start, &

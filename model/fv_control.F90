@@ -182,6 +182,7 @@ module fv_control_mod
      integer , pointer :: n_sponge
      real    , pointer :: d_ext
      integer , pointer :: nwat
+     integer , pointer :: mp_flag
      logical , pointer :: warm_start
 
      logical , pointer :: inline_q
@@ -720,6 +721,7 @@ module fv_control_mod
        n_sponge                      => Atm%flagstruct%n_sponge
        d_ext                         => Atm%flagstruct%d_ext
        nwat                          => Atm%flagstruct%nwat
+       mp_flag                       => Atm%flagstruct%mp_flag
        use_logp                      => Atm%flagstruct%use_logp
        warm_start                    => Atm%flagstruct%warm_start
        inline_q                      => Atm%flagstruct%inline_q
@@ -1142,7 +1144,7 @@ module fv_control_mod
      subroutine read_namelist_integ_phys_nml
 
        integer :: ios, ierr
-       namelist /integ_phys_nml/ do_sat_adj, do_fast_phys, do_intermediate_phys, do_inline_mp, do_aerosol, do_cosp, consv_checker, te_err, tw_err
+       namelist /integ_phys_nml/ do_sat_adj, do_fast_phys, do_intermediate_phys, do_inline_mp, mp_flag, do_aerosol, do_cosp, consv_checker, te_err, tw_err
 
        read (input_nml_file,integ_phys_nml,iostat=ios)
        ierr = check_nml_error(ios,'integ_phys_nml')

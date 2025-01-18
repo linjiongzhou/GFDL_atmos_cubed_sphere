@@ -468,6 +468,9 @@ module fv_arrays_mod
                             !< schemes that also have prognostic hail or graupel, such as the GFDL, Thompson,
                             !< or WSM6 microphysics, set to 6. A value of 0 turns off condensate loading.
                             !< The default value is 3.
+   integer :: mp_flag = 1         !< Flag to select the microphysics scheme used in the model.
+                                  !< 1: GFDL microphysics scheme
+                                  !< 2: P3 microphysics scheme
    logical :: warm_start = .true. !< Whether to start from restart files, instead of cold-starting
                                   !< the model. True by default; if this is set to .true. and restart
                                   !< files cannot be found the model will stop.
