@@ -140,16 +140,18 @@
 ! Perform vertical sum:
 !----------------------
      wm = 0.
-     do j=jsc,jec
-        do k=1,npz
-           do i=isc,iec
+     if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) then
+        do j=jsc,jec
+           do k=1,npz
+              do i=isc,iec
 ! Warning: the following works only with AM2 physics: water vapor; cloud water, cloud ice.
-              wm(i,j) = wm(i,j) + _DBL_(_RL_(Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
-                                                              Atm(mygrid)%q(i,j,k,liq_wat) +  &
-                                                              Atm(mygrid)%q(i,j,k,ice_wat) )))
+                 wm(i,j) = wm(i,j) + _DBL_(_RL_(Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
+                                                                 Atm(mygrid)%q(i,j,k,liq_wat) +  &
+                                                                 Atm(mygrid)%q(i,j,k,ice_wat) )))
+              enddo
            enddo
         enddo
-     enddo
+     endif
 
 !----------------------
 ! Horizontal sum:

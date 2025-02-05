@@ -77,7 +77,7 @@ module external_ic_mod
    implicit none
    private
 
-   real, parameter:: zvir = rvgas/rdgas - 1.
+   real :: zvir
    real(kind=R_GRID), parameter :: cnst_0p20=0.20d0
    real :: deg2rad
    character(len=128) :: inputdir
@@ -109,6 +109,12 @@ contains
 
       inputdir = 'INPUT/'
       if(present(icdir)) inputdir = icdir
+
+      if (Atm%flagstruct%nwat .eq. 0) then
+         zvir = 0.0
+      else
+         zvir = rvgas/rdgas - 1.
+      endif
 
       is  = Atm%bd%is
       ie  = Atm%bd%ie
@@ -188,7 +194,6 @@ contains
       call prt_mxm('PS', Atm%ps, is, ie, js, je, ng, 1, 0.01, Atm%gridstruct%area_64, Atm%domain)
       call prt_mxm('T', Atm%pt, is, ie, js, je, ng, Atm%npz, 1., Atm%gridstruct%area_64, Atm%domain)
       if (.not.Atm%flagstruct%hydrostatic) call prt_mxm('W', Atm%w, is, ie, js, je, ng, Atm%npz, 1., Atm%gridstruct%area_64, Atm%domain)
-      call prt_mxm('SPHUM', Atm%q(:,:,:,1), is, ie, js, je, ng, Atm%npz, 1., Atm%gridstruct%area_64, Atm%domain)
 
       if ( Atm%flagstruct%nggps_ic .or. Atm%flagstruct%ecmwf_ic .or. Atm%flagstruct%hrrrv3_ic ) then
         sphum   = get_tracer_index(MODEL_ATMOS, 'sphum')
@@ -200,6 +205,8 @@ contains
         o3mr      = get_tracer_index(MODEL_ATMOS, 'o3mr')
         sgs_tke = get_tracer_index(MODEL_ATMOS, 'sgs_tke')
         cld_amt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
+        if ( sphum > 0 ) &
+        call prt_mxm('sphum',   Atm%q(:,:,:,sphum),   is, ie, js, je, ng, Atm%npz, 1., Atm%gridstruct%area_64, Atm%domain)
         if ( liq_wat > 0 ) &
         call prt_mxm('liq_wat', Atm%q(:,:,:,liq_wat), is, ie, js, je, ng, Atm%npz, 1., Atm%gridstruct%area_64, Atm%domain)
         if ( ice_wat > 0 ) &
@@ -315,7 +322,7 @@ contains
 ! local:
     real, dimension(:), allocatable:: ak, bk
     real, dimension(:,:), allocatable:: wk2, ps, oro_ic
-    real, dimension(:,:,:), allocatable:: ud, vd, u_w, v_w, u_s, v_s, omga, temp
+    real, dimension(:,:,:), allocatable:: ud, vd, u_w, v_w, u_s, v_s, omga, temp, qtmp
     real, dimension(:,:,:), allocatable:: zh(:,:,:)  ! 3D height at 65 edges
     real, dimension(:,:,:,:), allocatable:: q
     real, dimension(:,:), allocatable :: phis_coarse ! lmh
@@ -354,6 +361,13 @@ contains
 
     ! variables for reading the dimension from the gfs_ctrl
     integer ncid, levsp
+
+    liq_wat = get_tracer_index(MODEL_ATMOS, 'liq_wat')
+    ice_wat = get_tracer_index(MODEL_ATMOS, 'ice_wat')
+    rainwat = get_tracer_index(MODEL_ATMOS, 'rainwat')
+    snowwat = get_tracer_index(MODEL_ATMOS, 'snowwat')
+    graupel = get_tracer_index(MODEL_ATMOS, 'graupel')
+    ntclamt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
 
     call mpp_error(NOTE,'Using external_IC::get_nggps_ic which is valid only for data which has been &
                         &horizontally interpolated to the current cubed-sphere grid')
@@ -637,26 +651,12 @@ contains
     endif
 
     call mpp_update_domains( Atm%phis, Atm%domain, complete=.true. )
-    liq_wat = get_tracer_index(MODEL_ATMOS, 'liq_wat')
-    ice_wat = get_tracer_index(MODEL_ATMOS, 'ice_wat')
-    rainwat = get_tracer_index(MODEL_ATMOS, 'rainwat')
-    snowwat = get_tracer_index(MODEL_ATMOS, 'snowwat')
-    graupel = get_tracer_index(MODEL_ATMOS, 'graupel')
-    ntclamt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
     if (source_fv3gfs) then
     do k=1,npz
       do j=js,je
         do i=is,ie
           wt = Atm%delp(i,j,k)
-          if ( Atm%flagstruct%nwat == 6 ) then
-            qt = wt/(1. - (Atm%q(i,j,k,liq_wat) + &
-            Atm%q(i,j,k,ice_wat) + &
-            Atm%q(i,j,k,rainwat) + &
-            Atm%q(i,j,k,snowwat) + &
-            Atm%q(i,j,k,graupel)))
-          else   ! all other values of nwat
-            qt = wt/(1. - sum(Atm%q(i,j,k,2:Atm%flagstruct%nwat)))
-          endif
+          qt = wt/(1. - sum(Atm%q(i,j,k,2:Atm%flagstruct%nwat)))
           Atm%delp(i,j,k) = qt
           if (ntclamt > 0) Atm%q(i,j,k,ntclamt) = 0.0    ! Moorthi
         enddo
@@ -670,15 +670,7 @@ contains
       do j=js,je
         do i=is,ie
           wt = Atm%delp(i,j,k)
-          if ( Atm%flagstruct%nwat == 6 ) then
-             qt = wt*(1. + Atm%q(i,j,k,liq_wat) + &
-                           Atm%q(i,j,k,ice_wat) + &
-                           Atm%q(i,j,k,rainwat) + &
-                           Atm%q(i,j,k,snowwat) + &
-                           Atm%q(i,j,k,graupel))
-          else   ! all other values of nwat
-             qt = wt*(1. + sum(Atm%q(i,j,k,2:Atm%flagstruct%nwat)))
-          endif
+          qt = wt*(1. + sum(Atm%q(i,j,k,2:Atm%flagstruct%nwat)))
           m_fac = wt / qt
           do iq=1,ntracers
              Atm%q(i,j,k,iq) = m_fac * Atm%q(i,j,k,iq)
@@ -747,6 +739,7 @@ contains
         allocate (ps(is:ie,js:je))
         allocate (omga(is:ie,js:je,levp))
         allocate (q (is:ie,js:je,levp,ntracers))
+        allocate (qtmp(is:ie,js:je,levp))
         allocate ( u_w(is:ie+1, js:je, 1:levp) )
         allocate ( v_w(is:ie+1, js:je, 1:levp) )
         allocate ( u_s(is:ie, js:je+1, 1:levp) )
@@ -798,6 +791,12 @@ contains
             call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
             call register_restart_field(GFS_restart, trim(tracer_name), q(:,:,:,nt), dim_names_3d3, is_optional=.true.)
           enddo
+          if (Atm%flagstruct%mp_flag .eq. 7) then
+              call register_restart_field(GFS_restart, trim("snowwat"), qtmp, dim_names_3d3, is_optional=.true.)
+              q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + qtmp
+              call register_restart_field(GFS_restart, trim("graupel"), qtmp, dim_names_3d3, is_optional=.true.)
+              q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + qtmp
+          endif
 
           ! read in the gfs_data and free the restart type to be re-used by the nest
           call read_restart(GFS_restart)
@@ -806,6 +805,8 @@ contains
           call mpp_error(FATAL,'==> Error in External_ic::get_nggps_ic: tiled file '//trim(fn_gfs_ics)//' for NGGPS IC does not exist')
         endif
         call mpp_error(NOTE,'==> External_ic::get_nggps_ic: using tiled data file '//trim(fn_gfs_ics)//' for NGGPS IC')
+
+        deallocate (qtmp)
 
       endsubroutine read_gfs_ic
 
@@ -1262,7 +1263,7 @@ contains
       integer :: isd, ied, jsd, jed
       real(kind=R_GRID), dimension(2):: p1, p2, p3
       real(kind=R_GRID), dimension(3):: e1, e2, ex, ey
-      integer :: id_res, ntprog, ntracers, ks, iq, nt
+      integer :: id_res, ntprog, ntracers, ks, iq, nt, sphum
 
       is  = Atm%bd%is
       ie  = Atm%bd%ie
@@ -1272,6 +1273,8 @@ contains
       ied = Atm%bd%ied
       jsd = Atm%bd%jsd
       jed = Atm%bd%jed
+
+      sphum = get_tracer_index(MODEL_ATMOS, 'sphum')
 
       deg2rad = pi/180.
 
@@ -1386,7 +1389,7 @@ contains
         do i=1,im
         do j=jbeg,jend
           do k=1,km
-             tncep(i,j,k) = tncep(i,j,k)/(1.+zvir*qncep(i,j,k,1))
+             tncep(i,j,k) = tncep(i,j,k)/(1.+zvir*qncep(i,j,k,sphum))
           enddo
         enddo
         enddo
@@ -1844,12 +1847,10 @@ contains
       !if (is_master()) then
       !   print *, 'sphum = ', sphum
       !   print *, 'liq_wat = ', liq_wat
-      !   if ( Atm%flagstruct%nwat .eq. 6 ) then
-      !      print *, 'rainwat = ', rainwat
-      !      print *, 'iec_wat = ', ice_wat
-      !      print *, 'snowwat = ', snowwat
-      !      print *, 'graupel = ', graupel
-      !   endif
+      !   print *, 'rainwat = ', rainwat
+      !   print *, 'iec_wat = ', ice_wat
+      !   print *, 'snowwat = ', snowwat
+      !   print *, 'graupel = ', graupel
       !   print *, ' o3mr = ', o3mr
       !   print *, ' sgs_tke = ', sgs_tke
       !   print *, ' cld_amt = ', cld_amt
@@ -2373,15 +2374,7 @@ contains
          do j=js,je
             do i=is,ie
                wt = Atm%delp(i,j,k)
-               if ( Atm%flagstruct%nwat .eq. 2 ) then
-                  qt = wt*(1.+Atm%q(i,j,k,liq_wat))
-               elseif ( Atm%flagstruct%nwat .eq. 6 ) then
-                  qt = wt*(1. + Atm%q(i,j,k,liq_wat) + &
-                                Atm%q(i,j,k,ice_wat) + &
-                                Atm%q(i,j,k,rainwat) + &
-                                Atm%q(i,j,k,snowwat) + &
-                                Atm%q(i,j,k,graupel))
-               endif
+               qt = wt*(1.+sum(Atm%q(i,j,k,2:Atm%flagstruct%nwat)))
                m_fac = wt / qt
                do iq=1,Atm%flagstruct%nwat
                   Atm%q(i,j,k,iq) = m_fac * Atm%q(i,j,k,iq)
@@ -2766,6 +2759,7 @@ contains
 !!! High-precision
   integer i,j,k,l,m, k2,iq
   integer  sphum, o3mr, liq_wat, ice_wat, rainwat, snowwat, graupel, cld_amt, sgs_tke
+  integer  liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol
   integer :: is,  ie,  js,  je
 
   is  = Atm%bd%is
@@ -2779,6 +2773,13 @@ contains
   rainwat = get_tracer_index(MODEL_ATMOS, 'rainwat')
   snowwat = get_tracer_index(MODEL_ATMOS, 'snowwat')
   graupel = get_tracer_index(MODEL_ATMOS, 'graupel')
+  if (Atm%flagstruct%mp_flag .eq. 7) then
+     liq_wat_num = get_tracer_index(MODEL_ATMOS, 'liq_wat_num')
+     rainwat_num = get_tracer_index(MODEL_ATMOS, 'rainwat_num')
+     ice_rim_mass = get_tracer_index(MODEL_ATMOS, 'ice_rim_mass')
+     ice_wat_num = get_tracer_index(MODEL_ATMOS, 'ice_wat_num')
+     ice_wat_vol = get_tracer_index(MODEL_ATMOS, 'ice_wat_vol')
+  endif
   cld_amt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
   o3mr    = get_tracer_index(MODEL_ATMOS, 'o3mr')
   sgs_tke = get_tracer_index(MODEL_ATMOS, 'sgs_tke')
@@ -2789,11 +2790,16 @@ contains
     print *, 'nwat = ', Atm%flagstruct%nwat
     print *, 'sphum = ', sphum
     print *, 'liq_wat = ', liq_wat
-    if ( Atm%flagstruct%nwat .eq. 6 ) then
-      print *, 'rainwat = ', rainwat
-      print *, 'ice_wat = ', ice_wat
-      print *, 'snowwat = ', snowwat
-      print *, 'graupel = ', graupel
+    print *, 'rainwat = ', rainwat
+    print *, 'ice_wat = ', ice_wat
+    print *, 'snowwat = ', snowwat
+    print *, 'graupel = ', graupel
+    if (Atm%flagstruct%mp_flag .eq. 7) then
+       print *, 'liq_wat_num  = ', liq_wat_num 
+       print *, 'rainwat_num  = ', rainwat_num 
+       print *, 'ice_rim_mass = ', ice_rim_mass
+       print *, 'ice_wat_num  = ', ice_wat_num 
+       print *, 'ice_wat_vol  = ', ice_wat_vol 
     endif
     print *, 'o3mr = ', o3mr
     print *, 'sgs_tke = ', sgs_tke
@@ -2812,7 +2818,8 @@ contains
 
 !$OMP parallel do default(none) &
 !$OMP             shared(sphum,o3mr,liq_wat,rainwat,ice_wat,snowwat,graupel,source_fv3gfs,&
-!$OMP                    cld_amt,ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,Atm,z500,t_in) &
+!$OMP                    cld_amt,ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,Atm,z500,t_in,zvir,&
+!$OMP                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol) &
 !$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
 
   do 5000 j=js,je
@@ -2996,7 +3003,7 @@ contains
 ! only use for NCEP IC and GFDL microphy
 !-----------------------------------------------------------------------
    if (.not. source_fv3gfs) then
-      if ((Atm%flagstruct%nwat .eq. 3 .or. Atm%flagstruct%nwat .eq. 6) .and. &
+      if ((liq_wat .gt. 0 .and. ice_wat .gt. 0) .and. &
            (Atm%flagstruct%ncep_ic .or. Atm%flagstruct%nggps_ic)) then
          do k=1,npz
             do i=is,ie
@@ -3035,18 +3042,37 @@ contains
                endif
 
 #endif
-               if (Atm%flagstruct%nwat .eq. 6 ) then
+               if (rainwat .gt. 0 .and. snowwat .gt. 0) then
                   Atm%q(i,j,k,rainwat) = 0.
                   Atm%q(i,j,k,snowwat) = 0.
-                  Atm%q(i,j,k,graupel) = 0.
+                  if (graupel .gt. 0) Atm%q(i,j,k,graupel) = 0.
                   call mp_auto_conversion(Atm%q(i,j,k,liq_wat), Atm%q(i,j,k,rainwat),  &
                        Atm%q(i,j,k,ice_wat), Atm%q(i,j,k,snowwat) )
+               elseif (rainwat .gt. 0) then
+                  Atm%q(i,j,k,rainwat) = 0.
+                  call mp_auto_conversion(Atm%q(i,j,k,liq_wat), Atm%q(i,j,k,rainwat))
                endif
             enddo
          enddo
 
       endif
   endif ! data source /= FV3GFS GAUSSIAN NEMSIO FILE
+
+!-------------------------------------------------------------
+! initialize P3 microphysics
+!------- ------------------------------------------------------
+
+  if (Atm%flagstruct%mp_flag .eq. 7) then
+     do k=1,npz
+        do i=is,ie
+           Atm%q(i,j,k,liq_wat_num) = 0.0
+           Atm%q(i,j,k,rainwat_num) = 0.0
+           Atm%q(i,j,k,ice_rim_mass) = 0.0
+           Atm%q(i,j,k,ice_wat_num) = 0.0
+           Atm%q(i,j,k,ice_wat_vol) = 0.0
+        enddo
+     enddo
+  endif
 
 !-------------------------------------------------------------
 ! map omega or w
@@ -3077,8 +3103,8 @@ contains
 
 ! Add some diagnostics:
   if (.not. Atm%flagstruct%hydrostatic) call p_maxmin('delz_model', Atm%delz, is, ie, js, je, npz, 1.)
-  call p_maxmin('sphum_model', Atm%q(is:ie,js:je,1:npz,sphum), is, ie, js, je, npz, 1.)
-  call p_maxmin('liq_wat_model', Atm%q(is:ie,js:je,1:npz,liq_wat), is, ie, js, je, npz, 1.)
+  if (sphum .gt. 0) call p_maxmin('sphum_model', Atm%q(is:ie,js:je,1:npz,sphum), is, ie, js, je, npz, 1.)
+  if (liq_wat .gt. 0) call p_maxmin('liq_wat_model', Atm%q(is:ie,js:je,1:npz,liq_wat), is, ie, js, je, npz, 1.)
   if (ice_wat .gt. 0) call p_maxmin('ice_wat_model', Atm%q(is:ie,js:je,1:npz,ice_wat), is, ie, js, je, npz, 1.)
   call p_maxmin('PS_model (mb)', Atm%ps(is:ie,js:je), is, ie, js, je, 1, 0.01)
   call p_maxmin('PT_model', Atm%pt(is:ie,js:je,1:npz), is, ie, js, je, npz, 1.)
@@ -3223,7 +3249,8 @@ contains
 
 
  subroutine mp_auto_conversion(ql, qr, qi, qs)
- real, intent(inout):: ql, qr, qi, qs
+ real, intent(inout):: ql, qr
+ real, intent(inout), optional:: qi, qs
  real, parameter:: qi0_max = 2.0e-3
  real, parameter:: ql0_max = 2.5e-3
 
@@ -3233,9 +3260,11 @@ contains
        ql = ql0_max
   endif
 ! Convert excess cloud ice into snow:
-  if ( qi > qi0_max ) then
-       qs = qi - qi0_max
-       qi = qi0_max
+  if (present(qi) .and. present(qs)) then
+     if ( qi > qi0_max ) then
+          qs = qi - qi0_max
+          qi = qi0_max
+     endif
   endif
 
  end subroutine mp_auto_conversion
@@ -3894,9 +3923,11 @@ subroutine pmaxmn(qname, q, is, ie, js, je, km, fac, area, domain)
        ! Local:
        real, dimension(im,levp+1):: pe0, pn0
 !      real:: qc
-       integer:: i,j,k
+       integer:: i,j,k,sphum
 
-!$OMP parallel do default(none) shared(im,jm,levp,ak0,bk0,zs,ps,t,q,zh) &
+       sphum = get_tracer_index(MODEL_ATMOS, 'sphum')
+
+!$OMP parallel do default(none) shared(im,jm,levp,ak0,bk0,zs,ps,t,q,zh,zvir,sphum) &
 !$OMP                          private(pe0,pn0)
        do j = 1, jm
          do i=1, im
@@ -3915,7 +3946,7 @@ subroutine pmaxmn(qname, q, is, ie, js, je, km, fac, area, domain)
          do k = levp, 1, -1
            do i = 1, im
 !            qc = 1.-(q(i,j,k,2)+q(i,j,k,3)+q(i,j,k,4)+q(i,j,k,5))
-             zh(i,j,k) = zh(i,j,k+1)+(t(i,j,k)*(1.+zvir*q(i,j,k,1))*(pn0(i,k+1)-pn0(i,k)))*(rdgas/grav)
+             zh(i,j,k) = zh(i,j,k+1)+(t(i,j,k)*(1.+zvir*q(i,j,k,sphum))*(pn0(i,k+1)-pn0(i,k)))*(rdgas/grav)
            enddo
          enddo
        enddo

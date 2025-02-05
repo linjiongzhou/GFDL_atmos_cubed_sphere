@@ -616,15 +616,22 @@ contains
 
              do k=npz,1,-1
 
-                Tv = pt(i,j,k)*(1.+zvir*q(i,j,k,sphum))
-                pres = delp(i,j,k)/delz(i,j,k)*rdg*Tv
-                !if (pres < sounding_top) cycle
+                if (sphum .gt. 0) then
+                   Tv = pt(i,j,k)*(1.+zvir*q(i,j,k,sphum))
+                   pres = delp(i,j,k)/delz(i,j,k)*rdg*Tv
+                   !if (pres < sounding_top) cycle
 
-                call mqs3d(1, 1, 1, pt(i,j,k:k),   &
-                     (/pres/), q(i,j,k:k,sphum), qs)
+                   call mqs3d(1, 1, 1, pt(i,j,k:k),   &
+                        (/pres/), q(i,j,k:k,sphum), qs)
 
-                mixr = q(i,j,k,sphum)/(1.-sum(q(i,j,k,1:nwat))) ! convert from sphum to mixing ratio
-                rh = q(i,j,k,sphum)/qs(1)
+                   mixr = q(i,j,k,sphum)/(1.-sum(q(i,j,k,1:nwat))) ! convert from sphum to mixing ratio
+                   rh = q(i,j,k,sphum)/qs(1)
+                else
+                   Tv = pt(i,j,k)
+                   pres = delp(i,j,k)/delz(i,j,k)*rdg*Tv
+                   mixr = 0.0
+                   rh = 0.0
+                endif
                 tmp = ( log(max(rh,1.e-2))/ 17.27  + ( pt(i,j,k) - 273.14 )/ ( -35.84 + pt(i,j,k)) )
                 dewpt = 237.3* tmp/ ( 1. - tmp ) ! deg C
                 wspd = 0.5*sqrt((u(i,j,k)+u(i,j+1,k))*(u(i,j,k)+u(i,j+1,k)) + (v(i,j,k)+v(i+1,j,k))*(v(i,j,k)+v(i+1,j,k)))*ms_to_knot ! convert to knots

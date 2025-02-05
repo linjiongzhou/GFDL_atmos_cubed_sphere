@@ -65,6 +65,8 @@ module fv_ada_nudge_mod
                                register_variable_attribute, file_exists, FmsNetcdfDomainFile_t
  use fv_io_mod,         only : fv_io_register_axis
  use axis_utils2_mod, only : frac_index
+ use field_manager_mod, only: MODEL_ATMOS
+ use tracer_manager_mod,only: get_tracer_index
 
 #ifdef ENABLE_ADA
  use ada_types_mod, only : model_data_type
@@ -299,7 +301,7 @@ module fv_ada_nudge_mod
   real, allocatable, dimension(:,:,:):: u_obs, v_obs, t_obs, q_obs
   real, allocatable, dimension(:,:,:):: du_obs, dv_obs
   integer :: seconds, days
-  integer :: i,j,k, iq, kht
+  integer :: i,j,k, iq, kht, sphum
   real :: factor, rms, bias, co
   real :: q_rat, pst, pt0, pkz0
   real :: dbk, rdt, press(npz), profile(npz), prof_t(npz), prof_q(npz), du, dv
@@ -350,6 +352,8 @@ module fv_ada_nudge_mod
   se_corner => gridstruct%se_corner
   nw_corner => gridstruct%nw_corner
   ne_corner => gridstruct%ne_corner
+
+  sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
 
   if ( no_obs ) then
 #ifndef DYCORE_SOLO
@@ -444,7 +448,7 @@ module fv_ada_nudge_mod
      Atm_var%u(is:ie,js:je,:) = ua(is:ie,js:je,:)
      Atm_var%v(is:ie,js:je,:) = va(is:ie,js:je,:)
      Atm_var%t(is:ie,js:je,:) = pt(is:ie,js:je,:)
-     Atm_var%q(is:ie,js:je,:) = q(is:ie,js:je,:,1)
+     Atm_var%q(is:ie,js:je,:) = q(is:ie,js:je,:,sphum)
      Atm_var%dp(is:ie,js:je,:) = delp(is:ie,js:je,:)
      Atm_var%ps(is:ie,js:je) = ps(is:ie,js:je)
      Atm_var%phis(is:ie,js:je) = phis(is:ie,js:je)
@@ -554,13 +558,13 @@ module fv_ada_nudge_mod
      ua(is:ie,js:je,:)  = Atm_var%u_a(is:ie,js:je,:)
      va(is:ie,js:je,:)  = Atm_var%v_a(is:ie,js:je,:)
      pt(is:ie,js:je,:)  = Atm_var%t_a(is:ie,js:je,:)
-     q(is:ie,js:je,:,1) = Atm_var%q_a(is:ie,js:je,:)
+     q(is:ie,js:je,:,sphum) = Atm_var%q_a(is:ie,js:je,:)
      ps(is:ie,js:je)    = Atm_var%ps_a(is:ie,js:je)
 
      call mpp_update_domains(ua(:,:,:), domain, complete=.false.)
      call mpp_update_domains(va(:,:,:), domain, complete=.false.)
      call mpp_update_domains(pt(:,:,:), domain, complete=.false.)
-     call mpp_update_domains(q(:,:,:,1), domain, complete=.true.)
+     call mpp_update_domains(q(:,:,:,sphum), domain, complete=.true.)
      call mpp_update_domains(ps(:,:), domain, complete=.true.)
 
      Atm_var%u_a(is:ie,js:je,:)  = Atm_var%u(is:ie,js:je,:) - Atm_var%u_a(is:ie,js:je,:)
@@ -594,7 +598,7 @@ module fv_ada_nudge_mod
      if ( id_u_damb > 0 ) used=send_data(id_u_damb, ua(is:ie,js:je,:), Time)
      if ( id_v_damb > 0 ) used=send_data(id_v_damb, va(is:ie,js:je,:), Time)
      if ( id_t_damb > 0 ) used=send_data(id_t_damb, pt(is:ie,js:je,:), Time)
-     if ( id_q_damb > 0 ) used=send_data(id_q_damb, q(is:ie,js:je,:,1), Time)
+     if ( id_q_damb > 0 ) used=send_data(id_q_damb, q(is:ie,js:je,:,sphum), Time)
      if ( id_ps_damb > 0 ) used=send_data(id_ps_damb, ps(is:ie,js:je), Time)
 
      if ( id_u_a > 0 ) used=send_data(id_u_a, Atm_var%u_a(is:ie,js:je,:), Time)
@@ -608,7 +612,7 @@ module fv_ada_nudge_mod
      Atm_var%u_adj(is:ie,js:je,1:npz) = Atm_var%u(is:ie,js:je,1:npz) - ua(is:ie,js:je,1:npz)
      Atm_var%v_adj(is:ie,js:je,1:npz) = Atm_var%v(is:ie,js:je,1:npz) - va(is:ie,js:je,1:npz)
      Atm_var%t_adj(is:ie,js:je,1:npz) = Atm_var%t(is:ie,js:je,1:npz) - pt(is:ie,js:je,1:npz)
-     Atm_var%q_adj(is:ie,js:je,1:npz) = Atm_var%q(is:ie,js:je,1:npz) - q(is:ie,js:je,1:npz,1)
+     Atm_var%q_adj(is:ie,js:je,1:npz) = Atm_var%q(is:ie,js:je,1:npz) - q(is:ie,js:je,1:npz,sphum)
      Atm_var%ps_adj(is:ie,js:je) = Atm_var%ps(is:ie,js:je) - ps(is:ie,js:je)
 
      call mpp_update_domains(Atm_var%u_adj(:,:,:), domain, complete=.false.)
@@ -682,7 +686,7 @@ module fv_ada_nudge_mod
 !-------------------------------------------
       do j=js,je
          do i=is,ie
-            tv(i,j) = pt(i,j,npz)*(1.+zvir*q(i,j,npz,1))
+            tv(i,j) = pt(i,j,npz)*(1.+zvir*q(i,j,npz,sphum))
          enddo
       enddo
       call compute_slp(is, ie, js, je, tv, ps(is:ie,js:je), phis(is:ie,js:je), slp_m)
@@ -795,7 +799,7 @@ module fv_ada_nudge_mod
            enddo
            do i=is,ie
               do k=npz, k_trop+1, -1
-                 gz(i,k) = gz(i,k+1) + rdgas*pt(i,j,k)*(1.+zvir*q(i,j,k,1))*(peln(i,k+1)-peln(i,k))
+                 gz(i,k) = gz(i,k+1) + rdgas*pt(i,j,k)*(1.+zvir*q(i,j,k,sphum))*(peln(i,k+1)-peln(i,k))
               enddo
            enddo
 
@@ -849,11 +853,11 @@ if ( use_pt_inc ) then
 ! Add constant "virtual potential temperature" increment to correct height at p_interface
 !------------------------------------------------------------------------------------------
                  pkz = (pk(i,k+1)-pk(i,k))/(kappa*(peln(i,k+1)-peln(i,k)))
-                 pt(i,j,k) = pt(i,j,k) + pkz*pt0 / (1.+zvir*q(i,j,k,1))
+                 pt(i,j,k) = pt(i,j,k) + pkz*pt0 / (1.+zvir*q(i,j,k,sphum))
 !------------------------------------------------------------------------------------------
 else
 ! Add constant "virtual temperature" increment
-                 pt(i,j,k) = pt(i,j,k) + pt0 / (1.+zvir*q(i,j,k,1))
+                 pt(i,j,k) = pt(i,j,k) + pt0 / (1.+zvir*q(i,j,k,sphum))
 endif
               enddo
               m_err(i,j) = (gz_int(i,j)-hght2(i,j)) / (rdgas*(peln(i,npz+1)-peln(i,k_trop+1)))
@@ -886,7 +890,7 @@ endif
      do k=kstart, kht
         do j=js,je
            do i=is,ie
-              t_dt(i,j,k) = prof_t(k)*(t_obs(i,j,k)/(1.+zvir*q(i,j,k,1))-pt(i,j,k))*rdt
+              t_dt(i,j,k) = prof_t(k)*(t_obs(i,j,k)/(1.+zvir*q(i,j,k,sphum))-pt(i,j,k))*rdt
            enddo
         enddo
      enddo
@@ -923,10 +927,10 @@ endif
 ! Specific humidity:
             do j=js,je
                do i=is,ie
-                  delp(i,j,k) = delp(i,j,k)*(1.-q(i,j,k,1))
+                  delp(i,j,k) = delp(i,j,k)*(1.-q(i,j,k,sphum))
                   q_dt(i,j,k) = prof_q(k)*(max(q_min,q_obs(i,j,k))-q(i,j,k,1))*rdt*mask(i,j)
                    q(i,j,k,1) = q(i,j,k,1) + q_dt(i,j,k)*dt
-                  delp(i,j,k) = delp(i,j,k)/(1.-q(i,j,k,1))
+                  delp(i,j,k) = delp(i,j,k)/(1.-q(i,j,k,sphum))
                enddo
             enddo
             do iq=2,nwat
@@ -947,7 +951,7 @@ endif
   deallocate ( ps_obs )
 
   if ( breed_vortex )   &
-  call breed_srf_winds(Time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, zvir, bd, gridstruct)
+  call breed_srf_winds(Time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, bd, gridstruct)
 
   if ( nudge_winds ) then
      deallocate ( u_obs )
@@ -1432,13 +1436,13 @@ endif
   endif
 
        call remap_tq(npz, ak, bk, ps(is:ie,js:je), delp,  ut,  vt,  &
-                     km,  ps_dat(is:ie,js:je,1),  t_dat(:,:,:,1), q_dat(:,:,:,1), zvir, bd)
+                     km,  ps_dat(is:ie,js:je,1),  t_dat(:,:,:,1), q_dat(:,:,:,1), bd)
 
        t_obs(:,:,:) = alpha*ut(:,:,:)
        q_obs(:,:,:) = alpha*vt(:,:,:)
 
        call remap_tq(npz, ak, bk, ps(is:ie,js:je), delp,  ut,  vt,  &
-                     km,  ps_dat(is:ie,js:je,2),  t_dat(:,:,:,2), q_dat(:,:,:,2), zvir, bd)
+                     km,  ps_dat(is:ie,js:je,2),  t_dat(:,:,:,2), q_dat(:,:,:,2), bd)
 
        t_obs(:,:,:) = t_obs(:,:,:) + beta*ut(:,:,:)
        q_obs(:,:,:) = q_obs(:,:,:) + beta*vt(:,:,:)
@@ -2305,9 +2309,8 @@ endif
 
 
  subroutine remap_tq( npz, ak,  bk,  ps, delp,  t,  q,  &
-                      kmd, ps0, ta, qa, zvir, bd)
+                      kmd, ps0, ta, qa, bd)
   integer, intent(in):: npz, kmd
-  real,    intent(in):: zvir
   real,    intent(in):: ak(npz+1), bk(npz+1)
   type(fv_grid_bounds_type), intent(IN) :: bd
   real,    intent(in), dimension(bd%is:bd%ie,bd%js:bd%je):: ps0
@@ -2698,7 +2701,7 @@ endif
        enddo
 ! Compute lowest layer air temperature:
        do i=is,ie
-!         tm(i,j) = pkz(i,j,npz)*pt(i,j,npz)/(cp_air*(1.+zvir*q(i,j,npz,1)))
+!         tm(i,j) = pkz(i,j,npz)*pt(i,j,npz)/(cp_air*(1.+zvir*q(i,j,npz,sphum)))
           tm(i,j) = pkz(i,j,npz)*pt(i,j,npz) / cp_air        ! virtual temp
        enddo
     enddo
@@ -3085,7 +3088,7 @@ endif
   end subroutine breed_slp_inline_ada
 
 
- subroutine breed_srf_winds(time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, zvir, bd, gridstruct)
+ subroutine breed_srf_winds(time, dt, npz, u_obs, v_obs, ak, bk, ps, phis, delp, ua, va, u_dt, v_dt, pt, q, nwat, bd, gridstruct)
 !------------------------------------------------------------------------------------------
 ! Purpose:  Vortex-breeding by nudging 1-m winds
 !------------------------------------------------------------------------------------------
@@ -3093,7 +3096,6 @@ endif
       type(time_type), intent(in):: time
       integer, intent(in):: npz, nwat
       real, intent(in):: dt       ! time step in seconds
-      real, intent(in):: zvir
       real, intent(in), dimension(npz+1):: ak, bk
       type(fv_grid_bounds_type), intent(IN) :: bd
       real, intent(in):: phis(bd%isd:bd%ied,bd%jsd:bd%jed)

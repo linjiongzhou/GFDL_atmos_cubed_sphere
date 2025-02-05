@@ -149,7 +149,7 @@ module fv_update_phys_mod
     real  phalf(npz+1), pfull(npz)
 
     type(group_halo_update_type), save :: i_pack(2)
-    integer  i, j, k, m, n, nwat
+    integer  i, j, k, m, n, nwat, mp_flag
     integer  sphum, liq_wat, ice_wat, cld_amt   ! GFDL AM physics
     integer  rainwat, snowwat, graupel          ! GFDL Cloud Microphysics
     integer  w_diff                             ! w-tracer for PBL diffusion
@@ -167,6 +167,7 @@ module fv_update_phys_mod
     rdg = -rdgas / grav
 
     nwat = flagstruct%nwat
+    mp_flag = flagstruct%mp_flag
 
     if ( moist_phys .or. nwat/=0 ) then
            zvir = rvgas/rdgas - 1.
@@ -227,43 +228,25 @@ module fv_update_phys_mod
 
     if (allocated(phys_diag%phys_t_dt)) phys_diag%phys_t_dt = pt(is:ie,js:je,:)
     if (present(q_dt)) then
-       if (allocated(phys_diag%phys_qv_dt)) phys_diag%phys_qv_dt = q(is:ie,js:je,:,sphum)
+       if (allocated(phys_diag%phys_qv_dt) .and. sphum .gt.0) phys_diag%phys_qv_dt = q(is:ie,js:je,:,sphum)
 
        if (allocated(phys_diag%phys_ql_dt)) then
-          if (liq_wat < 0) call mpp_error(FATAL, " phys_ql_dt needs at least one liquid water tracer defined")
-          phys_diag%phys_ql_dt = q(is:ie,js:je,:,liq_wat)
-          if (rainwat > 0) phys_diag%phys_ql_dt = q(is:ie,js:je,:,rainwat) + phys_diag%phys_ql_dt
+           if (liq_wat .gt. 0) phys_diag%phys_ql_dt = q(is:ie,js:je,:,liq_wat)
+           if (rainwat .gt. 0) phys_diag%phys_ql_dt = q(is:ie,js:je,:,rainwat) + phys_diag%phys_ql_dt
        endif
 
        if (allocated(phys_diag%phys_qi_dt)) then
-          if (ice_wat < 0) then
-             call mpp_error(WARNING, " phys_qi_dt needs at least one ice water tracer defined")
-             phys_diag%phys_qi_dt = 0.
-          endif
-          phys_diag%phys_qi_dt = q(is:ie,js:je,:,ice_wat)
-          if (snowwat > 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,snowwat) + phys_diag%phys_qi_dt
-          if (graupel > 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,graupel) + phys_diag%phys_qi_dt
+          if (ice_wat .gt. 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,ice_wat)
+          if (snowwat .gt. 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,snowwat) + phys_diag%phys_qi_dt
+          if (graupel .gt. 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,graupel) + phys_diag%phys_qi_dt
        endif
 
-       if (liq_wat > 0) then
-          if (allocated(phys_diag%phys_liq_wat_dt)) phys_diag%phys_liq_wat_dt = q(is:ie,js:je,:,liq_wat)
-       endif
+       if (allocated(phys_diag%phys_qr_dt) .and. rainwat .gt. 0) phys_diag%phys_qr_dt = q(is:ie,js:je,:,rainwat)
+       if (allocated(phys_diag%phys_qs_dt) .and. snowwat .gt. 0) phys_diag%phys_qs_dt = q(is:ie,js:je,:,snowwat)
+       if (allocated(phys_diag%phys_qg_dt) .and. graupel .gt. 0) phys_diag%phys_qg_dt = q(is:ie,js:je,:,graupel)
 
-       if (rainwat > 0) then
-          if (allocated(phys_diag%phys_qr_dt)) phys_diag%phys_qr_dt = q(is:ie,js:je,:,rainwat)
-       endif
-
-       if (ice_wat > 0) then
-          if (allocated(phys_diag%phys_ice_wat_dt)) phys_diag%phys_ice_wat_dt = q(is:ie,js:je,:,ice_wat)
-       endif
-
-       if (graupel > 0) then
-          if (allocated(phys_diag%phys_qg_dt)) phys_diag%phys_qg_dt = q(is:ie,js:je,:,graupel)
-       endif
-
-       if (snowwat > 0) then
-          if (allocated(phys_diag%phys_qs_dt)) phys_diag%phys_qs_dt = q(is:ie,js:je,:,snowwat)
-       endif
+       if (allocated(phys_diag%phys_liq_wat_dt) .and. liq_wat .gt. 0) phys_diag%phys_liq_wat_dt = q(is:ie,js:je,:,liq_wat)
+       if (allocated(phys_diag%phys_ice_wat_dt) .and. ice_wat .gt. 0) phys_diag%phys_ice_wat_dt = q(is:ie,js:je,:,ice_wat)
     endif
 
 !$OMP parallel do default(none) &
@@ -271,7 +254,7 @@ module fv_update_phys_mod
 !$OMP                    nq,w_diff,dt,nwat,liq_wat,rainwat,ice_wat,snowwat,    &
 !$OMP                    graupel,delp,cld_amt,hydrostatic,pt,t_dt,delz,adj_vmr,&
 !$OMP                    gama_dt,cv_air,ua,u_dt,va,v_dt,isd,ied,jsd,jed,          &
-!$OMP                    conv_vmr_mmr,pe,ptop,gridstruct,phys_diag)            &
+!$OMP                    conv_vmr_mmr,pe,ptop,gridstruct,phys_diag,mp_flag)    &
 !$OMP             private(cvm, qc, qstar, ps_dt, p_fac, tbad)
     do k=1, npz
 
@@ -281,11 +264,13 @@ module fv_update_phys_mod
 ! Wipe the stratosphere clean:
 ! This should only be used for initialization from a bad model state
            p_fac = -flagstruct%tau_h2o*86400.
-           do j=js,je
-              do i=is,ie
-                 q_dt(i,j,k,sphum) = q_dt(i,j,k,sphum) + (3.E-6-q(i,j,k,sphum))/p_fac
+           if (sphum .gt. 0) then
+              do j=js,je
+                 do i=is,ie
+                    q_dt(i,j,k,sphum) = q_dt(i,j,k,sphum) + (3.E-6-q(i,j,k,sphum))/p_fac
+                 enddo
               enddo
-           enddo
+           endif
        elseif ( flagstruct%tau_h2o>0.0 .and. pfull(k) < 3000. ) then
 ! Do idealized Ch4 chemistry
 
@@ -309,11 +294,13 @@ module fv_update_phys_mod
                p_fac = flagstruct%tau_h2o*86400.
            endif
 
-           do j=js,je
-              do i=is,ie
-                 q_dt(i,j,k,sphum) = q_dt(i,j,k,sphum) + (qstar-q(i,j,k,sphum))/p_fac
+           if (sphum .gt. 0) then
+              do j=js,je
+                 do i=is,ie
+                    q_dt(i,j,k,sphum) = q_dt(i,j,k,sphum) + (qstar-q(i,j,k,sphum))/p_fac
+                 enddo
               enddo
-           enddo
+           endif
        endif
 
 !----------------
@@ -374,7 +361,7 @@ module fv_update_phys_mod
 
       if ( hydrostatic ) then
          do j=js,je
-            call moist_cp(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, sphum, liq_wat, rainwat,    &
+            call moist_cp(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                           ice_wat, snowwat, graupel, q, qc, cvm, pt(is:ie,j,k) )
             do i=is,ie
 !!!            pt(i,j,k) = pt(i,j,k) + t_dt(i,j,k)*dt
@@ -385,7 +372,7 @@ module fv_update_phys_mod
          if ( flagstruct%phys_hydrostatic ) then
 ! Constant pressure
              do j=js,je
-                call moist_cp(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, sphum, liq_wat, rainwat,    &
+                call moist_cp(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                               ice_wat, snowwat, graupel, q, qc, cvm, pt(is:ie,j,k) )
                 do i=is,ie
                    delz(i,j,k) = delz(i,j,k) / pt(i,j,k)
@@ -404,7 +391,7 @@ module fv_update_phys_mod
                enddo
             else
                do j=js,je
-                  call moist_cv(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, sphum, liq_wat, rainwat,    &
+                  call moist_cv(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                                 ice_wat, snowwat, graupel, q, qc, cvm, pt(is:ie,j,k))
                   do i=is,ie
 !!!                  pt(i,j,k) = pt(i,j,k) + t_dt(i,j,k)*dt*con_cp/cv_air
@@ -440,45 +427,27 @@ module fv_update_phys_mod
 
    if (allocated(phys_diag%phys_t_dt)) phys_diag%phys_t_dt = (pt(is:ie,js:je,:) - phys_diag%phys_t_dt) / dt
    if (present(q_dt)) then
-      if (allocated(phys_diag%phys_qv_dt)) phys_diag%phys_qv_dt = (q(is:ie,js:je,:,sphum) - phys_diag%phys_qv_dt) / dt
+      if (allocated(phys_diag%phys_qv_dt) .and. sphum .gt. 0) phys_diag%phys_qv_dt = (q(is:ie,js:je,:,sphum) - phys_diag%phys_qv_dt) / dt
 
       if (allocated(phys_diag%phys_ql_dt)) then
-         if (liq_wat < 0) call mpp_error(FATAL, " phys_ql_dt needs at least one liquid water tracer defined")
-         phys_diag%phys_ql_dt = q(is:ie,js:je,:,liq_wat) - phys_diag%phys_qv_dt
-         if (rainwat > 0) phys_diag%phys_ql_dt = q(is:ie,js:je,:,rainwat) + phys_diag%phys_ql_dt
+         if (liq_wat .gt. 0) phys_diag%phys_ql_dt = q(is:ie,js:je,:,liq_wat) - phys_diag%phys_qv_dt
+         if (rainwat .gt. 0) phys_diag%phys_ql_dt = q(is:ie,js:je,:,rainwat) + phys_diag%phys_ql_dt
          phys_diag%phys_ql_dt = phys_diag%phys_ql_dt / dt
       endif
 
       if (allocated(phys_diag%phys_qi_dt)) then
-         if (ice_wat < 0) then
-            call mpp_error(WARNING, " phys_qi_dt needs at least one ice water tracer defined")
-            phys_diag%phys_qi_dt = 0.
-         endif
-         phys_diag%phys_qi_dt = q(is:ie,js:je,:,ice_wat) - phys_diag%phys_qi_dt
-         if (snowwat > 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,snowwat) + phys_diag%phys_qi_dt
-         if (graupel > 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,graupel) + phys_diag%phys_qi_dt
+         if (ice_wat .gt. 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,ice_wat) - phys_diag%phys_qi_dt
+         if (snowwat .gt. 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,snowwat) + phys_diag%phys_qi_dt
+         if (graupel .gt. 0) phys_diag%phys_qi_dt = q(is:ie,js:je,:,graupel) + phys_diag%phys_qi_dt
          phys_diag%phys_qi_dt = phys_diag%phys_qi_dt / dt
       endif
 
-      if (liq_wat > 0) then
-         if (allocated(phys_diag%phys_liq_wat_dt)) phys_diag%phys_liq_wat_dt = (q(is:ie,js:je,:,liq_wat) - phys_diag%phys_liq_wat_dt) / dt
-      endif
+      if (allocated(phys_diag%phys_qr_dt) .and. rainwat .gt. 0) phys_diag%phys_qr_dt = (q(is:ie,js:je,:,rainwat) - phys_diag%phys_qr_dt) / dt
+      if (allocated(phys_diag%phys_qs_dt) .and. snowwat .gt. 0) phys_diag%phys_qs_dt = (q(is:ie,js:je,:,snowwat) - phys_diag%phys_qs_dt) / dt
+      if (allocated(phys_diag%phys_qg_dt) .and. graupel .gt. 0) phys_diag%phys_qg_dt = (q(is:ie,js:je,:,graupel) - phys_diag%phys_qg_dt) / dt
 
-      if (rainwat > 0) then
-         if (allocated(phys_diag%phys_qr_dt)) phys_diag%phys_qr_dt = (q(is:ie,js:je,:,rainwat) - phys_diag%phys_qr_dt) / dt
-      endif
-
-      if (ice_wat > 0) then
-         if (allocated(phys_diag%phys_ice_wat_dt)) phys_diag%phys_ice_wat_dt = (q(is:ie,js:je,:,ice_wat) - phys_diag%phys_ice_wat_dt) / dt
-      endif
-
-      if (graupel > 0) then
-         if (allocated(phys_diag%phys_qg_dt)) phys_diag%phys_qg_dt = (q(is:ie,js:je,:,graupel) - phys_diag%phys_qg_dt) / dt
-      endif
-
-      if (snowwat > 0) then
-         if (allocated(phys_diag%phys_qs_dt)) phys_diag%phys_qs_dt = (q(is:ie,js:je,:,snowwat) - phys_diag%phys_qs_dt) / dt
-      endif
+      if (allocated(phys_diag%phys_liq_wat_dt) .and. liq_wat .gt. 0) phys_diag%phys_liq_wat_dt = (q(is:ie,js:je,:,liq_wat) - phys_diag%phys_liq_wat_dt) / dt
+      if (allocated(phys_diag%phys_ice_wat_dt) .and. ice_wat .gt. 0) phys_diag%phys_ice_wat_dt = (q(is:ie,js:je,:,ice_wat) - phys_diag%phys_ice_wat_dt) / dt
    endif
 
    if ( flagstruct%range_warn ) then
@@ -510,7 +479,7 @@ module fv_update_phys_mod
        if (allocated(nudge_diag%nudge_delp_dt)) nudge_diag%nudge_delp_dt = delp(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_u_dt)) nudge_diag%nudge_u_dt = ua(is:ie,js:je,:)
        if (allocated(nudge_diag%nudge_v_dt)) nudge_diag%nudge_v_dt = va(is:ie,js:je,:)
-       if (allocated(nudge_diag%nudge_qv_dt)) nudge_diag%nudge_qv_dt = q(is:ie,js:je,:,sphum)
+       if (allocated(nudge_diag%nudge_qv_dt) .and. sphum .gt. 0) nudge_diag%nudge_qv_dt = q(is:ie,js:je,:,sphum)
 
 #if defined (ATMOS_NUDGE)
 !--------------------------------------------
@@ -611,7 +580,7 @@ module fv_update_phys_mod
        if (allocated(nudge_diag%nudge_delp_dt)) nudge_diag%nudge_delp_dt = (delp(is:ie,js:je,:) - nudge_diag%nudge_delp_dt) / dt
        if (allocated(nudge_diag%nudge_u_dt)) nudge_diag%nudge_u_dt = (ua(is:ie,js:je,:) - nudge_diag%nudge_u_dt) / dt
        if (allocated(nudge_diag%nudge_v_dt)) nudge_diag%nudge_v_dt = (va(is:ie,js:je,:) - nudge_diag%nudge_v_dt) / dt
-       if (allocated(nudge_diag%nudge_qv_dt)) nudge_diag%nudge_qv_dt = (q(is:ie,js:je,:,sphum) - nudge_diag%nudge_qv_dt) / dt
+       if (allocated(nudge_diag%nudge_qv_dt) .and. sphum .gt. 0) nudge_diag%nudge_qv_dt = (q(is:ie,js:je,:,sphum) - nudge_diag%nudge_qv_dt) / dt
 
   endif         ! end nudging
 

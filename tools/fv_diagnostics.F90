@@ -1806,7 +1806,7 @@ contains
             call range_check('TA', Atm(n)%pt, isc, iec, jsc, jec, ngc, npz, Atm(n)%gridstruct%agrid,   &
                            150., 350., bad_range, Time)
          endif
-         call range_check('Qv', Atm(n)%q(:,:,:,sphum), isc, iec, jsc, jec, ngc, npz, Atm(n)%gridstruct%agrid,   &
+         if (sphum .gt. 0) call range_check('Qv', Atm(n)%q(:,:,:,sphum), isc, iec, jsc, jec, ngc, npz, Atm(n)%gridstruct%agrid,   &
                           -1.e-8, 1.e20, bad_range, Time)
 #endif
 
@@ -2176,20 +2176,30 @@ contains
        ! Relative Humidity
        if ( id_rh > 0 .or. ANY(id_rh_levs>0) .or. id_rh_plev>0 .or. ANY(id_dp_levs>0) .or. id_dp_plev>0) then
           ! Compute FV mean pressure
-          do k=1,npz
-             do j=jsc,jec
-                do i=isc,iec
-                   a2(i,j) = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
+          if (sphum .gt. 0) then
+             do k=1,npz
+                do j=jsc,jec
+                   do i=isc,iec
+                      a2(i,j) = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
+                   enddo
+                enddo
+                call mqs3d(iec-isc+1, jec-jsc+1, 1, Atm(n)%pt(isc:iec,jsc:jec,k), a2, &
+                           Atm(n)%q(isc:iec,jsc:jec,k,sphum), wk(isc:iec,jsc:jec,k))
+                do j=jsc,jec
+                   do i=isc,iec
+                      wk(i,j,k) = 100.*Atm(n)%q(i,j,k,sphum)/wk(i,j,k)
+                   enddo
                 enddo
              enddo
-             call mqs3d(iec-isc+1, jec-jsc+1, 1, Atm(n)%pt(isc:iec,jsc:jec,k), a2, &
-                        Atm(n)%q(isc:iec,jsc:jec,k,sphum), wk(isc:iec,jsc:jec,k))
-             do j=jsc,jec
-                do i=isc,iec
-                   wk(i,j,k) = 100.*Atm(n)%q(i,j,k,sphum)/wk(i,j,k)
+          else
+             do k=1,npz
+                do j=jsc,jec
+                   do i=isc,iec
+                      wk(i,j,k) = 0.
+                   enddo
                 enddo
              enddo
-          enddo
+          endif
           used = send_data ( id_rh, wk, Time )
           if(prt_minmax) then
              call prt_mxm('RH_Top (%)', wk(isc:iec,jsc:jec,1), isc, iec, jsc, jec, 0,   1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain, PRT_LEVEL_2)
@@ -2245,20 +2255,30 @@ contains
            id_rh700_cmip>0 .or. id_rh850_cmip>0 .or. id_rh925_cmip>0 .or. &
            id_rh1000_cmip>0) then
            ! compute mean pressure
-           do k=1,npz
-               do j=jsc,jec
-               do i=isc,iec
-                   a2(i,j) = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
-               enddo
-               enddo
-               call mqs3d (iec-isc+1, jec-jsc+1, 1, Atm(n)%pt(isc:iec,jsc:jec,k), a2, &
-                           Atm(n)%q(isc:iec,jsc:jec,k,sphum), wk(isc:iec,jsc:jec,k))
-               do j=jsc,jec
-               do i=isc,iec
-                   wk(i,j,k) = 100.*Atm(n)%q(i,j,k,sphum)/wk(i,j,k)
-               enddo
-               enddo
-           enddo
+           if (sphum .gt. 0) then
+              do k=1,npz
+                  do j=jsc,jec
+                  do i=isc,iec
+                      a2(i,j) = Atm(n)%delp(i,j,k)/(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
+                  enddo
+                  enddo
+                  call mqs3d (iec-isc+1, jec-jsc+1, 1, Atm(n)%pt(isc:iec,jsc:jec,k), a2, &
+                              Atm(n)%q(isc:iec,jsc:jec,k,sphum), wk(isc:iec,jsc:jec,k))
+                  do j=jsc,jec
+                  do i=isc,iec
+                      wk(i,j,k) = 100.*Atm(n)%q(i,j,k,sphum)/wk(i,j,k)
+                  enddo
+                  enddo
+              enddo
+           else
+              do k=1,npz
+                  do j=jsc,jec
+                  do i=isc,iec
+                      wk(i,j,k) = 0.
+                  enddo
+                  enddo
+              enddo
+           endif
            if (id_rh10_cmip>0) then
                call interpolate_vertical(isc, iec, jsc, jec, npz, 10.e2, Atm(n)%peln, wk(isc:iec,jsc:jec,:), a2)
                used=send_data(id_rh10_cmip, a2, Time)
@@ -2898,15 +2918,14 @@ contains
        endif
 
 ! Cloud top temperature & cloud top press:
-       if ( (id_ctt>0 .or. id_ctp>0 .or. id_ctz>0).and. Atm(n)%flagstruct%nwat==6) then
+       if ( (id_ctt>0 .or. id_ctp>0 .or. id_ctz>0)) then
             allocate ( var1(isc:iec,jsc:jec) )
             allocate ( var2(isc:iec,jsc:jec) )
 !$OMP parallel do default(shared) private(tmp)
             do j=jsc,jec
                do i=isc,iec
                   do k=2,npz
-                     tmp = atm(n)%q(i,j,k,liq_wat)+atm(n)%q(i,j,k,rainwat)+atm(n)%q(i,j,k,ice_wat)+  &
-                           atm(n)%q(i,j,k,snowwat)+atm(n)%q(i,j,k,graupel)
+                     tmp = sum(atm(n)%q(i,j,k,2:Atm(1)%flagstruct%nwat))
                      if( tmp>5.e-6 ) then
                          a2(i,j) = Atm(n)%pt(i,j,k)
                          var1(i,j) = 0.01*Atm(n)%pe(i,k,j)
@@ -3116,10 +3135,10 @@ contains
              do i=isc,iec
 #ifdef GFS_PHYS
                 wk(i,j,k) = -wk(i,j,k)/(Atm(n)%delz(i,j,k)*grav)*rdgas*          &
-                     Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))
+                        Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))
 #else
-                 wk(i,j,k) = -Atm(n)%delp(i,j,k)/(Atm(n)%delz(i,j,k)*grav)*rdgas*          &
-                              Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))
+                wk(i,j,k) = -Atm(n)%delp(i,j,k)/(Atm(n)%delz(i,j,k)*grav)*rdgas*          &
+                            Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))
 
 #endif
              enddo
@@ -3318,13 +3337,21 @@ contains
 
           if (.not. allocated(a3)) allocate(a3(isc:iec,jsc:jec,npz))
 
-!          call dbzcalc_smithxue(Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
-          call rad_ref(Atm(n)%bd%is, Atm(n)%bd%ie, Atm(n)%bd%js, Atm(n)%bd%je, &
-               Atm(n)%bd%isd, Atm(n)%bd%ied, Atm(n)%bd%jsd, Atm(n)%bd%jed, &
-               Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
-               a3, a2, allmax, npz, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
-               zvir, Atm(n)%flagstruct%do_inline_mp, &
-               sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
+          if (Atm(n)%flagstruct%mp_flag .eq. 2) then
+             call rad_ref(Atm(n)%bd%is, Atm(n)%bd%ie, Atm(n)%bd%js, Atm(n)%bd%je, &
+                  Atm(n)%bd%isd, Atm(n)%bd%ied, Atm(n)%bd%jsd, Atm(n)%bd%jed, &
+                  Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
+                  a3, a2, allmax, npz, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
+                  zvir, Atm(n)%flagstruct%do_inline_mp, &
+                  sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
+           elseif (Atm(n)%flagstruct%mp_flag .eq. 7) then
+              do j=jsc,jec
+                 do i=isc,iec
+                    a3(i,j,:) = Atm(n)%inline_mp%zet(i,j,:)
+                    a2(i,j) = maxval(a3(i,j,:))
+                 enddo
+              enddo
+           endif
 
           if (id_dbz > 0) used=send_data(id_dbz, a3, time)
           if (id_maxdbz > 0) used=send_data(id_maxdbz, a2, time)
@@ -3407,6 +3434,7 @@ contains
                         npz, -1, id_v_plev, id_v_levs, nplev, Atm(n)%bd, Time)
 
 ! Specific humidity
+       if (sphum .gt. 0) &
        call make_plevs( Atm(n)%q(isc:iec,jsc:jec,:,sphum), plevs, Atm(n)%pe(isc:iec,1:npz+1,jsc:jec), &
                         npz, 0, id_q_plev, id_q_levs, nplev, Atm(n)%bd, Time)
 
@@ -3468,7 +3496,7 @@ contains
        do k=1,nplev_ave+1
           a2(:,k) = real(levs_ave(k))*100.
        enddo
-       if ( id_q_plev_ave > 0 ) then
+       if ( id_q_plev_ave > 0 .and. sphum .gt. 0) then
           do j=jsc,jec
              call mappm(npz, Atm(n)%pe(isc:iec,1:npz+1,j), Atm(n)%q(isc:iec,j,:,sphum), nplev_ave, a2, a3(isc:iec,j,:), isc, iec, 0, 8)
           enddo
@@ -3727,13 +3755,16 @@ contains
 
      ! zonal moisture flux
      if(id_uq > 0) then
-       do k=1,npz
-          do j=jsc,jec
-             do i=isc,iec
-                a4(i,j,k) =  Atm(n)%ua(i,j,k) * Atm(n)%q(i,j,k,sphum)
+       a4 = 0.0
+       if (sphum .gt. 0) then
+          do k=1,npz
+             do j=jsc,jec
+                do i=isc,iec
+                   a4(i,j,k) =  Atm(n)%ua(i,j,k) * Atm(n)%q(i,j,k,sphum)
+                enddo
              enddo
           enddo
-       enddo
+       endif
        used=send_data(id_uq, a4, Time)
        if(id_iuq > 0) then
          call z_sum(isc, iec, jsc, jec, npz, 0, Atm(n)%delp(isc:iec,jsc:jec,1:npz), a4, a2)
@@ -3742,13 +3773,16 @@ contains
      endif
     ! meridional moisture flux
      if(id_vq > 0) then
-       do k=1,npz
-          do j=jsc,jec
-             do i=isc,iec
-                a4(i,j,k) =  Atm(n)%va(i,j,k) * Atm(n)%q(i,j,k,sphum)
+       a4 = 0.0
+       if (sphum .gt. 0) then
+          do k=1,npz
+             do j=jsc,jec
+                do i=isc,iec
+                   a4(i,j,k) =  Atm(n)%va(i,j,k) * Atm(n)%q(i,j,k,sphum)
+                enddo
              enddo
           enddo
-       enddo
+       endif
        used=send_data(id_vq, a4, Time)
        if(id_ivq > 0) then
          call z_sum(isc, iec, jsc, jec, npz, 0, Atm(n)%delp(isc:iec,jsc:jec,1:npz), a4, a2)
@@ -3838,13 +3872,16 @@ contains
      if(.not.Atm(n)%flagstruct%hydrostatic) then
        ! vertical moisture flux
        if(id_wq > 0 .or. id_iwq > 0) then
-         do k=1,npz
-            do j=jsc,jec
-               do i=isc,iec
-                  a4(i,j,k) =  Atm(n)%w(i,j,k) * Atm(n)%q(i,j,k,sphum)
+         a4 = 0.0
+         if (sphum .gt. 0) then
+            do k=1,npz
+               do j=jsc,jec
+                  do i=isc,iec
+                     a4(i,j,k) =  Atm(n)%w(i,j,k) * Atm(n)%q(i,j,k,sphum)
+                  enddo
                enddo
             enddo
-         enddo
+         endif
          if(id_wq > 0) used=send_data(id_wq, a4, Time)
          if(id_iwq > 0) then
            call z_sum(isc, iec, jsc, jec, npz, 0, Atm(n)%delp(isc:iec,jsc:jec,1:npz), a4, a2)
@@ -4354,7 +4391,8 @@ contains
  endif
 
  psq(:,:,:) = 0.
- call z_sum(is, ie, js, je, km, n_g, delp, q(is-n_g,js-n_g,1,sphum  ), psq(is,js,sphum  ))
+ if (sphum > 0) &
+      call z_sum(is, ie, js, je, km, n_g, delp, q(is-n_g,js-n_g,1,sphum  ), psq(is,js,sphum  ))
 
  if (liq_wat > 0)  &
       call z_sum(is, ie, js, je, km, n_g, delp, q(is-n_g,js-n_g,1,liq_wat), psq(is,js,liq_wat))
@@ -4403,22 +4441,14 @@ contains
  if( master ) then
      write(*,*) '    Total Surface Pressure (mb)   ', trim(gn), ' = ',  0.01*psmo
      write(*,*) '    Mean Dry Surface Pressure (mb)', trim(gn), ' = ',    0.01*psdry
-     write(*,*) '    Total Water Vapor (kg/m**2)   ', trim(gn), ' = ',  qtot(sphum)*ginv
-     if ( nwat> 2 ) then
-          write(*,*) '  Micro Phys water substances (kg/m**2) '
-          write(*,*) '    Total Cloud Water', trim(gn), ' = ', qtot(liq_wat)*ginv
-          if (rainwat > 0) &
-               write(*,*) '    Total Rain Water ', trim(gn), ' = ', qtot(rainwat)*ginv
-          if (ice_wat > 0) &
-               write(*,*) '    Total Cloud Ice  ', trim(gn), ' = ', qtot(ice_wat)*ginv
-          if (snowwat > 0) &
-               write(*,*) '    Total Snow       ', trim(gn), ' = ', qtot(snowwat)*ginv
-          if (graupel > 0) &
-               write(*,*) '    Total Graupel    ', trim(gn), ' = ', qtot(graupel)*ginv
-          !write(*,*) '---------------------------------------------'
-     elseif ( nwat==2 ) then
-          write(*,*) '    GFS Condensate (kg/m^2)', trim(gn), ' = ', qtot(liq_wat)*ginv
-     endif
+     if (sphum > 0) write(*,*) '    Total Water Vapor (kg/m**2)   ', trim(gn), ' = ',  qtot(sphum)*ginv
+     write(*,*) '  Micro Phys water substances (kg/m**2) '
+     if (liq_wat > 0) write(*,*) '    Total Cloud Water', trim(gn), ' = ', qtot(liq_wat)*ginv
+     if (rainwat > 0) write(*,*) '    Total Rain Water ', trim(gn), ' = ', qtot(rainwat)*ginv
+     if (ice_wat > 0) write(*,*) '    Total Cloud Ice  ', trim(gn), ' = ', qtot(ice_wat)*ginv
+     if (snowwat > 0) write(*,*) '    Total Snow       ', trim(gn), ' = ', qtot(snowwat)*ginv
+     if (graupel > 0) write(*,*) '    Total Graupel    ', trim(gn), ' = ', qtot(graupel)*ginv
+     !write(*,*) '---------------------------------------------'
   endif
 
  end subroutine prt_mass

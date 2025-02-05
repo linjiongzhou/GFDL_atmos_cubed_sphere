@@ -57,7 +57,7 @@ private
 
 public :: fv_cmip_diag_init, fv_cmip_diag, fv_cmip_diag_end
 
-integer :: sphum, nql, nqi, nqa
+integer :: sphum, liq_wat, ice_wat, cld_amt
 
 !-----------------------------------------------------------------------
 !--- namelist ---
@@ -138,9 +138,9 @@ integer               :: id_pl700, id_pl700_bnds, id_nv
 !-----------------------------------------------------------------------
 
   sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
-  nql   = get_tracer_index (MODEL_ATMOS, 'liq_wat')
-  nqi   = get_tracer_index (MODEL_ATMOS, 'ice_wat')
-  nqa   = get_tracer_index (MODEL_ATMOS, 'cld_amt')
+  liq_wat = get_tracer_index (MODEL_ATMOS, 'liq_wat')
+  ice_wat = get_tracer_index (MODEL_ATMOS, 'ice_wat')
+  cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
 
 !-----------------------------------------------------------------------
 ! register cmip 3D variables (on model levels and pressure levels)
@@ -211,17 +211,17 @@ integer               :: id_pl700, id_pl700_bnds, id_nv
 !-----------------------------------------------------------------------
 ! stratiform cloud tracers
 
-    if (nql > 0) then
+    if (liq_wat > 0) then
       ID_clws = register_cmip_diag_field_3d (mod_name, 'clws', Time, &
                         'Mass Fraction of Stratiform Cloud Liquid Water', '1.0', &
                  standard_name='mass_fraction_of_stratiform_cloud_liquid_water_in_air')
     endif
-    if (nqi > 0) then
+    if (ice_wat > 0) then
       ID_clis = register_cmip_diag_field_3d (mod_name, 'clis', Time, &
                         'Mass Fraction of Stratiform Cloud Ice', '1.0', &
                  standard_name='mass_fraction_of_convective_cloud_ice_in_air')
     endif
-    if (nqa > 0) then
+    if (cld_amt > 0) then
       ID_cls = register_cmip_diag_field_3d (mod_name, 'cls', Time, &
                         'Percentage Cover of Stratiform Cloud', '%', &
                  standard_name='stratiform_cloud_area_fraction_in_atmosphere_layer')
@@ -452,7 +452,7 @@ real, dimension(Atm(1)%bd%isc:Atm(1)%bd%iec, &
       enddo
       enddo
       ! compute relative humidity
-      if (compute_rh) then
+      if (compute_rh .and. sphum .gt. 0) then
         call rh_calc (pfull, Atm(n)%pt(isc:iec,jsc:jec,k), &
                     Atm(n)%q(isc:iec,jsc:jec,k,sphum), rhum(isc:iec,jsc:jec,k), do_cmip=.true.)
       endif
@@ -496,7 +496,7 @@ real, dimension(Atm(1)%bd%isc:Atm(1)%bd%iec, &
   if (query_cmip_diag_id(ID_wap)) &
           used = send_cmip_data_3d (ID_wap, Atm(n)%omga(isc:iec,jsc:jec,:), Time, phalf=Atm(n)%peln, opt=1)
 
-  if (query_cmip_diag_id(ID_hus)) &
+  if (query_cmip_diag_id(ID_hus) .and. sphum .gt. 0) &
           used = send_cmip_data_3d (ID_hus, Atm(n)%q   (isc:iec,jsc:jec,:,sphum), Time, phalf=Atm(n)%peln, opt=1)
 
     ! relative humidity
@@ -557,9 +557,9 @@ real, dimension(Atm(1)%bd%isc:Atm(1)%bd%iec, &
 !----------------------------------------------------------------------
 ! stratiform cloud tracers (only on model levels)
 
-  if (query_cmip_diag_id(ID_cls))  used = send_cmip_data_3d (ID_cls,  Atm(n)%q(isc:iec,jsc:jec,:,nqa)*100., Time)
-  if (query_cmip_diag_id(ID_clws)) used = send_cmip_data_3d (ID_clws, Atm(n)%q(isc:iec,jsc:jec,:,nql), Time)
-  if (query_cmip_diag_id(ID_clis)) used = send_cmip_data_3d (ID_clis, Atm(n)%q(isc:iec,jsc:jec,:,nqi), Time)
+  if (query_cmip_diag_id(ID_cls) .and. cld_amt .gt. 0)  used = send_cmip_data_3d (ID_cls,  Atm(n)%q(isc:iec,jsc:jec,:,cld_amt)*100., Time)
+  if (query_cmip_diag_id(ID_clws) .and. liq_wat .gt. 0) used = send_cmip_data_3d (ID_clws, Atm(n)%q(isc:iec,jsc:jec,:,liq_wat), Time)
+  if (query_cmip_diag_id(ID_clis) .and. ice_wat .gt. 0) used = send_cmip_data_3d (ID_clis, Atm(n)%q(isc:iec,jsc:jec,:,ice_wat), Time)
 
 !----------------------------------------------------------------------
 ! process 2D fields on specific pressure levels
@@ -612,7 +612,7 @@ real, dimension(Atm(1)%bd%isc:Atm(1)%bd%iec, &
     used = send_data (id_ta850, dat2, Time)
     endif
 
-  if (id_hus850 > 0) then
+  if (id_hus850 > 0 .and. sphum .gt. 0) then
     call interpolate_vertical (isc, iec, jsc, jec, npz, 850.e2, Atm(n)%peln, &
                                Atm(n)%q(isc:iec,jsc:jec,:,sphum), dat2)
     used = send_data (id_hus850, dat2, Time)

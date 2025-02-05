@@ -49,10 +49,10 @@ module fv_treat_da_inc_mod
 
 #ifdef OVERLOAD_R4
   use constantsR4_mod,   only: pi=>pi_8, grav, kappa, &
-                               rdgas, rvgas, cp_air
+                               rdgas, cp_air
 #else
   use constants_mod,     only: pi=>pi_8, grav, kappa, &
-                               rdgas, rvgas, cp_air
+                               rdgas, cp_air
 #endif
   use fv_arrays_mod,     only: omega ! scaled for small earth
   use fv_arrays_mod,     only: fv_atmos_type, &
@@ -217,13 +217,13 @@ contains
     if (.not. Atm%flagstruct%hydrostatic) then
         call apply_inc_on_3d_scalar('delz_inc',Atm%delz,isc,jsc,iec,jec)
     endif
-    call apply_inc_on_3d_scalar('sphum_inc',Atm%q(:,:,:,sphum),isd,jsd,ied,jed,cliptracers)
-    call apply_inc_on_3d_scalar('liq_wat_inc',Atm%q(:,:,:,liq_wat),isd,jsd,ied,jed,cliptracers)
+    if(sphum > 0) call apply_inc_on_3d_scalar('sphum_inc',Atm%q(:,:,:,sphum),isd,jsd,ied,jed,cliptracers)
+    if(liq_wat > 0) call apply_inc_on_3d_scalar('liq_wat_inc',Atm%q(:,:,:,liq_wat),isd,jsd,ied,jed,cliptracers)
     if(ice_wat > 0) call apply_inc_on_3d_scalar('icmr_inc',Atm%q(:,:,:,ice_wat),isd,jsd,ied,jed,cliptracers)
     if(rainwat > 0) call apply_inc_on_3d_scalar('rwmr_inc',Atm%q(:,:,:,rainwat),isd,jsd,ied,jed,cliptracers)
     if(snowwat > 0) call apply_inc_on_3d_scalar('snmr_inc',Atm%q(:,:,:,snowwat),isd,jsd,ied,jed,cliptracers)
     if(graupel > 0) call apply_inc_on_3d_scalar('grle_inc',Atm%q(:,:,:,graupel),isd,jsd,ied,jed,cliptracers)
-    call apply_inc_on_3d_scalar('o3mr_inc',Atm%q(:,:,:,o3mr),isd,jsd,ied,jed,cliptracers)
+    if(o3mr > 0) call apply_inc_on_3d_scalar('o3mr_inc',Atm%q(:,:,:,o3mr),isd,jsd,ied,jed,cliptracers)
 
     deallocate ( tp )
     deallocate ( wk3 )

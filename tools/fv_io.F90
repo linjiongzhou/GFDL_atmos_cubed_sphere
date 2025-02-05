@@ -802,7 +802,8 @@ contains
                       Atm(1)%u0, Atm(1)%v0, Atm(1)%u, Atm(1)%v, Atm(1)%w, Atm(1)%delz, Atm(1)%pt,  &
                       Atm(1)%q, Atm(1)%qdiag, ak_r,  bk_r, Atm(1)%ptop, Atm(1)%ak, Atm(1)%bk,      &
                       Atm(1)%flagstruct%hydrostatic, Atm(1)%flagstruct%make_nh, Atm(1)%domain,     &
-                      Atm(1)%gridstruct%square_domain, Atm(1)%flagstruct%is_ideal_case)
+                      Atm(1)%gridstruct%square_domain, Atm(1)%flagstruct%is_ideal_case,            &
+                      Atm(1)%flagstruct%nwat)
     !end do
 
     deallocate( ak_r )
@@ -828,7 +829,7 @@ contains
                       delp_r, u0_r, v0_r, u_r, v_r, w_r, delz_r, pt_r, q_r, qdiag_r, &
                       delp,   u0,   v0,   u,   v,   w,   delz,   pt,   q,   qdiag,   &
                       ak_r, bk_r, ptop, ak, bk, hydrostatic, make_nh, &
-                      domain, square_domain, is_ideal_case)
+                      domain, square_domain, is_ideal_case, nwat)
 !------------------------------------
 ! Assuming hybrid sigma-P coordinate:
 !------------------------------------
@@ -838,6 +839,7 @@ contains
   integer, intent(in):: nq, ntp               ! number of tracers (including h2o)
   integer, intent(in):: is,ie,isd,ied         ! starting & ending X-Dir index
   integer, intent(in):: js,je,jsd,jed         ! starting & ending Y-Dir index
+  integer, intent(in):: nwat
   logical, intent(in):: hydrostatic, make_nh, square_domain, is_ideal_case
   real, intent(IN) :: ptop
   real, intent(in) :: ak_r(km+1)
@@ -867,16 +869,18 @@ contains
   real, intent(out):: qdiag(isd:ied,jsd:jed,kn,ntp+1:nq)
   real, intent(out):: delz(is:,js:,1:)   ! delta-height (m)
 !-----------------------------------------------------------------------
-  real r_vir, rgrav
+  real zvir, rgrav
   real ps(isd:ied,jsd:jed)  ! surface pressure
   real  pe1(is:ie,km+1)
   real  pe2(is:ie,kn+1)
   real  pv1(is:ie+1,km+1)
   real  pv2(is:ie+1,kn+1)
 
-  integer i,j,k , iq
+  integer i,j,k , iq, sphum
   !CS operator replaces original mono PPM 4 --- lmh 19apr23
   integer, parameter:: kord=4 ! 13
+
+  sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
 
 #ifdef HYDRO_DELZ_REMAP
   if (is_master() .and. .not. hydrostatic) then
@@ -902,7 +906,11 @@ contains
   endif
 #endif
 
-  r_vir = rvgas/rdgas - 1.
+  if (nwat .eq. 0) then
+     zvir = 0.0
+  else
+     zvir = rvgas/rdgas - 1.
+  endif
   rgrav = 1./grav
 
 !$OMP parallel do default(none) shared(is,ie,js,je,ps,ak_r)
@@ -930,11 +938,11 @@ contains
   endif
 
 ! Compute virtual Temp
-!$OMP parallel do default(none) shared(is,ie,js,je,km,pt_r,r_vir,q_r)
+!$OMP parallel do default(none) shared(is,ie,js,je,km,pt_r,zvir,q_r,sphum)
   do k=1,km
      do j=js,je
         do i=is,ie
-           pt_r(i,j,k) = pt_r(i,j,k) * (1.+r_vir*q_r(i,j,k,1))
+           pt_r(i,j,k) = pt_r(i,j,k) * (1.+zvir*q_r(i,j,k,sphum))
         enddo
      enddo
   enddo
@@ -1106,11 +1114,11 @@ contains
   endif !(j < je+1)
 1000  continue
 
-!$OMP parallel do default(none) shared(is,ie,js,je,kn,pt,r_vir,q)
+!$OMP parallel do default(none) shared(is,ie,js,je,kn,pt,zvir,q,sphum)
   do k=1,kn
      do j=js,je
         do i=is,ie
-           pt(i,j,k) = pt(i,j,k) / (1.+r_vir*q(i,j,k,1))
+           pt(i,j,k) = pt(i,j,k) / (1.+zvir*q(i,j,k,sphum))
         enddo
      enddo
   enddo

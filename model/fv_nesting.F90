@@ -80,14 +80,14 @@ contains
                         gridstruct, flagstruct, neststruct, &
                         thermostruct, &
                         nest_timestep, tracer_nest_timestep, &
-                        domain, parent_grid, bd, nwat, ak, bk)
+                        domain, parent_grid, bd, ak, bk)
 
 
     type(fv_grid_bounds_type), intent(IN) :: bd
     real, intent(IN) :: zvir
 
     integer, intent(IN) :: npx, npy, npz
-    integer, intent(IN) :: ncnst, ng, nwat
+    integer, intent(IN) :: ncnst, ng
     logical, intent(IN) :: inline_q, make_nh,nested
     real, intent(IN), dimension(npz) :: ak, bk
 

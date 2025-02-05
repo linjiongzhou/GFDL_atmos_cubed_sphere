@@ -21,7 +21,7 @@
 
 module hswf_mod
 
- use constants_mod,      only: grav, rdgas, cp_air, RADIAN, kappa, pi
+ use constants_mod,      only: grav, cp_air, RADIAN, kappa, pi
  use fv_arrays_mod,      only: radius ! scaled for small earth
 
  use fv_grid_utils_mod,  only: g_sum

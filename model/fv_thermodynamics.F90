@@ -90,8 +90,8 @@ contains
  subroutine compute_total_energy(is, ie, js, je, isd, ied, jsd, jed, km,       &
                                  u, v, w, delz, pt, delp, q, qc, q_con, pe, peln, hs, &
                                  rsin2_l, cosa_s_l, &
-                                 r_vir,  cp, rg, hlv, te_2d, ua, va, teq, &
-                                 moist_phys, nwat, sphum, liq_wat, rainwat, &
+                                 cp, rg, hlv, te_2d, ua, va, teq, &
+                                 moist_phys, nwat, mp_flag, sphum, liq_wat, rainwat, &
                                  ice_wat, snowwat, graupel, hydrostatic, &
                                  moist_kappa, id_te)
 !------------------------------------------------------
@@ -99,7 +99,7 @@ contains
 !------------------------------------------------------
 ! !INPUT PARAMETERS:
    integer,  intent(in):: km, is, ie, js, je, isd, ied, jsd, jed, id_te
-   integer,  intent(in):: sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, nwat
+   integer,  intent(in):: sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, nwat, mp_flag
    real, intent(inout), dimension(isd:ied,jsd:jed,km):: ua, va
    real, intent(in), dimension(isd:ied,jsd:jed,km):: pt, delp
    real, intent(in), dimension(isd:ied,jsd:jed,km,*):: q
@@ -111,7 +111,7 @@ contains
    real, intent(in):: hs(isd:ied,jsd:jed)  ! surface geopotential
    real, intent(in)::   pe(is-1:ie+1,km+1,js-1:je+1) ! pressure at layer edges
    real, intent(in):: peln(is:ie,km+1,js:je)  ! log(pe)
-   real, intent(in):: cp, rg, r_vir, hlv
+   real, intent(in):: cp, rg, hlv
    real, intent(in) :: rsin2_l(isd:ied, jsd:jed)
    real, intent(in) :: cosa_s_l(isd:ied, jsd:jed)
    logical, intent(in):: moist_phys, hydrostatic, moist_kappa
@@ -126,7 +126,7 @@ contains
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,km,hydrostatic,hs,pt,qc,q_con,rg,peln,te_2d, &
 !$OMP                                  pe,delp,cp,rsin2_l,u,v,cosa_s_l,delz,moist_phys,w, &
-!$OMP                                  q,nwat,liq_wat,rainwat,ice_wat,snowwat,graupel,sphum,moist_kappa)  &
+!$OMP                                  q,nwat,mp_flag,liq_wat,rainwat,ice_wat,snowwat,graupel,sphum,moist_kappa)  &
 !$OMP                          private(phiz, tv, cvm, qd)
   do j=js,je
 
@@ -176,7 +176,7 @@ contains
      if ( moist_phys ) then
      do k=1,km
         if (moist_kappa) then
-           call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
+           call moist_cv(is,ie,isd,ied,jsd,jed, km, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                 ice_wat, snowwat, graupel, q, qd, cvm)
            do i=is,ie
               te_2d(i,j) = te_2d(i,j) + delp(i,j,k)*( cvm(i)*pt(i,j,k) +  &
@@ -212,7 +212,7 @@ contains
          do i=is,ie
             teq(i,j) = te_2d(i,j)
          enddo
-         if ( moist_phys ) then
+         if ( moist_phys .and. sphum .gt. 0 ) then
            do k=1,km
               do i=is,ie
                  teq(i,j) = teq(i,j) + hlv*q(i,j,k,sphum)*delp(i,j,k)
@@ -233,7 +233,7 @@ contains
       tracer_name = ...
       if ( 'sphum' == trim(tracer_name)) then
          dcv(n) = cv_vap - cv_air
-         dcp(n) = cp_vap - cp_air
+         dcp(n) = cp_vapor - cp_air
       else if ( ANY( (/'liq_wat','rainwat'/) == trim(tracer_name)) ) then
          dcv(n) = c_liq - cv_air
          dcp(n) = c_liq - cp_air
@@ -247,159 +247,108 @@ contains
 #endif
 
 
- subroutine moist_cv(is,ie, isd,ied, jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
+ subroutine moist_cv(is,ie, isd,ied, jsd,jed, km, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                      ice_wat, snowwat, graupel, q, q_con, cvm, t1)
-  integer, intent(in):: is, ie, isd,ied, jsd,jed, km, nwat, j, k
+  integer, intent(in):: is, ie, isd,ied, jsd,jed, km, nwat, mp_flag, j, k
   integer, intent(in):: sphum, liq_wat, rainwat, ice_wat, snowwat, graupel
   real, intent(in), dimension(isd:ied,jsd:jed,km,nwat):: q
   real, intent(out), dimension(is:ie):: cvm, q_con
   real, intent(in), optional:: t1(is:ie)
 !
   real, parameter:: t_i0 = 15.
-  real, dimension(is:ie):: qv, ql, qs
+  real :: qv, ql, qs
   integer:: i
 
-  select case (nwat)
-
-   case(2)
-     if ( present(t1) ) then  ! Special case for GFS physics
+  if (mp_flag .eq. 6) then ! Special case for Zhao-Carr microphysics scheme
+     if (present(t1)) then
         do i=is,ie
            q_con(i) = max(0., q(i,j,k,liq_wat))
-           if ( t1(i) > tice ) then
-                qs(i) = 0.
-           elseif ( t1(i) < tice-t_i0 ) then
-                qs(i) = q_con(i)
+           if (t1(i) > tice) then
+                qs = 0.
+           elseif (t1(i) < tice-t_i0) then
+                qs = q_con(i)
            else
-                qs(i) = q_con(i)*(tice-t1(i))/t_i0
+                qs = q_con(i)*(tice-t1(i))/t_i0
            endif
-           ql(i) = q_con(i) - qs(i)
-           qv(i) = max(0.,q(i,j,k,sphum))
-           cvm(i) = (1.-(qv(i)+q_con(i)))*cv_air + qv(i)*cv_vap + ql(i)*c_liq + qs(i)*c_ice
+           ql = q_con(i) - qs
+           qv = max(0.,q(i,j,k,sphum))
+           cvm(i) = (1.-(qv+q_con(i)))*cv_air + qv*cv_vap + ql*c_liq + qs*c_ice
         enddo
      else
         do i=is,ie
-           qv(i) = max(0.,q(i,j,k,sphum))
-           qs(i) = max(0.,q(i,j,k,liq_wat))
-           q_con(i) = qs(i)
-           cvm(i) = (1.-qv(i))*cv_air + qv(i)*cv_vap
+           qv = max(0.,q(i,j,k,sphum))
+           ql = max(0.,q(i,j,k,liq_wat))
+           cvm(i) = (1.-(qv+ql))*cv_air + qv*cv_vap + ql*c_liq
         enddo
      endif
-  case (3)
+  else
      do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat)
-        qs(i) = q(i,j,k,ice_wat)
-        q_con(i) = ql(i) + qs(i)
-        cvm(i) = (1.-(qv(i)+q_con(i)))*cv_air + qv(i)*cv_vap + ql(i)*c_liq + qs(i)*c_ice
+        qv = 0.0
+        ql = 0.0
+        qs = 0.0
+        if (sphum .gt. 0) qv = qv + q(i,j,k,sphum)
+        if (liq_wat .gt. 0) ql = ql + q(i,j,k,liq_wat)
+        if (rainwat .gt. 0) ql = ql + q(i,j,k,rainwat)
+        if (ice_wat .gt. 0) qs = qs + q(i,j,k,ice_wat)
+        if (snowwat .gt. 0) qs = qs + q(i,j,k,snowwat)
+        if (graupel .gt. 0) qs = qs + q(i,j,k,graupel)
+        q_con(i) = ql + qs
+        cvm(i) = (1.-(qv+q_con(i)))*cv_air + qv*cv_vap + ql*c_liq + qs*c_ice
      enddo
-  case(4)              ! K_warm_rain with fake ice
-     do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        q_con(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
-        cvm(i) = (1.-(qv(i)+q_con(i)))*cv_air + qv(i)*cv_vap + q_con(i)*c_liq
-     enddo
-  case(5)
-     do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
-        qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat)
-        q_con(i) = ql(i) + qs(i)
-        cvm(i) = (1.-(qv(i)+q_con(i)))*cv_air + qv(i)*cv_vap + ql(i)*c_liq + qs(i)*c_ice
-     enddo
-  case(6)
-     do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
-        qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
-        q_con(i) = ql(i) + qs(i)
-        cvm(i) = (1.-(qv(i)+q_con(i)))*cv_air + qv(i)*cv_vap + ql(i)*c_liq + qs(i)*c_ice
-     enddo
-  case default
-     !call mpp_error (NOTE, 'fv_mapz::moist_cv - using default cv_air')
-     do i=is,ie
-         q_con(i) = 0.
-        cvm(i) = cv_air
-     enddo
- end select
+  endif
 
  end subroutine moist_cv
 
- subroutine moist_cp(is,ie, isd,ied, jsd,jed, km, j, k, nwat, sphum, liq_wat, rainwat,    &
+ subroutine moist_cp(is,ie, isd,ied, jsd,jed, km, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                      ice_wat, snowwat, graupel, q, q_con, cpm, t1)
 
-  integer, intent(in):: is, ie, isd,ied, jsd,jed, km, nwat, j, k
+  integer, intent(in):: is, ie, isd,ied, jsd,jed, km, nwat, mp_flag, j, k
   integer, intent(in):: sphum, liq_wat, rainwat, ice_wat, snowwat, graupel
   real, intent(in), dimension(isd:ied,jsd:jed,km,nwat):: q
   real, intent(out), dimension(is:ie):: cpm, q_con
   real, intent(in), optional:: t1(is:ie)
 !
   real, parameter:: t_i0 = 15.
-  real, dimension(is:ie):: qv, ql, qs
+  real :: qv, ql, qs
   integer:: i
 
-  select case (nwat)
-
-  case(2)
-     if ( present(t1) ) then  ! Special case for GFS physics
+  if (mp_flag .eq. 6) then ! Special case for Zhao-Carr microphysics scheme
+     if (present(t1)) then
         do i=is,ie
            q_con(i) = max(0., q(i,j,k,liq_wat))
-           if ( t1(i) > tice ) then
-                qs(i) = 0.
-           elseif ( t1(i) < tice-t_i0 ) then
-                qs(i) = q_con(i)
+           if (t1(i) > tice) then
+                qs = 0.
+           elseif (t1(i) < tice-t_i0) then
+                qs = q_con(i)
            else
-                qs(i) = q_con(i)*(tice-t1(i))/t_i0
+                qs = q_con(i)*(tice-t1(i))/t_i0
            endif
-           ql(i) = q_con(i) - qs(i)
-           qv(i) = max(0.,q(i,j,k,sphum))
-           cpm(i) = (1.-(qv(i)+q_con(i)))*cp_air + qv(i)*cp_vapor + ql(i)*c_liq + qs(i)*c_ice
+           ql = q_con(i) - qs
+           qv = max(0.,q(i,j,k,sphum))
+           cpm(i) = (1.-(qv+q_con(i)))*cp_air + qv*cp_vapor + ql*c_liq + qs*c_ice
         enddo
      else
-     do i=is,ie
-        qv(i) = max(0.,q(i,j,k,sphum))
-        qs(i) = max(0.,q(i,j,k,liq_wat))
-        q_con(i) = qs(i)
-        cpm(i) = (1.-qv(i))*cp_air + qv(i)*cp_vapor
-     enddo
+        do i=is,ie
+           qv = max(0.,q(i,j,k,sphum))
+           ql = max(0.,q(i,j,k,liq_wat))
+           cpm(i) = (1.-(qv+ql))*cp_air + qv*cp_vapor + ql*c_liq
+        enddo
      endif
-
-  case(3)
+  else
      do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat)
-        qs(i) = q(i,j,k,ice_wat)
-        q_con(i) = ql(i) + qs(i)
-        cpm(i) = (1.-(qv(i)+q_con(i)))*cp_air + qv(i)*cp_vapor + ql(i)*c_liq + qs(i)*c_ice
+        qv = 0.0
+        ql = 0.0
+        qs = 0.0
+        if (sphum .gt. 0) qv = qv + q(i,j,k,sphum)
+        if (liq_wat .gt. 0) ql = ql + q(i,j,k,liq_wat)
+        if (rainwat .gt. 0) ql = ql + q(i,j,k,rainwat)
+        if (ice_wat .gt. 0) qs = qs + q(i,j,k,ice_wat)
+        if (snowwat .gt. 0) qs = qs + q(i,j,k,snowwat)
+        if (graupel .gt. 0) qs = qs + q(i,j,k,graupel)
+        q_con(i) = ql + qs
+        cpm(i) = (1.-(qv+q_con(i)))*cp_air + qv*cp_vapor + ql*c_liq + qs*c_ice
      enddo
-  case(4)    ! K_warm_rain scheme with fake ice
-     do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        q_con(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
-        cpm(i) = (1.-(qv(i)+q_con(i)))*cp_air + qv(i)*cp_vapor + q_con(i)*c_liq
-     enddo
-  case(5)
-     do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
-        qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat)
-        q_con(i) = ql(i) + qs(i)
-        cpm(i) = (1.-(qv(i)+q_con(i)))*cp_air + qv(i)*cp_vapor + ql(i)*c_liq + qs(i)*c_ice
-     enddo
-  case(6)
-     do i=is,ie
-        qv(i) = q(i,j,k,sphum)
-        ql(i) = q(i,j,k,liq_wat) + q(i,j,k,rainwat)
-        qs(i) = q(i,j,k,ice_wat) + q(i,j,k,snowwat) + q(i,j,k,graupel)
-        q_con(i) = ql(i) + qs(i)
-        cpm(i) = (1.-(qv(i)+q_con(i)))*cp_air + qv(i)*cp_vapor + ql(i)*c_liq + qs(i)*c_ice
-     enddo
-  case default
-     !call mpp_error (NOTE, 'fv_mapz::moist_cp - using default cp_air')
-     do i=is,ie
-        q_con(i) = 0.
-        cpm(i) = cp_air
-     enddo
-  end select
+  endif
 
  end subroutine moist_cp
 

@@ -224,8 +224,8 @@ module fv_regional_mod
 
       real,parameter :: tice=273.16                                     &
                        ,t_i0=15.
-      real, parameter :: zvir = rvgas/rdgas - 1.                        &
-                        ,cv_air = cp_air - rdgas                        &
+      real            :: zvir
+      real, parameter :: cv_air = cp_air - rdgas                        &
                         ,cv_vap = cp_vapor - rvgas
 
       real,dimension(:),allocatable :: dum1d, pref
@@ -1666,6 +1666,12 @@ contains
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+!
+      if (Atm%flagstruct%nwat .eq. 0) then
+         zvir = 0
+      else
+         zvir = rvgas/rdgas - 1.
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Only boundary tasks are needed.
@@ -3806,7 +3812,7 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
 !
 #ifndef SW_DYNAMICS
   if ( .not. data_source_fv3gfs ) then
-   if ( Atm%flagstruct%nwat .eq. 6 ) then
+   if ( Atm%flagstruct%mp_flag .eq. 2 ) then
       do k=1,npz
          do i=is,ie
             qn1(i,k) = BC_side%q_BC(i,j,k,liq_wat)
@@ -3846,6 +3852,45 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
 #endif
             call mp_auto_conversion(BC_side%q_BC(i,j,k,liq_wat), BC_side%q_BC(i,j,k,rainwat),  &
                                     BC_side%q_BC(i,j,k,ice_wat), BC_side%q_BC(i,j,k,snowwat) )
+         enddo
+      enddo
+   elseif ( Atm%flagstruct%mp_flag .eq. 7 ) then
+      do k=1,npz
+         do i=is,ie
+            qn1(i,k) = BC_side%q_BC(i,j,k,liq_wat)
+            BC_side%q_BC(i,j,k,rainwat) = 0.
+            if (cld_amt > 0) BC_side%q_BC(i,j,k,cld_amt) = 0.
+            if ( BC_side%pt_BC(i,j,k) > 273.16 ) then       ! > 0C all liq_wat
+               BC_side%q_BC(i,j,k,liq_wat) = qn1(i,k)
+               BC_side%q_BC(i,j,k,ice_wat) = 0.
+#ifdef ORIG_CLOUDS_PART
+            else if ( BC_side%pt_BC(i,j,k) < 258.16 ) then  ! < -15C all ice_wat
+               BC_side%q_BC(i,j,k,liq_wat) = 0.
+               BC_side%q_BC(i,j,k,ice_wat) = qn1(i,k)
+            else                                     ! between -15~0C: linear interpolation
+               BC_side%q_BC(i,j,k,liq_wat) = qn1(i,k)*((BC_side%pt_BC(i,j,k)-258.16)/15.)
+               BC_side%q_BC(i,j,k,ice_wat) = qn1(i,k) - BC_side%q_BC(i,j,k,liq_wat)
+            endif
+#else
+            else if ( BC_side%pt_BC(i,j,k) < 233.16 ) then  ! < -40C all ice_wat
+               BC_side%q_BC(i,j,k,liq_wat) = 0.
+               BC_side%q_BC(i,j,k,ice_wat) = qn1(i,k)
+            else
+               if ( k.eq.1 ) then  ! between [-40,0]: linear interpolation
+                  BC_side%q_BC(i,j,k,liq_wat) = qn1(i,k)*((BC_side%pt_BC(i,j,k)-233.16)/40.)
+                  BC_side%q_BC(i,j,k,ice_wat) = qn1(i,k) - BC_side%q_BC(i,j,k,liq_wat)
+               else
+                 if (BC_side%pt_BC(i,j,k)<258.16 .and. BC_side%q_BC(i,j,k-1,ice_wat)>1.e-5 ) then
+                    BC_side%q_BC(i,j,k,liq_wat) = 0.
+                    BC_side%q_BC(i,j,k,ice_wat) = qn1(i,k)
+                 else  ! between [-40,0]: linear interpolation
+                    BC_side%q_BC(i,j,k,liq_wat) = qn1(i,k)*((BC_side%pt_BC(i,j,k)-233.16)/40.)
+                    BC_side%q_BC(i,j,k,ice_wat) = qn1(i,k) - BC_side%q_BC(i,j,k,liq_wat)
+                 endif
+               endif
+            endif
+#endif
+            call mp_auto_conversion(BC_side%q_BC(i,j,k,liq_wat), BC_side%q_BC(i,j,k,rainwat))
          enddo
       enddo
    endif
@@ -5489,7 +5534,8 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
  end subroutine fillq
 
  subroutine mp_auto_conversion(ql, qr, qi, qs)
- real, intent(inout):: ql, qr, qi, qs
+ real, intent(inout):: ql, qr
+ real, intent(inout), optional:: qi, qs
  real, parameter:: qi0_max = 2.0e-3
  real, parameter:: ql0_max = 2.5e-3
 
@@ -5499,9 +5545,11 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
        ql = ql0_max
   endif
 ! Convert excess cloud ice into snow:
-  if ( qi > qi0_max ) then
-       qs = qi - qi0_max
-       qi = qi0_max
+  if (present(qi) .and. present(qs)) then
+     if ( qi > qi0_max ) then
+          qs = qi - qi0_max
+          qi = qi0_max
+     endif
   endif
 
  end subroutine mp_auto_conversion
@@ -6151,6 +6199,12 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+!
+      if (Atm%flagstruct%nwat .eq. 0) then
+         zvir = 0
+      else
+         zvir = rvgas/rdgas - 1.
+      endif
 !
       allocate( pelist(mpp_npes()) )
       call mpp_get_current_pelist(pelist)
@@ -6921,15 +6975,7 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
      do j=js,je
      do i=is,ie
        wt = BC_side%delp_BC(i,j,k)
-       if ( nwat == 6 ) then
-         qt = wt*(1. + BC_side%q_BC(i,j,k,liq_wat) + &
-                       BC_side%q_BC(i,j,k,ice_wat) + &
-                       BC_side%q_BC(i,j,k,rainwat) + &
-                       BC_side%q_BC(i,j,k,snowwat) + &
-                       BC_side%q_BC(i,j,k,graupel))
-       else   ! all other values of nwat
-         qt = wt*(1. + sum(BC_side%q_BC(i,j,k,2:nwat)))
-       endif
+       qt = wt*(1. + sum(BC_side%q_BC(i,j,k,2:nwat)))
 !--- Adjust delp with tracer mass.
        BC_side%delp_BC(i,j,k) = qt
      enddo
@@ -6943,15 +6989,7 @@ subroutine remap_scalar_nggps_regional_bc(Atm                         &
      do j=js,je
      do i=is,ie
        wt = BC_side%delp_BC(i,j,k)
-       if ( nwat == 6 ) then
-         qt = wt*(1. + BC_side%q_BC(i,j,k,liq_wat) + &
-                       BC_side%q_BC(i,j,k,ice_wat) + &
-                       BC_side%q_BC(i,j,k,rainwat) + &
-                       BC_side%q_BC(i,j,k,snowwat) + &
-                       BC_side%q_BC(i,j,k,graupel))
-       else   ! all other values of nwat
-         qt = wt*(1. + sum(BC_side%q_BC(i,j,k,2:nwat)))
-       endif
+       qt = wt*(1. + sum(BC_side%q_BC(i,j,k,2:nwat)))
        m_fac = wt / qt
        do iq=1,ntracers
          BC_side%q_BC(i,j,k,iq) = m_fac * BC_side%q_BC(i,j,k,iq)

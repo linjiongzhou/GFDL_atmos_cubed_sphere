@@ -21,9 +21,9 @@
 
 module fv_dynamics_mod
 #ifdef OVERLOAD_R4
-   use constantsR4_mod,     only: grav, pi=>pi_8, hlv, rdgas, rvgas, cp_vapor
+   use constantsR4_mod,     only: grav, pi=>pi_8, hlv, rdgas, cp_vapor
 #else
-   use constants_mod,       only: grav, pi=>pi_8, hlv, rdgas, rvgas, cp_vapor
+   use constants_mod,       only: grav, pi=>pi_8, hlv, rdgas, cp_vapor
 #endif
    use fv_arrays_mod,       only: radius, omega ! scaled for small earth
    use dyn_core_mod,        only: dyn_core, del2_cubed, init_ijk_mem
@@ -171,7 +171,7 @@ contains
       real:: akap, rdg, ph1, ph2, mdt, gam, amdt, u00
       real:: recip_k_split,reg_bc_update_time
       integer:: kord_tracer(ncnst)
-      integer :: i,j,k, n, iq, n_map, nq, nr, nwat, k_split
+      integer :: i,j,k, n, iq, n_map, nq, nr, nwat, mp_flag, k_split
       integer :: sphum, liq_wat = -999, ice_wat = -999      ! GFDL physics
       integer :: rainwat = -999, snowwat = -999, graupel = -999, cld_amt = -999
       integer :: theta_d = -999
@@ -197,6 +197,7 @@ contains
       k_split = flagstruct%k_split
       recip_k_split=1./real(k_split)
       nwat = flagstruct%nwat
+      mp_flag = flagstruct%mp_flag
       nq = nq_tot - flagstruct%dnats
       nr = nq_tot - flagstruct%dnrts
       rdg = -rdgas * agrav
@@ -224,7 +225,7 @@ contains
               neststruct%nested, flagstruct%inline_q, flagstruct%make_nh, ng, &
               gridstruct, flagstruct, neststruct, thermostruct, &
               neststruct%nest_timestep, neststruct%tracer_nest_timestep, &
-              domain, parent_grid, bd, nwat, ak, bk)
+              domain, parent_grid, bd, ak, bk)
 
          call timing_off('NEST_BCs')
       endif
@@ -244,25 +245,15 @@ contains
         call timing_off('Regional_BCs')
       endif
 
-      if ( flagstruct%no_dycore ) then
-         if ( nwat.eq.2 .and. (.not.hydrostatic) ) then
-            sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
-         endif
-         goto 911
-      endif
+      if ( flagstruct%no_dycore ) goto 911
 
-      if ( nwat==0 ) then
-             sphum = 1
-           cld_amt = -1   ! to cause trouble if (mis)used
-      else
-             sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
-           liq_wat = get_tracer_index (MODEL_ATMOS, 'liq_wat')
-           ice_wat = get_tracer_index (MODEL_ATMOS, 'ice_wat')
-           rainwat = get_tracer_index (MODEL_ATMOS, 'rainwat')
-           snowwat = get_tracer_index (MODEL_ATMOS, 'snowwat')
-           graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
-           cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
-      endif
+        sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
+      liq_wat = get_tracer_index (MODEL_ATMOS, 'liq_wat')
+      ice_wat = get_tracer_index (MODEL_ATMOS, 'ice_wat')
+      rainwat = get_tracer_index (MODEL_ATMOS, 'rainwat')
+      snowwat = get_tracer_index (MODEL_ATMOS, 'snowwat')
+      graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
+      cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
 
       theta_d = get_tracer_index (MODEL_ATMOS, 'theta_d')
 
@@ -283,11 +274,11 @@ contains
 !      call compute_q_con(bd, npz, nwat, q, q_con)
     if ( hydrostatic ) then
        if (thermostruct%use_cond) then
-!$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,zvir,nwat,q,q_con,sphum,liq_wat, &
+!$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,zvir,nwat,mp_flag,q,q_con,sphum,liq_wat, &
 !$OMP      rainwat,ice_wat,snowwat,graupel) private(cvm)
           do k=1,npz
           do j=js,je
-             call moist_cp(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, sphum, liq_wat, rainwat,    &
+             call moist_cp(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                            ice_wat, snowwat, graupel, q, q_con(is:ie,j,k), cvm)
           enddo
           enddo
@@ -303,12 +294,12 @@ contains
     else
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,dp1,zvir,q,q_con,sphum,liq_wat, &
 !$OMP                                  rainwat,ice_wat,snowwat,graupel,pkz,flagstruct, &
-!$OMP                                  cappa,kappa,rdg,delp,pt,delz,nwat,thermostruct) &
+!$OMP                                  cappa,kappa,rdg,delp,pt,delz,nwat,mp_flag,thermostruct) &
 !$OMP                          private(cvm)
        do k=1,npz
           if (thermostruct%moist_kappa) then
              do j=js,je
-             call moist_cv(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, sphum, liq_wat, rainwat,    &
+             call moist_cv(is,ie,isd,ied,jsd,jed, npz, j, k, nwat, mp_flag, sphum, liq_wat, rainwat,    &
                            ice_wat, snowwat, graupel, q, q_con(is:ie,j,k), cvm)
              do i=is,ie
                 dp1(i,j,k) = zvir*q(i,j,k,sphum)
@@ -346,8 +337,8 @@ contains
            call compute_total_energy(is, ie, js, je, isd, ied, jsd, jed, npz,        &
                                      u, v, w, delz, pt, delp, q, dp1, q_con, pe, peln, phis, &
                                      gridstruct%rsin2, gridstruct%cosa_s, &
-                                     zvir, cp_air, rdgas, hlv, te_2d, ua, va, teq,        &
-                                     flagstruct%moist_phys, nwat, sphum, liq_wat, rainwat,   &
+                                     cp_air, rdgas, hlv, te_2d, ua, va, teq,        &
+                                     flagstruct%moist_phys, nwat, mp_flag, sphum, liq_wat, rainwat,   &
                                      ice_wat, snowwat, graupel, hydrostatic, &
                                      thermostruct%moist_kappa, idiag%id_te)
            if( idiag%id_te>0 ) then
@@ -404,55 +395,70 @@ contains
 
   ! Initialize rain, ice, snow and graupel precipitaiton
   if (flagstruct%do_inline_mp) then
-      inline_mp%prew = 0.0
-      inline_mp%prer = 0.0
-      inline_mp%prei = 0.0
-      inline_mp%pres = 0.0
-      inline_mp%preg = 0.0
-      inline_mp%prefluxw = 0.0
-      inline_mp%prefluxr = 0.0
-      inline_mp%prefluxi = 0.0
-      inline_mp%prefluxs = 0.0
-      inline_mp%prefluxg = 0.0
-      if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt = 0.0
-      if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt = 0.0
-      if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt = 0.0
-      if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt = 0.0
-      if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt = 0.0
-      if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt = 0.0
-      if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt = 0.0
-      if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt = 0.0
-      if (allocated(inline_mp%t_dt))  inline_mp%t_dt = 0.0
-      if (allocated(inline_mp%u_dt)) inline_mp%u_dt = 0.0
-      if (allocated(inline_mp%v_dt)) inline_mp%v_dt = 0.0
-      inline_mp%mppcw = 0.0
-      inline_mp%mppew = 0.0
-      inline_mp%mppe1 = 0.0
-      inline_mp%mpper = 0.0
-      inline_mp%mppdi = 0.0
-      inline_mp%mppd1 = 0.0
-      inline_mp%mppds = 0.0
-      inline_mp%mppdg = 0.0
-      inline_mp%mppsi = 0.0
-      inline_mp%mpps1 = 0.0
-      inline_mp%mppss = 0.0
-      inline_mp%mppsg = 0.0
-      inline_mp%mppfw = 0.0
-      inline_mp%mppfr = 0.0
-      inline_mp%mppmi = 0.0
-      inline_mp%mppms = 0.0
-      inline_mp%mppmg = 0.0
-      inline_mp%mppm1 = 0.0
-      inline_mp%mppm2 = 0.0
-      inline_mp%mppm3 = 0.0
-      inline_mp%mppar = 0.0
-      inline_mp%mppas = 0.0
-      inline_mp%mppag = 0.0
-      inline_mp%mpprs = 0.0
-      inline_mp%mpprg = 0.0
-      inline_mp%mppxr = 0.0
-      inline_mp%mppxs = 0.0
-      inline_mp%mppxg = 0.0
+      if (flagstruct%mp_flag .eq. 2) then
+         inline_mp%prew = 0.0
+         inline_mp%prer = 0.0
+         inline_mp%prei = 0.0
+         inline_mp%pres = 0.0
+         inline_mp%preg = 0.0
+         inline_mp%prefluxw = 0.0
+         inline_mp%prefluxr = 0.0
+         inline_mp%prefluxi = 0.0
+         inline_mp%prefluxs = 0.0
+         inline_mp%prefluxg = 0.0
+         if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt = 0.0
+         if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt = 0.0
+         if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt = 0.0
+         if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt = 0.0
+         if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt = 0.0
+         if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt = 0.0
+         if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt = 0.0
+         if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt = 0.0
+         if (allocated(inline_mp%t_dt))  inline_mp%t_dt = 0.0
+         if (allocated(inline_mp%u_dt)) inline_mp%u_dt = 0.0
+         if (allocated(inline_mp%v_dt)) inline_mp%v_dt = 0.0
+         inline_mp%mppcw = 0.0
+         inline_mp%mppew = 0.0
+         inline_mp%mppe1 = 0.0
+         inline_mp%mpper = 0.0
+         inline_mp%mppdi = 0.0
+         inline_mp%mppd1 = 0.0
+         inline_mp%mppds = 0.0
+         inline_mp%mppdg = 0.0
+         inline_mp%mppsi = 0.0
+         inline_mp%mpps1 = 0.0
+         inline_mp%mppss = 0.0
+         inline_mp%mppsg = 0.0
+         inline_mp%mppfw = 0.0
+         inline_mp%mppfr = 0.0
+         inline_mp%mppmi = 0.0
+         inline_mp%mppms = 0.0
+         inline_mp%mppmg = 0.0
+         inline_mp%mppm1 = 0.0
+         inline_mp%mppm2 = 0.0
+         inline_mp%mppm3 = 0.0
+         inline_mp%mppar = 0.0
+         inline_mp%mppas = 0.0
+         inline_mp%mppag = 0.0
+         inline_mp%mpprs = 0.0
+         inline_mp%mpprg = 0.0
+         inline_mp%mppxr = 0.0
+         inline_mp%mppxs = 0.0
+         inline_mp%mppxg = 0.0
+      endif
+      if (flagstruct%mp_flag .eq. 7) then
+         inline_mp%prer = 0.0
+         inline_mp%pres = 0.0
+         if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt = 0.0
+         if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt = 0.0
+         if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt = 0.0
+         if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt = 0.0
+         if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt = 0.0
+         if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt = 0.0
+         if (allocated(inline_mp%t_dt))  inline_mp%t_dt = 0.0
+         if (allocated(inline_mp%u_dt)) inline_mp%u_dt = 0.0
+         if (allocated(inline_mp%v_dt)) inline_mp%v_dt = 0.0
+      endif
   endif
 
   call timing_on('FV_DYN_LOOP')
@@ -576,6 +582,7 @@ contains
      if ( flagstruct%fv_debug ) then
         if (is_master()) write(*,'(A, I3, A1, I3)') 'before remap k_split ', n_map, '/', k_split
        call prt_mxm('T_ldyn',    pt, is, ie, js, je, ng, npz, 1., gridstruct%area_64, domain)
+       if ( sphum > 0 )  &
        call prt_mxm('SPHUM_ldyn',   q(isd,jsd,1,sphum  ), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
        if ( liq_wat > 0 )  &
        call prt_mxm('liq_wat_ldyn', q(isd,jsd,1,liq_wat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
@@ -606,13 +613,13 @@ contains
      endif
          call Lagrangian_to_Eulerian(last_step, consv_te, ps, pe, delp,          &
                      pkz, pk, mdt, bdt, npx, npy, npz, is,ie,js,je, isd,ied,jsd,jed,       &
-                     nr, nwat, sphum, q_con, u,  v, w, delz, pt, q, phis,    &
+                     nr, nwat, mp_flag, sphum, q_con, u,  v, w, delz, pt, q, phis,    &
                      zvir, cp_air, flagstruct%te_err, flagstruct%tw_err, akap, cappa, flagstruct%kord_mt, flagstruct%kord_wz, &
                      kord_tracer, flagstruct%kord_tm, flagstruct%remap_te, peln, te_2d, &
                      ng, ua, va, omga, dp1, ws, fill, reproduce_sum,             &
                      ptop, ak, bk, pfull, gridstruct, thermostruct, domain,   &
                      flagstruct%do_sat_adj, hydrostatic, &
-                     hybrid_z,     &
+                     hybrid_z, a_step,    &
                      flagstruct%adiabatic, do_adiabatic_init, flagstruct%do_inline_mp, &
                      inline_mp, bd, flagstruct%fv_debug, &
                      flagstruct%do_fast_phys, flagstruct%do_intermediate_phys, &
@@ -622,6 +629,7 @@ contains
         if (is_master()) write(*,'(A, I3, A1, I3)') 'finished k_split ', n_map, '/', k_split
        call prt_mxm('T_dyn_a4',    pt, is, ie, js, je, ng, npz, 1., gridstruct%area_64, domain)
        call prt_mxm('pkz',         pkz, is, ie, js, je, 0, npz, 1., gridstruct%area_64, domain)
+       if ( sphum > 0 )  &
        call prt_mxm('SPHUM_dyn',   q(isd,jsd,1,sphum  ), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
        if ( liq_wat > 0 )  &
        call prt_mxm('liq_wat_dyn', q(isd,jsd,1,liq_wat), is, ie, js, je, ng, npz, 1.,gridstruct%area_64, domain)
@@ -668,80 +676,88 @@ contains
 
   ! Initialize rain, ice, snow and graupel precipitaiton
   if (flagstruct%do_inline_mp) then
-      inline_mp%prew = inline_mp%prew / k_split
-      inline_mp%prer = inline_mp%prer / k_split
-      inline_mp%prei = inline_mp%prei / k_split
-      inline_mp%pres = inline_mp%pres / k_split
-      inline_mp%preg = inline_mp%preg / k_split
-      inline_mp%prefluxw = inline_mp%prefluxw / k_split
-      inline_mp%prefluxr = inline_mp%prefluxr / k_split
-      inline_mp%prefluxi = inline_mp%prefluxi / k_split
-      inline_mp%prefluxs = inline_mp%prefluxs / k_split
-      inline_mp%prefluxg = inline_mp%prefluxg / k_split
-      if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt = inline_mp%qv_dt / bdt
-      if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt = inline_mp%ql_dt / bdt
-      if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt = inline_mp%qi_dt / bdt
-      if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt = inline_mp%liq_wat_dt / bdt
-      if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt = inline_mp%qr_dt / bdt
-      if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt = inline_mp%ice_wat_dt / bdt
-      if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt = inline_mp%qg_dt / bdt
-      if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt = inline_mp%qs_dt / bdt
-      if (allocated(inline_mp%t_dt))  inline_mp%t_dt = inline_mp%t_dt / bdt
-      if (allocated(inline_mp%u_dt)) inline_mp%u_dt = inline_mp%u_dt / bdt
-      if (allocated(inline_mp%v_dt)) inline_mp%v_dt = inline_mp%v_dt / bdt
-      inline_mp%mppcw = inline_mp%mppcw / k_split
-      inline_mp%mppew = inline_mp%mppew / k_split
-      inline_mp%mppe1 = inline_mp%mppe1 / k_split
-      inline_mp%mpper = inline_mp%mpper / k_split
-      inline_mp%mppdi = inline_mp%mppdi / k_split
-      inline_mp%mppd1 = inline_mp%mppd1 / k_split
-      inline_mp%mppds = inline_mp%mppds / k_split
-      inline_mp%mppdg = inline_mp%mppdg / k_split
-      inline_mp%mppsi = inline_mp%mppsi / k_split
-      inline_mp%mpps1 = inline_mp%mpps1 / k_split
-      inline_mp%mppss = inline_mp%mppss / k_split
-      inline_mp%mppsg = inline_mp%mppsg / k_split
-      inline_mp%mppfw = inline_mp%mppfw / k_split
-      inline_mp%mppfr = inline_mp%mppfr / k_split
-      inline_mp%mppmi = inline_mp%mppmi / k_split
-      inline_mp%mppms = inline_mp%mppms / k_split
-      inline_mp%mppmg = inline_mp%mppmg / k_split
-      inline_mp%mppm1 = inline_mp%mppm1 / k_split
-      inline_mp%mppm2 = inline_mp%mppm2 / k_split
-      inline_mp%mppm3 = inline_mp%mppm3 / k_split
-      inline_mp%mppar = inline_mp%mppar / k_split
-      inline_mp%mppas = inline_mp%mppas / k_split
-      inline_mp%mppag = inline_mp%mppag / k_split
-      inline_mp%mpprs = inline_mp%mpprs / k_split
-      inline_mp%mpprg = inline_mp%mpprg / k_split
-      inline_mp%mppxr = inline_mp%mppxr / k_split
-      inline_mp%mppxs = inline_mp%mppxs / k_split
-      inline_mp%mppxg = inline_mp%mppxg / k_split
+      if (flagstruct%mp_flag .eq. 2) then
+         inline_mp%prew = inline_mp%prew / k_split
+         inline_mp%prer = inline_mp%prer / k_split
+         inline_mp%prei = inline_mp%prei / k_split
+         inline_mp%pres = inline_mp%pres / k_split
+         inline_mp%preg = inline_mp%preg / k_split
+         inline_mp%prefluxw = inline_mp%prefluxw / k_split
+         inline_mp%prefluxr = inline_mp%prefluxr / k_split
+         inline_mp%prefluxi = inline_mp%prefluxi / k_split
+         inline_mp%prefluxs = inline_mp%prefluxs / k_split
+         inline_mp%prefluxg = inline_mp%prefluxg / k_split
+         if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt = inline_mp%qv_dt / bdt
+         if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt = inline_mp%ql_dt / bdt
+         if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt = inline_mp%qi_dt / bdt
+         if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt = inline_mp%liq_wat_dt / bdt
+         if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt = inline_mp%qr_dt / bdt
+         if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt = inline_mp%ice_wat_dt / bdt
+         if (allocated(inline_mp%qg_dt)) inline_mp%qg_dt = inline_mp%qg_dt / bdt
+         if (allocated(inline_mp%qs_dt)) inline_mp%qs_dt = inline_mp%qs_dt / bdt
+         if (allocated(inline_mp%t_dt))  inline_mp%t_dt = inline_mp%t_dt / bdt
+         if (allocated(inline_mp%u_dt)) inline_mp%u_dt = inline_mp%u_dt / bdt
+         if (allocated(inline_mp%v_dt)) inline_mp%v_dt = inline_mp%v_dt / bdt
+         inline_mp%mppcw = inline_mp%mppcw / k_split
+         inline_mp%mppew = inline_mp%mppew / k_split
+         inline_mp%mppe1 = inline_mp%mppe1 / k_split
+         inline_mp%mpper = inline_mp%mpper / k_split
+         inline_mp%mppdi = inline_mp%mppdi / k_split
+         inline_mp%mppd1 = inline_mp%mppd1 / k_split
+         inline_mp%mppds = inline_mp%mppds / k_split
+         inline_mp%mppdg = inline_mp%mppdg / k_split
+         inline_mp%mppsi = inline_mp%mppsi / k_split
+         inline_mp%mpps1 = inline_mp%mpps1 / k_split
+         inline_mp%mppss = inline_mp%mppss / k_split
+         inline_mp%mppsg = inline_mp%mppsg / k_split
+         inline_mp%mppfw = inline_mp%mppfw / k_split
+         inline_mp%mppfr = inline_mp%mppfr / k_split
+         inline_mp%mppmi = inline_mp%mppmi / k_split
+         inline_mp%mppms = inline_mp%mppms / k_split
+         inline_mp%mppmg = inline_mp%mppmg / k_split
+         inline_mp%mppm1 = inline_mp%mppm1 / k_split
+         inline_mp%mppm2 = inline_mp%mppm2 / k_split
+         inline_mp%mppm3 = inline_mp%mppm3 / k_split
+         inline_mp%mppar = inline_mp%mppar / k_split
+         inline_mp%mppas = inline_mp%mppas / k_split
+         inline_mp%mppag = inline_mp%mppag / k_split
+         inline_mp%mpprs = inline_mp%mpprs / k_split
+         inline_mp%mpprg = inline_mp%mpprg / k_split
+         inline_mp%mppxr = inline_mp%mppxr / k_split
+         inline_mp%mppxs = inline_mp%mppxs / k_split
+         inline_mp%mppxg = inline_mp%mppxg / k_split
+      endif
+      if (flagstruct%mp_flag .eq. 7) then
+         inline_mp%prer = inline_mp%prer / k_split
+         inline_mp%pres = inline_mp%pres / k_split
+         if (allocated(inline_mp%qv_dt)) inline_mp%qv_dt = inline_mp%qv_dt / bdt
+         if (allocated(inline_mp%ql_dt)) inline_mp%ql_dt = inline_mp%ql_dt / bdt
+         if (allocated(inline_mp%qi_dt)) inline_mp%qi_dt = inline_mp%qi_dt / bdt
+         if (allocated(inline_mp%liq_wat_dt)) inline_mp%liq_wat_dt = inline_mp%liq_wat_dt / bdt
+         if (allocated(inline_mp%qr_dt)) inline_mp%qr_dt = inline_mp%qr_dt / bdt
+         if (allocated(inline_mp%ice_wat_dt)) inline_mp%ice_wat_dt = inline_mp%ice_wat_dt / bdt
+         if (allocated(inline_mp%t_dt))  inline_mp%t_dt = inline_mp%t_dt / bdt
+         if (allocated(inline_mp%u_dt)) inline_mp%u_dt = inline_mp%u_dt / bdt
+         if (allocated(inline_mp%v_dt)) inline_mp%v_dt = inline_mp%v_dt / bdt
+      endif
   endif
 
-  if( nwat==6 ) then
-     if (cld_amt > 0) then
-      call neg_adj3(is, ie, js, je, ng, npz,        &
-                    flagstruct%hydrostatic,         &
-                    peln, delz,                     &
-                    pt, delp, q(isd,jsd,1,sphum),   &
-                              q(isd,jsd,1,liq_wat), &
-                              q(isd,jsd,1,rainwat), &
-                              q(isd,jsd,1,ice_wat), &
-                              q(isd,jsd,1,snowwat), &
-                              q(isd,jsd,1,graupel), &
-                              q(isd,jsd,1,cld_amt), flagstruct%check_negative)
-     else
-        call neg_adj3(is, ie, js, je, ng, npz,        &
-                      flagstruct%hydrostatic,         &
-                      peln, delz,                     &
-                      pt, delp, q(isd,jsd,1,sphum),   &
-                                q(isd,jsd,1,liq_wat), &
-                                q(isd,jsd,1,rainwat), &
-                                q(isd,jsd,1,ice_wat), &
-                                q(isd,jsd,1,snowwat), &
-                                q(isd,jsd,1,graupel), check_negative=flagstruct%check_negative)
-     endif
+  if (cld_amt > 0) then
+   call neg_adj3(is, ie, js, je, ng, npz,        &
+                 flagstruct%hydrostatic,         &
+                 peln, delz, nwat, zvir,         &
+                 sphum, liq_wat, rainwat,        &
+                 ice_wat, snowwat, graupel,      &
+                 pt, delp, q(:,:,:,1:nwat),  &
+                 q(:,:,:,cld_amt), flagstruct%check_negative)
+  else
+     call neg_adj3(is, ie, js, je, ng, npz,        &
+                   flagstruct%hydrostatic,         &
+                   peln, delz, nwat, zvir,         &
+                   sphum, liq_wat, rainwat,        &
+                   ice_wat, snowwat, graupel,      &
+                   pt, delp, q(:,:,:,1:nwat),  &
+                   check_negative=flagstruct%check_negative)
   endif
 
   if( (flagstruct%consv_am.or.idiag%id_amdt>0.or.idiag%id_aam>0) .and. (.not.do_adiabatic_init)  ) then

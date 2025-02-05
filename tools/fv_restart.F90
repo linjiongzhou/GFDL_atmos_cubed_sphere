@@ -713,18 +713,18 @@ contains
          Atm(n)%w = 0.
          sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
          if ( .not.Atm(n)%flagstruct%hybrid_z ) then
-            if (Atm(n)%flagstruct%adiabatic .or. sphum < 0) then
+            if (Atm(n)%flagstruct%adiabatic .or. Atm(n)%flagstruct%nwat .eq. 0) then
              zvir = 0.
             else
              zvir = rvgas/rdgas - 1.
             endif
-             do k=1,npz
-                do j=jsc,jec
-                   do i=isc,iec
-                      Atm(n)%delz(i,j,k) = (rdgas*rgrav)*Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))*(Atm(n)%peln(i,k,j)-Atm(n)%peln(i,k+1,j))
-                   enddo
-                enddo
-             enddo
+            do k=1,npz
+               do j=jsc,jec
+                  do i=isc,iec
+                     Atm(n)%delz(i,j,k) = (rdgas*rgrav)*Atm(n)%pt(i,j,k)*(1.+zvir*Atm(n)%q(i,j,k,sphum))*(Atm(n)%peln(i,k,j)-Atm(n)%peln(i,k+1,j))
+                  enddo
+               enddo
+            enddo
          endif
       endif
 
@@ -988,11 +988,7 @@ contains
          0, 0,  isg, ieg, jsg, jeg, npz, Atm(1)%bd)
 
 
-    if ( Atm(1)%flagstruct%nwat > 0 ) then
-       sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
-    else
-       sphum = 1
-    endif
+    sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
     if ( Atm(1)%parent_grid%flagstruct%adiabatic .or. Atm(1)%parent_grid%flagstruct%do_Held_Suarez ) then
        zvir = 0.         ! no virtual effect
     else
@@ -1219,11 +1215,10 @@ contains
 
     type(fv_atmos_type), intent(INOUT) :: Atm
     logical, intent(IN), OPTIONAL :: proc_in
-    integer :: i,j,k,nq, sphum, ncnst, istart, iend, npz
+    integer :: i,j,k,nq, ncnst, istart, iend, npz
     integer :: isc, iec, jsc, jec, isd, ied, jsd, jed
     integer :: isd_p, ied_p, jsd_p, jed_p, isc_p, iec_p, jsc_p, jec_p
     integer :: isg, ieg, jsg,jeg, npx_p, npy_p
-    real zvir
 
     integer :: p , sending_proc
     logical :: process

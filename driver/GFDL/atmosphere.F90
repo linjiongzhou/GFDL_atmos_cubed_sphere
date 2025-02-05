@@ -212,7 +212,11 @@ contains
 
    call get_number_tracers(MODEL_ATMOS, num_prog= num_tracers)
 
-   zvir = rvgas/rdgas - 1.
+   if (Atm(mygrid)%flagstruct%nwat .eq. 0) then
+      zvir = 0.0
+   else
+      zvir = rvgas/rdgas - 1.
+   endif
 
 !---- compute physics/atmos time step in seconds ----
 
@@ -268,9 +272,10 @@ contains
    graupel = get_tracer_index (MODEL_ATMOS, 'graupel' )
    cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt' )
 
-   if (max(sphum,liq_wat,ice_wat,rainwat,snowwat,graupel) > Atm(mygrid)%flagstruct%nwat) then
-      call mpp_error (FATAL,' atmosphere_init: condensate species are not first in the list of &
-                            &tracers defined in the field_table')
+   if (max(sphum,liq_wat,ice_wat,rainwat,snowwat,graupel) .ne. Atm(mygrid)%flagstruct%nwat) then
+      call mpp_error (FATAL,' atmosphere_init: mass species are not first in the list of &
+                            &tracers defined in the field_table or the amount of mass species &
+                            & is not equal to nwat.')
    endif
 
    ! Allocate grid variables to be used to calculate gradient in 2nd order flux exchange
@@ -576,18 +581,22 @@ contains
 
    Surf_diff%ddp_dyn(:,:,:) = Atm(mygrid)%delp(isc:iec, jsc:jec, :)
    Surf_diff%tdt_dyn(:,:,:) = Atm(mygrid)%pt(isc:iec, jsc:jec, :)
-   Surf_diff%qdt_dyn(:,:,:) = Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum) + &
-                              Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
-                              Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)
+   Surf_diff%qdt_dyn(:,:,:) = 0.0
+   if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) &
+      Surf_diff%qdt_dyn(:,:,:) = Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum) + &
+                                 Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
+                                 Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)
 
 !miz
    if ( id_tdt_dyn>0 .or. query_cmip_diag_id(ID_tnta) ) ttend(:, :, :) = Atm(mygrid)%pt(isc:iec, jsc:jec, :)
    if ( any((/ id_qdt_dyn, id_qldt_dyn, id_qidt_dyn, id_qadt_dyn /) > 0) .or. &
         query_cmip_diag_id(ID_tnhusa) ) qtend(:, :, :, 1:4) = Atm(mygrid)%q (isc:iec, jsc:jec, :, 1:4)
 
-   mw_air_store = Mw_air(Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum)   + &
-                         Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
-                         Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)) !g/mol
+   mw_air_store = Mw_air(0.0)
+   if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) &
+      mw_air_store = Mw_air(Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum)   + &
+                            Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
+                            Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)) !g/mol
 
    do itrac = 1, num_tracers
      if (id_tracerdt_dyn (itrac) >0 ) &
@@ -656,9 +665,10 @@ contains
 
    Surf_diff%ddp_dyn(:,:,:) =(Atm(mygrid)%delp(isc:iec,jsc:jec,:)-Surf_diff%ddp_dyn(:,:,:))/dt_atmos
    Surf_diff%tdt_dyn(:,:,:) =(Atm(mygrid)%pt(isc:iec,jsc:jec,:)  -Surf_diff%tdt_dyn(:,:,:))/dt_atmos
-   Surf_diff%qdt_dyn(:,:,:) =(Atm(mygrid)%q (isc:iec,jsc:jec,:,sphum) + &
-                              Atm(mygrid)%q (isc:iec,jsc:jec,:,liq_wat) + &
-                              Atm(mygrid)%q (isc:iec,jsc:jec,:,ice_wat) - Surf_diff%qdt_dyn(:,:,:))/dt_atmos
+   if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) &
+      Surf_diff%qdt_dyn(:,:,:) =(Atm(mygrid)%q (isc:iec,jsc:jec,:,sphum) + &
+                                 Atm(mygrid)%q (isc:iec,jsc:jec,:,liq_wat) + &
+                                 Atm(mygrid)%q (isc:iec,jsc:jec,:,ice_wat) - Surf_diff%qdt_dyn(:,:,:))/dt_atmos
 
 !miz
    if (id_udt_dyn>0)  used = send_data( id_udt_dyn, 2.0/dt_atmos*Atm(mygrid)%ua(isc:iec,jsc:jec,:), Time)
@@ -667,17 +677,19 @@ contains
    if (query_cmip_diag_id(ID_tnta)) &
                  used = send_cmip_data_3d ( ID_tnta, (Atm(mygrid)%pt(isc:iec,jsc:jec,:)-ttend(:,:,:))/dt_atmos, Time)
 
-   if (id_qdt_dyn  > 0) used = send_data( id_qdt_dyn , (Atm(mygrid)%q(isc:iec,jsc:jec,:,sphum)-qtend(:,:,:,sphum))/dt_atmos, Time)
-   if (id_qldt_dyn > 0) used = send_data( id_qldt_dyn, (Atm(mygrid)%q(isc:iec,jsc:jec,:,liq_wat)-qtend(:,:,:,liq_wat))/dt_atmos, Time)
-   if (id_qidt_dyn > 0) used = send_data( id_qidt_dyn, (Atm(mygrid)%q(isc:iec,jsc:jec,:,ice_wat)-qtend(:,:,:,ice_wat))/dt_atmos, Time)
-   if (id_qadt_dyn > 0) used = send_data( id_qadt_dyn, (Atm(mygrid)%q(isc:iec,jsc:jec,:,cld_amt)-qtend(:,:,:,cld_amt))/dt_atmos, Time)
-   if (query_cmip_diag_id(ID_tnhusa)) &
+   if (id_qdt_dyn  > 0 .and. sphum .gt. 0) used = send_data( id_qdt_dyn , (Atm(mygrid)%q(isc:iec,jsc:jec,:,sphum)-qtend(:,:,:,sphum))/dt_atmos, Time)
+   if (id_qldt_dyn > 0 .and. liq_wat .gt. 0) used = send_data( id_qldt_dyn, (Atm(mygrid)%q(isc:iec,jsc:jec,:,liq_wat)-qtend(:,:,:,liq_wat))/dt_atmos, Time)
+   if (id_qidt_dyn > 0 .and. ice_wat .gt. 0) used = send_data( id_qidt_dyn, (Atm(mygrid)%q(isc:iec,jsc:jec,:,ice_wat)-qtend(:,:,:,ice_wat))/dt_atmos, Time)
+   if (id_qadt_dyn > 0 .and. cld_amt .gt. 0) used = send_data( id_qadt_dyn, (Atm(mygrid)%q(isc:iec,jsc:jec,:,cld_amt)-qtend(:,:,:,cld_amt))/dt_atmos, Time)
+   if (query_cmip_diag_id(ID_tnhusa) .and. sphum .gt. 0) &
                   used = send_cmip_data_3d (ID_tnhusa, (Atm(mygrid)%q(isc:iec,jsc:jec,:,sphum)-qtend(:,:,:,sphum))/dt_atmos, Time)
 !miz
 
-   mw_air_store = Mw_air(Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum)   + &
-                         Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
-                         Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)) !g/mol
+   mw_air_store = Mw_air(0.0)
+   if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) &
+      mw_air_store = Mw_air(Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum)   + &
+                            Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
+                            Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)) !g/mol
 
    do itrac = 1, num_tracers
       if(id_tracerdt_dyn(itrac)>0) then
@@ -720,7 +732,8 @@ contains
 !    2 - as an accumulator for the IAU increment and physics tendency
 ! because of this, it will need to be zeroed out after the diagnostic is calculated
     t_dt(:,:,:)   = Atm(n)%pt(isc:iec,jsc:jec,:)
-    qv_dt(:,:,:)  = Atm(n)%q (isc:iec,jsc:jec,:,sphum)
+    qv_dt(:,:,:) = 0.0
+    if (sphum .gt. 0) qv_dt(:,:,:) = Atm(n)%q (isc:iec,jsc:jec,:,sphum)
     q_dt(:,:,:,:) = 0.
 
     rdt = 1./dt_atmos
@@ -736,15 +749,17 @@ contains
                         Atm(n)%flagstruct%nwat, Atm(n)%delp, Atm(n)%pe,     &
                         Atm(n)%peln, Atm(n)%pkz, Atm(n)%pt, Atm(n)%q,       &
                         Atm(n)%ua, Atm(n)%va, Atm(n)%flagstruct%hydrostatic,&
-                        Atm(n)%w, Atm(n)%delz, u_dt, v_dt, t_dt, q_dt,      &
+                        Atm(n)%w, Atm(n)%delz, u_dt, v_dt,                  &
                         Atm(n)%flagstruct%n_sponge)
    endif
 
    !convert back to vmr if needed
    if (Atm(mygrid)%flagstruct%adj_mass_vmr.eq. 2) then
-      mw_air_store = Mw_air(Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum)   + &
-                            Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
-                            Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)) !g/mol
+      mw_air_store = Mw_air(0.0)
+      if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) &
+         mw_air_store = Mw_air(Atm(mygrid)%q (isc:iec, jsc:jec, :, sphum)   + &
+                               Atm(mygrid)%q (isc:iec, jsc:jec, :, liq_wat) + &
+                               Atm(mygrid)%q (isc:iec, jsc:jec, :, ice_wat)) !g/mol
 
       do itrac = 1, num_tracers
          if (is_vmr(itrac)) then
@@ -776,7 +791,7 @@ contains
        t_dt(:,:,:) = rdt*(Atm(1)%pt(isc:iec,jsc:jec,:) - t_dt(:,:,:))
        used = send_data(Atm(1)%idiag%id_t_dt_sg, t_dt, fv_time)
     end if
-    if (Atm(1)%idiag%id_qv_dt_sg > 0) then
+    if (Atm(1)%idiag%id_qv_dt_sg > 0 .and. sphum .gt. 0) then
        qv_dt(:,:,:) = rdt*(Atm(1)%q(isc:iec,jsc:jec,:,sphum) - qv_dt(:,:,:))
        used = send_data(Atm(1)%idiag%id_qv_dt_sg, qv_dt, fv_time)
     end if
@@ -1074,16 +1089,18 @@ contains
 ! Perform vertical sum:
 !----------------------
      wm = 0.
-     do j=jsc,jec
-        do k=1,npz
-           do i=isc,iec
+     if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) then
+        do j=jsc,jec
+           do k=1,npz
+              do i=isc,iec
 ! Warning: the following works only with AM2 physics: water vapor; cloud water, cloud ice.
-              wm(i,j) = wm(i,j) + Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
-                                                              Atm(mygrid)%q(i,j,k,liq_wat) +  &
-                                                              Atm(mygrid)%q(i,j,k,ice_wat) )
+                 wm(i,j) = wm(i,j) + Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
+                                                                 Atm(mygrid)%q(i,j,k,liq_wat) +  &
+                                                                 Atm(mygrid)%q(i,j,k,ice_wat) )
+              enddo
            enddo
         enddo
-     enddo
+     endif
 
 !----------------------
 ! Horizontal sum:
@@ -1195,7 +1212,7 @@ contains
 !--- cmip6 total tendencies of temperature and specific humidity
    if (query_cmip_diag_id(ID_tnt)) &
                  used = send_cmip_data_3d ( ID_tnt, (Atm(mygrid)%pt(isc:iec,jsc:jec,:)-ttend(:,:,:))/dt_atmos, Time)
-   if (query_cmip_diag_id(ID_tnhus)) &
+   if (query_cmip_diag_id(ID_tnhus) .and. sphum .gt 0) &
                   used = send_cmip_data_3d (ID_tnhus, (Atm(mygrid)%q(isc:iec,jsc:jec,:,sphum)-qtend(:,:,:,sphum))/dt_atmos, Time)
 
   call mpp_clock_end (id_update)
@@ -1372,11 +1389,13 @@ contains
                 else
                      q00 = q2000_h2o + (q3000_h2o-q2000_h2o)*log(pref(k,1)/2.E3)/log(1.5)
                 endif
-                do j=jsc,jec
-                   do i=isc,iec
-                      Atm(mygrid)%q(i,j,k,sphum) = xt*(Atm(mygrid)%q(i,j,k,sphum) + wt*q00)
+                if (sphum .gt. 0) then
+                   do j=jsc,jec
+                      do i=isc,iec
+                         Atm(mygrid)%q(i,j,k,sphum) = xt*(Atm(mygrid)%q(i,j,k,sphum) + wt*q00)
+                      enddo
                    enddo
-                enddo
+                endif
              endif
           endif
           if ( nudge_dz ) then
@@ -1510,7 +1529,7 @@ contains
                           Physics%block(nb)%z_full, Physics%block(nb)%z_half, &
                           Atm(mygrid)%q_con, & !This should work; indices are same on block as on full PE
                           Physics%control%phys_hydrostatic, Physics%control%do_uni_zfull, & !miz
-                          Atm(mygrid)%thermostruct%use_cond)
+                          Atm(mygrid)%thermostruct%use_cond, Atm(mygrid)%flagstruct%nwat)
 
      if (PRESENT(Physics_tendency)) then
 !--- copy the dynamics tendencies into the physics tendencies
@@ -1562,7 +1581,7 @@ contains
                           Radiation%block(nb)%z_full, Radiation%block(nb)%z_half, &
                           Atm(mygrid)%q_con, & !This should work; indices are same on block as on full PE
                           Radiation%control%phys_hydrostatic, Radiation%control%do_uni_zfull, & !miz
-                          Atm(mygrid)%thermostruct%use_cond)
+                          Atm(mygrid)%thermostruct%use_cond, Atm(mygrid)%flagstruct%nwat)
    enddo
 
 !----------------------------------------------------------------------
@@ -1582,8 +1601,8 @@ contains
 
  subroutine fv_compute_p_z (npz, phis, pe, peln, delp, delz, pt, q_sph, &
                             p_full, p_half, z_full, z_half, q_con, hydrostatic, &
-                            use_cond, do_uni_zfull) !miz
-    integer, intent(in)  :: npz
+                            use_cond, do_uni_zfull, nwat) !miz
+    integer, intent(in)  :: npz, nwat
     real, dimension(:,:),   intent(in)  :: phis
     real, dimension(:,:,:), intent(in)  :: pe, peln, delp, delz, q_con, pt, q_sph
     real, dimension(:,:,:), intent(out) :: p_full, p_half, z_full, z_half
@@ -1591,13 +1610,12 @@ contains
 !--- local variables
     integer i,j,k,isiz,jsiz
     real    tvm
-    real    :: zvir, rrg, ginv
+    real    :: rrg, ginv
     real, allocatable, dimension(:,:,:) :: peg, pelng
     real:: dlg
 
     isiz=size(phis,1)
     jsiz=size(phis,2)
-    zvir = rvgas/rdgas - 1.
     ginv = 1./ grav
     rrg  = rdgas / grav
 

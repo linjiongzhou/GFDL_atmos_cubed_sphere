@@ -35,7 +35,7 @@ module fast_phys_mod
     use fv_grid_utils_mod, only: cubed_to_latlon, update_dwinds_phys
     use fv_arrays_mod, only: fv_grid_type, fv_grid_bounds_type, fv_thermo_type
     use mpp_domains_mod, only: domain2d, mpp_update_domains
-    use tracer_manager_mod, only: get_tracer_index, get_tracer_names
+    use tracer_manager_mod, only: get_tracer_names
     use field_manager_mod, only: model_atmos
     use gfdl_mp_mod, only: mtetw
     
@@ -57,7 +57,7 @@ contains
 
 subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, &
                mdt, consv, akap, ptop, hs, te0_2d, u, v, w, pt, &
-               delp, delz, q_con, cappa, q, pkz, r_vir, te_err, tw_err, &
+               delp, delz, q_con, cappa, q, pkz, zvir, te_err, tw_err, &
                gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
                consv_checker, adj_mass_vmr)
     
@@ -71,7 +71,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, &
 
     logical, intent (in) :: hydrostatic, do_adiabatic_init, consv_checker
 
-    real, intent (in) :: consv, mdt, akap, r_vir, ptop, te_err, tw_err
+    real, intent (in) :: consv, mdt, akap, zvir, ptop, te_err, tw_err
 
     real, intent (in), dimension (isd:ied, jsd:jed) :: hs
 
@@ -106,8 +106,7 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, &
 
     logical, allocatable, dimension (:) :: conv_vmr_mmr
 
-    integer :: i, j, k, m, kmp, sphum, liq_wat, ice_wat
-    integer :: rainwat, snowwat, graupel, cld_amt, ccn_cm3, cin_cm3, aerosol
+    integer :: i, j, k, m, kmp
 
     real :: rrg
 
@@ -132,17 +131,6 @@ subroutine fast_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, &
     real (kind = r8), dimension (is:ie, 1:km) :: te_beg, te_end, tw_beg, tw_end
     
     character (len = 32) :: tracer_units, tracer_name
-
-    sphum = get_tracer_index (model_atmos, 'sphum')
-    liq_wat = get_tracer_index (model_atmos, 'liq_wat')
-    ice_wat = get_tracer_index (model_atmos, 'ice_wat')
-    rainwat = get_tracer_index (model_atmos, 'rainwat')
-    snowwat = get_tracer_index (model_atmos, 'snowwat')
-    graupel = get_tracer_index (model_atmos, 'graupel')
-    cld_amt = get_tracer_index (model_atmos, 'cld_amt')
-    ccn_cm3 = get_tracer_index (model_atmos, 'ccn_cm3')
-    cin_cm3 = get_tracer_index (model_atmos, 'cin_cm3')
-    aerosol = get_tracer_index (model_atmos, 'aerosol')
 
     rrg = - rdgas / grav
 

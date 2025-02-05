@@ -468,9 +468,15 @@ module fv_arrays_mod
                             !< schemes that also have prognostic hail or graupel, such as the GFDL, Thompson,
                             !< or WSM6 microphysics, set to 6. A value of 0 turns off condensate loading.
                             !< The default value is 3.
-   integer :: mp_flag = 1         !< Flag to select the microphysics scheme used in the model.
-                                  !< 1: GFDL microphysics scheme
-                                  !< 2: P3 microphysics scheme
+   integer :: mp_flag = 0   !< Flag to select the microphysics scheme used in the model.
+                            !< 0: No microphysics, nwat = 0 (dry air) or 1 (moist air)
+                            !< 1: Kessler warm-rain microphysics scheme, nwat = 3
+                            !< 2: GFDL microphysics scheme, nwat = 6
+                            !< 3: Rotstayn-Klein microphysics scheme, nwat = 3
+                            !< 4: Morrison-Gettelman v2 (MG2) microphysics scheme, nwat = 5
+                            !< 5: Morrison-Gettelman v3 (MG3) microphysics scheme, nwat = 6
+                            !< 6: Zhao-Carr microphysics scheme, nwat = 2
+                            !< 7: P3 microphysics scheme, nwat = 4
    logical :: warm_start = .true. !< Whether to start from restart files, instead of cold-starting
                                   !< the model. True by default; if this is set to .true. and restart
                                   !< files cannot be found the model will stop.
@@ -1035,6 +1041,9 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: prefluxi(:,:,:)     _NULL
     real, _ALLOCATABLE :: prefluxs(:,:,:)     _NULL
     real, _ALLOCATABLE :: prefluxg(:,:,:)     _NULL
+    real, _ALLOCATABLE :: zet(:,:,:)     _NULL
+    real, _ALLOCATABLE :: effc(:,:,:)     _NULL
+    real, _ALLOCATABLE :: effi(:,:,:)     _NULL
 
     real, _ALLOCATABLE :: qv_dt(:,:,:)
     real, _ALLOCATABLE :: ql_dt(:,:,:)
@@ -1569,45 +1578,56 @@ contains
     allocate (  Atm%bk(npz_2d+1) )
 
     if (Atm%flagstruct%do_inline_mp) then
-       allocate ( Atm%inline_mp%prew(is:ie,js:je) )
-       allocate ( Atm%inline_mp%prer(is:ie,js:je) )
-       allocate ( Atm%inline_mp%prei(is:ie,js:je) )
-       allocate ( Atm%inline_mp%pres(is:ie,js:je) )
-       allocate ( Atm%inline_mp%preg(is:ie,js:je) )
-       allocate ( Atm%inline_mp%prefluxw(is:ie,js:je,npz) )
-       allocate ( Atm%inline_mp%prefluxr(is:ie,js:je,npz) )
-       allocate ( Atm%inline_mp%prefluxi(is:ie,js:je,npz) )
-       allocate ( Atm%inline_mp%prefluxs(is:ie,js:je,npz) )
-       allocate ( Atm%inline_mp%prefluxg(is:ie,js:je,npz) )
+       if (Atm%flagstruct%mp_flag .eq. 2) then
+          allocate ( Atm%inline_mp%prew(is:ie,js:je) )
+          allocate ( Atm%inline_mp%prer(is:ie,js:je) )
+          allocate ( Atm%inline_mp%prei(is:ie,js:je) )
+          allocate ( Atm%inline_mp%pres(is:ie,js:je) )
+          allocate ( Atm%inline_mp%preg(is:ie,js:je) )
+          allocate ( Atm%inline_mp%prefluxw(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%prefluxr(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%prefluxi(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%prefluxs(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%prefluxg(is:ie,js:je,npz) )
+       endif
+       if (Atm%flagstruct%mp_flag .eq. 7) then
+          allocate ( Atm%inline_mp%prer(is:ie,js:je) )
+          allocate ( Atm%inline_mp%pres(is:ie,js:je) )
+          allocate ( Atm%inline_mp%zet(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%effc(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%effi(is:ie,js:je,npz) )
+       endif
     endif
-    allocate ( Atm%inline_mp%mppcw(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppew(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppe1(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mpper(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppdi(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppd1(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppds(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppdg(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppsi(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mpps1(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppss(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppsg(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppfw(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppfr(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppmi(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppms(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppmg(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppm1(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppm2(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppm3(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppar(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppas(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppag(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mpprs(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mpprg(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppxr(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppxs(is:ie,js:je) )
-    allocate ( Atm%inline_mp%mppxg(is:ie,js:je) )
+    if (Atm%flagstruct%mp_flag .eq. 2) then
+       allocate ( Atm%inline_mp%mppcw(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppew(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppe1(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mpper(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppdi(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppd1(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppds(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppdg(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppsi(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mpps1(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppss(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppsg(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppfw(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppfr(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppmi(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppms(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppmg(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppm1(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppm2(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppm3(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppar(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppas(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppag(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mpprs(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mpprg(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppxr(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppxs(is:ie,js:je) )
+       allocate ( Atm%inline_mp%mppxg(is:ie,js:je) )
+    endif
 
     !--------------------------
     ! Non-hydrostatic dynamics:
@@ -1693,53 +1713,68 @@ contains
         enddo
      enddo
      if (Atm%flagstruct%do_inline_mp) then
+        if (Atm%flagstruct%mp_flag .eq. 2) then
+           do j=js, je
+              do i=is, ie
+                 Atm%inline_mp%prew(i,j) = real_big
+                 Atm%inline_mp%prer(i,j) = real_big
+                 Atm%inline_mp%prei(i,j) = real_big
+                 Atm%inline_mp%pres(i,j) = real_big
+                 Atm%inline_mp%preg(i,j) = real_big
+                 Atm%inline_mp%prefluxw(i,j,:) = real_big
+                 Atm%inline_mp%prefluxr(i,j,:) = real_big
+                 Atm%inline_mp%prefluxi(i,j,:) = real_big
+                 Atm%inline_mp%prefluxs(i,j,:) = real_big
+                 Atm%inline_mp%prefluxg(i,j,:) = real_big
+              enddo
+           enddo
+        endif
+        if (Atm%flagstruct%mp_flag .eq. 7) then
+           do j=js, je
+              do i=is, ie
+                 Atm%inline_mp%prer(i,j) = real_big
+                 Atm%inline_mp%pres(i,j) = real_big
+                 Atm%inline_mp%zet(i,j,:) = real_big
+                 Atm%inline_mp%effc(i,j,:) = real_big
+                 Atm%inline_mp%effi(i,j,:) = real_big
+              enddo
+           enddo
+        endif
+     endif
+     if (Atm%flagstruct%mp_flag .eq. 2) then
         do j=js, je
            do i=is, ie
-              Atm%inline_mp%prew(i,j) = real_big
-              Atm%inline_mp%prer(i,j) = real_big
-              Atm%inline_mp%prei(i,j) = real_big
-              Atm%inline_mp%pres(i,j) = real_big
-              Atm%inline_mp%preg(i,j) = real_big
-              Atm%inline_mp%prefluxw(i,j,:) = real_big
-              Atm%inline_mp%prefluxr(i,j,:) = real_big
-              Atm%inline_mp%prefluxi(i,j,:) = real_big
-              Atm%inline_mp%prefluxs(i,j,:) = real_big
-              Atm%inline_mp%prefluxg(i,j,:) = real_big
+              Atm%inline_mp%mppcw(i,j) = real_big
+              Atm%inline_mp%mppew(i,j) = real_big
+              Atm%inline_mp%mppe1(i,j) = real_big
+              Atm%inline_mp%mpper(i,j) = real_big
+              Atm%inline_mp%mppdi(i,j) = real_big
+              Atm%inline_mp%mppd1(i,j) = real_big
+              Atm%inline_mp%mppds(i,j) = real_big
+              Atm%inline_mp%mppdg(i,j) = real_big
+              Atm%inline_mp%mppsi(i,j) = real_big
+              Atm%inline_mp%mpps1(i,j) = real_big
+              Atm%inline_mp%mppss(i,j) = real_big
+              Atm%inline_mp%mppsg(i,j) = real_big
+              Atm%inline_mp%mppfw(i,j) = real_big
+              Atm%inline_mp%mppfr(i,j) = real_big
+              Atm%inline_mp%mppmi(i,j) = real_big
+              Atm%inline_mp%mppms(i,j) = real_big
+              Atm%inline_mp%mppmg(i,j) = real_big
+              Atm%inline_mp%mppm1(i,j) = real_big
+              Atm%inline_mp%mppm2(i,j) = real_big
+              Atm%inline_mp%mppm3(i,j) = real_big
+              Atm%inline_mp%mppar(i,j) = real_big
+              Atm%inline_mp%mppas(i,j) = real_big
+              Atm%inline_mp%mppag(i,j) = real_big
+              Atm%inline_mp%mpprs(i,j) = real_big
+              Atm%inline_mp%mpprg(i,j) = real_big
+              Atm%inline_mp%mppxr(i,j) = real_big
+              Atm%inline_mp%mppxs(i,j) = real_big
+              Atm%inline_mp%mppxg(i,j) = real_big
            enddo
         enddo
      endif
-     do j=js, je
-        do i=is, ie
-           Atm%inline_mp%mppcw(i,j) = real_big
-           Atm%inline_mp%mppew(i,j) = real_big
-           Atm%inline_mp%mppe1(i,j) = real_big
-           Atm%inline_mp%mpper(i,j) = real_big
-           Atm%inline_mp%mppdi(i,j) = real_big
-           Atm%inline_mp%mppd1(i,j) = real_big
-           Atm%inline_mp%mppds(i,j) = real_big
-           Atm%inline_mp%mppdg(i,j) = real_big
-           Atm%inline_mp%mppsi(i,j) = real_big
-           Atm%inline_mp%mpps1(i,j) = real_big
-           Atm%inline_mp%mppss(i,j) = real_big
-           Atm%inline_mp%mppsg(i,j) = real_big
-           Atm%inline_mp%mppfw(i,j) = real_big
-           Atm%inline_mp%mppfr(i,j) = real_big
-           Atm%inline_mp%mppmi(i,j) = real_big
-           Atm%inline_mp%mppms(i,j) = real_big
-           Atm%inline_mp%mppmg(i,j) = real_big
-           Atm%inline_mp%mppm1(i,j) = real_big
-           Atm%inline_mp%mppm2(i,j) = real_big
-           Atm%inline_mp%mppm3(i,j) = real_big
-           Atm%inline_mp%mppar(i,j) = real_big
-           Atm%inline_mp%mppas(i,j) = real_big
-           Atm%inline_mp%mppag(i,j) = real_big
-           Atm%inline_mp%mpprs(i,j) = real_big
-           Atm%inline_mp%mpprg(i,j) = real_big
-           Atm%inline_mp%mppxr(i,j) = real_big
-           Atm%inline_mp%mppxs(i,j) = real_big
-           Atm%inline_mp%mppxg(i,j) = real_big
-        enddo
-     enddo
 
      do j=js, je
         do i=is, ie
@@ -1997,45 +2032,56 @@ contains
     deallocate ( Atm%diss_est )
 
     if (Atm%flagstruct%do_inline_mp) then
-       deallocate ( Atm%inline_mp%prew )
-       deallocate ( Atm%inline_mp%prer )
-       deallocate ( Atm%inline_mp%prei )
-       deallocate ( Atm%inline_mp%pres )
-       deallocate ( Atm%inline_mp%preg )
-       deallocate ( Atm%inline_mp%prefluxw )
-       deallocate ( Atm%inline_mp%prefluxr )
-       deallocate ( Atm%inline_mp%prefluxi )
-       deallocate ( Atm%inline_mp%prefluxs )
-       deallocate ( Atm%inline_mp%prefluxg )
+       if (Atm%flagstruct%mp_flag .eq. 2) then
+          deallocate ( Atm%inline_mp%prew )
+          deallocate ( Atm%inline_mp%prer )
+          deallocate ( Atm%inline_mp%prei )
+          deallocate ( Atm%inline_mp%pres )
+          deallocate ( Atm%inline_mp%preg )
+          deallocate ( Atm%inline_mp%prefluxw )
+          deallocate ( Atm%inline_mp%prefluxr )
+          deallocate ( Atm%inline_mp%prefluxi )
+          deallocate ( Atm%inline_mp%prefluxs )
+          deallocate ( Atm%inline_mp%prefluxg )
+       endif
+       if (Atm%flagstruct%mp_flag .eq. 7) then
+          deallocate ( Atm%inline_mp%prer )
+          deallocate ( Atm%inline_mp%pres )
+          deallocate ( Atm%inline_mp%zet )
+          deallocate ( Atm%inline_mp%effc )
+          deallocate ( Atm%inline_mp%effi )
+       endif
     endif
-    deallocate ( Atm%inline_mp%mppcw )
-    deallocate ( Atm%inline_mp%mppew )
-    deallocate ( Atm%inline_mp%mppe1 )
-    deallocate ( Atm%inline_mp%mpper )
-    deallocate ( Atm%inline_mp%mppdi )
-    deallocate ( Atm%inline_mp%mppd1 )
-    deallocate ( Atm%inline_mp%mppds )
-    deallocate ( Atm%inline_mp%mppdg )
-    deallocate ( Atm%inline_mp%mppsi )
-    deallocate ( Atm%inline_mp%mpps1 )
-    deallocate ( Atm%inline_mp%mppss )
-    deallocate ( Atm%inline_mp%mppsg )
-    deallocate ( Atm%inline_mp%mppfw )
-    deallocate ( Atm%inline_mp%mppfr )
-    deallocate ( Atm%inline_mp%mppmi )
-    deallocate ( Atm%inline_mp%mppms )
-    deallocate ( Atm%inline_mp%mppmg )
-    deallocate ( Atm%inline_mp%mppm1 )
-    deallocate ( Atm%inline_mp%mppm2 )
-    deallocate ( Atm%inline_mp%mppm3 )
-    deallocate ( Atm%inline_mp%mppar )
-    deallocate ( Atm%inline_mp%mppas )
-    deallocate ( Atm%inline_mp%mppag )
-    deallocate ( Atm%inline_mp%mpprs )
-    deallocate ( Atm%inline_mp%mpprg )
-    deallocate ( Atm%inline_mp%mppxr )
-    deallocate ( Atm%inline_mp%mppxs )
-    deallocate ( Atm%inline_mp%mppxg )
+    if (Atm%flagstruct%mp_flag .eq. 2) then
+       deallocate ( Atm%inline_mp%mppcw )
+       deallocate ( Atm%inline_mp%mppew )
+       deallocate ( Atm%inline_mp%mppe1 )
+       deallocate ( Atm%inline_mp%mpper )
+       deallocate ( Atm%inline_mp%mppdi )
+       deallocate ( Atm%inline_mp%mppd1 )
+       deallocate ( Atm%inline_mp%mppds )
+       deallocate ( Atm%inline_mp%mppdg )
+       deallocate ( Atm%inline_mp%mppsi )
+       deallocate ( Atm%inline_mp%mpps1 )
+       deallocate ( Atm%inline_mp%mppss )
+       deallocate ( Atm%inline_mp%mppsg )
+       deallocate ( Atm%inline_mp%mppfw )
+       deallocate ( Atm%inline_mp%mppfr )
+       deallocate ( Atm%inline_mp%mppmi )
+       deallocate ( Atm%inline_mp%mppms )
+       deallocate ( Atm%inline_mp%mppmg )
+       deallocate ( Atm%inline_mp%mppm1 )
+       deallocate ( Atm%inline_mp%mppm2 )
+       deallocate ( Atm%inline_mp%mppm3 )
+       deallocate ( Atm%inline_mp%mppar )
+       deallocate ( Atm%inline_mp%mppas )
+       deallocate ( Atm%inline_mp%mppag )
+       deallocate ( Atm%inline_mp%mpprs )
+       deallocate ( Atm%inline_mp%mpprg )
+       deallocate ( Atm%inline_mp%mppxr )
+       deallocate ( Atm%inline_mp%mppxs )
+       deallocate ( Atm%inline_mp%mppxg )
+    endif
 
     deallocate ( Atm%u_srf )
     deallocate ( Atm%v_srf )

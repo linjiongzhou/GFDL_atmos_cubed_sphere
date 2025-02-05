@@ -1629,16 +1629,27 @@
          sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
          pcen(1) = PI/9.
          pcen(2) = 2.0*PI/9.
+         if (sphum .gt. 0) then
 !$OMP parallel do default(none) shared(sphum,is,ie,js,je,npz,pe,q,agrid,pcen,delp,peln) &
 !$OMP                          private(ptmp)
-         do k=1,npz
-         do j=js,je
-         do i=is,ie
-            ptmp = delp(i,j,k)/(peln(i,k+1,j)-peln(i,k,j)) - 100000.
-            q(i,j,k,sphum) = 0.021*exp(-(agrid(i,j,2)/pcen(2))**4.)*exp(-(ptmp/34000.)**2.)
-         enddo
-         enddo
-         enddo
+            do k=1,npz
+            do j=js,je
+            do i=is,ie
+               ptmp = delp(i,j,k)/(peln(i,k+1,j)-peln(i,k,j)) - 100000.
+               q(i,j,k,sphum) = 0.021*exp(-(agrid(i,j,2)/pcen(2))**4.)*exp(-(ptmp/34000.)**2.)
+            enddo
+            enddo
+            enddo
+         else
+!$OMP parallel do default(none) shared(sphum,is,ie,js,je,npz,q)
+            do k=1,npz
+            do j=js,je
+            do i=is,ie
+               q(i,j,k,sphum) = 0.0
+            enddo
+            enddo
+            enddo
+         endif
     endif
 
     ! Initialize winds
@@ -1870,14 +1881,16 @@
             !Assume pt is virtual temperature at this point; then convert to regular temperature
          if (.not. adiabatic) then
             zvir = rvgas/rdgas - 1.
+            if (sphum .gt. 0) then
 !$OMP parallel do default(none) shared(sphum,is,ie,js,je,npz,pt,zvir,q)
-            do k=1,npz
-            do j=js,je
-            do i=is,ie
-               pt(i,j,k) = pt(i,j,k)/(1. + zvir*q(i,j,k,sphum))
-            enddo
-            enddo
-            enddo
+               do k=1,npz
+               do j=js,je
+               do i=is,ie
+                  pt(i,j,k) = pt(i,j,k)/(1. + zvir*q(i,j,k,sphum))
+               enddo
+               enddo
+               enddo
+            endif
          endif
 
          !Set up tracer #2 to be the initial EPV
@@ -7118,14 +7131,24 @@ end subroutine terminator_tracers
    enddo
    enddo
       sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
-      do k=1,npz
-      do j=js,je
-      do i=is,ie
-         p = delp(i,j,k)/(peln(i,k+1,j) - peln(i,k,j))
-         q(i,j,k,sphum) = DCMIP16_BC_sphum(p,ps(i,j),agrid(i,j,2),agrid(i,j,1))
-      enddo
-      enddo
-      enddo
+      if (sphum .gt. 0) then
+         do k=1,npz
+         do j=js,je
+         do i=is,ie
+            p = delp(i,j,k)/(peln(i,k+1,j) - peln(i,k,j))
+            q(i,j,k,sphum) = DCMIP16_BC_sphum(p,ps(i,j),agrid(i,j,2),agrid(i,j,1))
+         enddo
+         enddo
+         enddo
+      else
+         do k=1,npz
+         do j=js,je
+         do i=is,ie
+            q(i,j,k,sphum) = 0.0
+         enddo
+         enddo
+         enddo
+      endif
 
    cl = get_tracer_index(MODEL_ATMOS, 'cl')
    cl2 = get_tracer_index(MODEL_ATMOS, 'cl2')
@@ -7135,7 +7158,7 @@ end subroutine terminator_tracers
       call mpp_update_domains(q,domain)
    endif
 
-   if (.not. adiabatic) then
+   if (.not. adiabatic .and. sphum .gt. 0) then
       do k=1,npz
       do j=js,je
       do i=is,ie
@@ -7480,8 +7503,8 @@ end subroutine terminator_tracers
    enddo
    enddo
    enddo
-   if (.not. adiabatic) then
-      sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
+   sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
+   if (.not. adiabatic .and. sphum .gt. 0) then
       do k=1,npz
       do j=js,je
       do i=is,ie

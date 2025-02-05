@@ -30,7 +30,7 @@ use fv_arrays_mod,         only: phys_diag_type, nudge_diag_type, sg_diag_type
 use time_manager_mod,      only: time_type, get_time
 use gfdl_mp_mod,           only: mqs3d, wet_bulb, c_liq
 use hswf_mod,              only: Held_Suarez_Tend
-use fv_sg_mod,             only: fv_sg_SHiELD, fv_sg_AM5
+use fv_sg_mod,             only: fv_sg_SHiELD
 use fv_update_phys_mod,    only: fv_update_phys
 use fv_timing_mod,         only: timing_on, timing_off
 use mon_obkv_mod,          only: mon_obkv
@@ -65,7 +65,7 @@ public :: fv_phys, fv_nudge
 !---- version number -----
   character(len=8)   :: mod_name = 'sim_phys'
 
-  integer:: sphum, liq_wat, rainwat, snowwat, graupel, ice_wat, cld_amt
+  integer:: sphum, liq_wat, rainwat, cld_amt
 ! For nudging the IC to a steady state:
   real :: tau_winds = 25.
   real :: tau_temp  = -1.
@@ -272,10 +272,7 @@ contains
 !        gridstruct%agrid(:,:,2))
     sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
    liq_wat = get_tracer_index (MODEL_ATMOS, 'liq_wat')
-   ice_wat = get_tracer_index (MODEL_ATMOS, 'ice_wat')
    rainwat = get_tracer_index (MODEL_ATMOS, 'rainwat')
-   snowwat = get_tracer_index (MODEL_ATMOS, 'snowwat')
-   graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
    cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
 
     rkv = pdt / (tau_surf_drag*24.*3600.)
@@ -392,7 +389,11 @@ contains
     if ( do_LS_cond ) then
 
        moist_phys = .true.
-       zvir = rvgas/rdgas - 1.
+       if (nwat .eq. 0) then
+          zvir = 0.0
+       else
+          zvir = rvgas/rdgas - 1.
+       endif
        theta_d = get_tracer_index (MODEL_ATMOS, 'theta_d')
 !$omp parallel do default(shared) private(pm, adj, den, lcp, dq, dqsdt, delm)
        do j=js,je
@@ -463,11 +464,15 @@ contains
        endif
     endif
 
-    if ( do_K_warm_rain ) then
+    if ( do_K_warm_rain .and. flagstruct%mp_flag .eq. 1 ) then
        liq_wat = get_tracer_index (MODEL_ATMOS, 'liq_wat')
        rainwat = get_tracer_index (MODEL_ATMOS, 'rainwat')
        moist_phys = .true.
-       zvir = rvgas/rdgas - 1.
+       if (nwat .eq. 0) then
+          zvir = 0.0
+       else
+          zvir = rvgas/rdgas - 1.
+       endif
 
        if ( K_cycle .eq. 0 ) then
             K_cycle = max(1, nint(pdt/30.))   ! 30 sec base time step
@@ -545,7 +550,11 @@ contains
 
     if ( do_reed_sim_phys ) then
        moist_phys = .true.
-       zvir = rvgas/rdgas - 1.
+       if (nwat .eq. 0) then
+          zvir = 0.0
+       else
+          zvir = rvgas/rdgas - 1.
+       endif
        rgrav = 1./grav
 !$omp parallel do default(shared) private(den,u2,v2,t2,q2,dp2,pm,rdelp,du2, dv2, dt2, dq2)
        do j=js,je
@@ -584,7 +593,7 @@ contains
 
           call reed_sim_physics( ie-is+1, npz, pdt, gridstruct%agrid(is:ie,j,2), t2, &
                            q2, u2, v2, pm, pe(is:ie,1:npz+1,j), dp2, rdelp,      &
-                           pe(is:ie,npz+1,j), zint, reed_test, do_reed_cond, reed_cond_only, &
+                           pe(is:ie,npz+1,j), zint, reed_test, nwat, do_reed_cond, reed_cond_only, &
                            reed_alt_mxg, rain2, du2, dv2, dt2, dq2 )
           do k=1,npz
              do i=is,ie
@@ -798,7 +807,11 @@ contains
    isd = is-ng;   ied = ie + ng
    jsd = js-ng;   jed = je + ng
 
-   zvir = rvgas/rdgas - 1.
+   if (nwat .eq. 0) then
+      zvir = 0.0
+   else
+      zvir = rvgas/rdgas - 1.
+   endif
 ! Factor for Small-Earth Approx.
    fac_sm = radius / 6371.0e3
    rrg  = rdgas / grav
@@ -907,7 +920,7 @@ contains
 !----------------------------
  if ( gray_rad ) then
     if ( prog_low_cloud ) then
-         call get_low_clouds( is,ie, js,je, km, q3(is,js,1,liq_wat), q3(is,js,1,ice_wat),   &
+         call get_low_clouds( is,ie, js,je, km, q3(is,js,1,liq_wat),   &
                                                 q3(is,js,1,cld_amt), clouds )
     else
          clouds(:,:) = low_cf0
@@ -1144,7 +1157,7 @@ endif
 
   call pbl_diff(hydrostatic, pdt, is, ie, js, je, ng, km, nq, u3, v3, t3,      &
                 w, q3, delp, p3, pe, sst, mu, dz, u_dt, v_dt, t_dt, q_dt, &
-                gridstruct%area, print_diag, Time )
+                nwat, gridstruct%area, print_diag, Time )
  endif
 
 
@@ -1234,9 +1247,9 @@ endif
 
  subroutine pbl_diff(hydrostatic, dt, is, ie, js, je, ng, km, nq, ua, va, &
                      ta, w, q, delp, pm,  pe, ts, mu, dz, udt, vdt, tdt, qdt, &
-                     area, print_diag, Time )
+                     nwat, area, print_diag, Time )
  logical, intent(in):: hydrostatic
- integer, intent(in):: is, ie, js, je, ng, km, nq
+ integer, intent(in):: is, ie, js, je, ng, km, nq, nwat
  real, intent(in):: dt
  real, intent(in), dimension(is:ie,js:je):: ts, mu
  real, intent(in), dimension(is:ie,js:je,km):: dz, pm
@@ -1280,8 +1293,7 @@ endif
     do 125 i=is, ie
        tv_surf = ts(i,j)*(1.+zvir*q(i,j,km,sphum))
        do k=km, km/4,-1
-          tvm = ta(i,j,k)*(1.+zvir*q(i,j,k,sphum)-q(i,j,k,liq_wat)-    &
-                q(i,j,k,ice_wat)-q(i,j,k,snowwat)-q(i,j,k,rainwat)-q(i,j,k,graupel))
+          tvm = ta(i,j,k)*(1.+zvir*q(i,j,k,sphum)-sum(q(i,j,k,2:nwat)))
           tvm = tvm*(pe(i,km+1,j)/pm(i,j,k))**kappa
           rin = grav*(gh(i,k+1)-0.5*dz(i,j,k))*(tvm-tv_surf) / ( 0.5*(tv_surf+tvm)*  &
                 (ua(i,j,k)**2+va(i,j,k)**2+ustar2) )
@@ -1800,9 +1812,9 @@ endif
 
  end subroutine cloudy_radiation
 
- subroutine get_low_clouds( is,ie, js,je, km, ql, qi, qa, clouds )
+ subroutine get_low_clouds( is,ie, js,je, km, ql, qa, clouds )
  integer, intent(in):: is,ie, js,je, km
- real, intent(in), dimension(is:ie,js:je,km):: ql, qi, qa
+ real, intent(in), dimension(is:ie,js:je,km):: ql, qa
  real, intent(out), dimension(is:ie,js:je):: clouds
  integer:: i, j, k
 
@@ -1810,7 +1822,7 @@ endif
     do i=is, ie
        clouds(i,j) = 0.
        do k=km/2,km
-          if ( (ql(i,j,k)>1.E-5 .or. qi(i,j,k)>2.e-4) .and. qa(i,j,k)>1.E-3 ) then
+          if ( ql(i,j,k)>1.E-5 .and. qa(i,j,k)>1.E-3 ) then
 ! Maximum overlap
                clouds(i,j) = max(clouds(i,j), qa(i,j,k))
           endif
@@ -1821,9 +1833,8 @@ endif
 
  end subroutine get_low_clouds
 
- subroutine fv_phys_init(is, ie, js, je, km, nwat, ts, pt, time, axes, lat)
+ subroutine fv_phys_init(is, ie, js, je, km, ts, pt, time, axes, lat)
  integer, intent(IN) :: is, ie, js, je, km
- integer, intent(IN) :: nwat
  real, INTENT(inout)::    ts(is:ie,js:je)
  real, INTENT(in)::    pt(is:ie,js:je,km)
  real, INTENT(IN) :: lat(is:ie,js:je)
@@ -2330,7 +2341,7 @@ endif
  end function g_sum
 
  subroutine reed_sim_physics (pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel, rpdel, ps, zint, test,   &
-                              do_reed_cond, reed_cond_only, reed_alt_mxg, precl, dudt, dvdt, dtdt, dqdt)
+                              nwat, do_reed_cond, reed_cond_only, reed_alt_mxg, precl, dudt, dvdt, dtdt, dqdt)
 
 !-----------------------------------------------------------------------
 !
@@ -2393,6 +2404,7 @@ endif
    real, intent(in) :: dtime        ! Set model physics timestep
    real, intent(in) :: lat(pcols)   ! Latitude
    integer, intent(in) :: test         ! Test number
+   integer, intent(in) :: nwat
    logical, intent(IN) :: do_reed_cond, reed_cond_only, reed_alt_mxg
 
 !
@@ -2523,7 +2535,11 @@ endif
    rh2o   = 461.5_r8                     ! Gas constant for water vapor: 461.5 J/(kg K)
    latvap = 2.5e6_r8                     ! Latent heat of vaporization (J/kg)
    epsilo = rair/rh2o                    ! Ratio of gas constant for dry air to that for vapor
-   zvir   = (rh2o/rair) - 1._r8          ! Constant for virtual temp. calc. =(rh2o/rair) - 1 is approx. 0.608
+   if (nwat .eq. 0) then
+      zvir   = 0.0
+   else
+      zvir   = (rh2o/rair) - 1._r8          ! Constant for virtual temp. calc. =(rh2o/rair) - 1 is approx. 0.608
+   endif
 
 !===============================================================================
 !

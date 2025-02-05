@@ -879,19 +879,27 @@ contains
      top_height = (phis / GRAV) - sum(delz, dim=3)
    end subroutine compute_top_height
 
-   subroutine hydrostatic_delz(phalf, temp, sphum, delz)
+   subroutine hydrostatic_delz(nwat, phalf, temp, qv, delz)
+     integer :: nwat
      real, intent(in) :: phalf(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz+1)
      real, intent(in) :: temp(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz)
-     real, intent(in) :: sphum(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz)
+     real, intent(in) :: qv(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz)
      real, intent(out) :: delz(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz)
 
      real, allocatable :: virtual_temp(:,:,:), dlogp(:,:,:)
+     real :: zvir
      integer :: k
 
      allocate(virtual_temp(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz))
      allocate(dlogp(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz))
 
-     virtual_temp = temp * (1.0 + (RVGAS / RDGAS - 1.0) * sphum)
+     if (nwat .eq. 0) then
+        zvir = 0.0
+     else
+        zvir = RVGAS / RDGAS - 1.0
+     endif
+
+     virtual_temp = temp * (1.0 + zvir * qv)
      do k = 1, npz
         dlogp(:,:,k) = log(phalf(:,:,k+1)) - log(phalf(:,:,k))
      enddo
@@ -917,7 +925,7 @@ contains
      sphum = get_tracer_index(MODEL_ATMOS, 'sphum')
 
      call compute_top_height(Atm%coarse_graining%restart%delz, Atm%coarse_graining%restart%phis, top_height)
-     call hydrostatic_delz(coarse_phalf, Atm%coarse_graining%restart%pt, Atm%coarse_graining%restart%q(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz,sphum), Atm%coarse_graining%restart%delz)
+     call hydrostatic_delz(Atm%flagstruct%nwat, coarse_phalf, Atm%coarse_graining%restart%pt, Atm%coarse_graining%restart%q(is_coarse:ie_coarse,js_coarse:je_coarse,1:npz,sphum), Atm%coarse_graining%restart%delz)
      call delz_and_top_height_to_phis(top_height, Atm%coarse_graining%restart%delz, Atm%coarse_graining%restart%phis)
    end subroutine impose_hydrostatic_balance
 

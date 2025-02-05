@@ -83,6 +83,7 @@ use fv_grid_utils_mod,  only: g_sum
 
 use mpp_domains_mod, only:  mpp_get_data_domain, mpp_get_compute_domain
 use gfdl_mp_mod,        only: gfdl_mp_init, gfdl_mp_end
+use microphy_p3,        only: p3_init
 use diag_manager_mod,   only: send_data
 use external_aero_mod,  only: load_aero, read_aero, clean_aero
 use coarse_graining_mod, only: coarse_graining_init
@@ -185,8 +186,6 @@ contains
    allocate(pelist(mpp_npes()))
    call mpp_get_current_pelist(pelist)
 
-   zvir = rvgas/rdgas - 1.
-
 !---- compute physics/atmos time step in seconds ----
 
    Time_step_atmos = Time_step
@@ -198,6 +197,12 @@ contains
    cold_start = (.not.file_exists('INPUT/fv_core.res.nc') .and. .not.file_exists('INPUT/fv_core.res.tile1.nc'))
 
    call fv_control_init( Atm, dt_atmos, mygrid, grids_on_this_pe, p_split )  ! allocates Atm components; sets mygrid
+
+   if (Atm(mygrid)%flagstruct%nwat .eq. 0) then
+      zvir = 0.0
+   else
+      zvir = rvgas/rdgas - 1.
+   endif
 
    if (Atm(mygrid)%coarse_graining%write_coarse_restart_files .or. &
         Atm(mygrid)%coarse_graining%write_coarse_diagnostics) then
@@ -240,9 +245,10 @@ contains
    snowwat = get_tracer_index (MODEL_ATMOS, 'snowwat' )
    graupel = get_tracer_index (MODEL_ATMOS, 'graupel' )
 
-   if (max(sphum,liq_wat,ice_wat,rainwat,snowwat,graupel) > Atm(mygrid)%flagstruct%nwat) then
-      call mpp_error (FATAL,' atmosphere_init: condensate species are not first in the list of &
-                            &tracers defined in the field_table')
+   if (max(sphum,liq_wat,ice_wat,rainwat,snowwat,graupel) .ne. Atm(mygrid)%flagstruct%nwat) then
+      call mpp_error (FATAL,' atmosphere_init: mass species are not first in the list of &
+                            &tracers defined in the field_table or the amount of mass species &
+                            & is not equal to nwat.')
    endif
 
    ! Allocate grid variables to be used to calculate gradient in 2nd order flux exchange
@@ -287,6 +293,9 @@ contains
    allocate(pref(npz+1,2), dum1d(npz+1))
 
    call gfdl_mp_init(input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
+   if (Atm(mygrid)%flagstruct%mp_flag .eq. 7) then
+     call p3_init(input_nml_file, stdlog(), "INPUT", abort_on_err=.true., dowr=is_master())
+   endif
 
    call timing_on('FV_RESTART')
    call fv_restart(Atm(mygrid)%domain, Atm, dt_atmos, seconds, days, cold_start, &
@@ -542,7 +551,8 @@ contains
 !    2 - as an accumulator for the IAU increment and physics tendency
 ! because of this, it will need to be zeroed out after the diagnostic is calculated
     t_dt(:,:,:)   = Atm(n)%pt(isc:iec,jsc:jec,:)
-    qv_dt(:,:,:)  = Atm(n)%q (isc:iec,jsc:jec,:,sphum)
+    qv_dt(:,:,:) = 0.0
+    if (sphum .gt. 0) qv_dt(:,:,:) = Atm(n)%q (isc:iec,jsc:jec,:,sphum)
 
     rdt = 1./dt_atmos
 
@@ -582,7 +592,7 @@ contains
        Atm(n)%sg_diag%t_dt = t_dt(isc:iec,jsc:jec,:)
     endif
     if (allocated(Atm(n)%sg_diag%qv_dt)) then
-       qv_dt(:,:,:) = rdt*(Atm(n)%q(isc:iec,jsc:jec,:,sphum) - qv_dt(:,:,:))
+       if (sphum .gt. 0) qv_dt(:,:,:) = rdt*(Atm(n)%q(isc:iec,jsc:jec,:,sphum) - qv_dt(:,:,:))
        Atm(n)%sg_diag%qv_dt = qv_dt(isc:iec,jsc:jec,:)
     endif
 
@@ -682,8 +692,9 @@ contains
 
 
  subroutine atmosphere_control_data (i1, i2, j1, j2, kt, p_hydro, hydro, tile_num, &
-                                     do_inline_mp, do_cosp)
+                                     do_inline_mp, do_cosp, mp_flag)
    integer, intent(out)           :: i1, i2, j1, j2, kt
+   integer, intent(out), optional :: mp_flag
    logical, intent(out), optional :: p_hydro, hydro
    integer, intent(out), optional :: tile_num
    logical, intent(out), optional :: do_inline_mp, do_cosp
@@ -698,6 +709,7 @@ contains
    if (present(tile_num)) tile_num = Atm(mygrid)%global_tile
    if (present(do_inline_mp)) do_inline_mp = Atm(mygrid)%flagstruct%do_inline_mp
    if (present(do_cosp)) do_cosp = Atm(mygrid)%flagstruct%do_cosp
+   if (present(mp_flag)) mp_flag = Atm(mygrid)%flagstruct%mp_flag
 
  end subroutine atmosphere_control_data
 
@@ -1051,7 +1063,7 @@ contains
 
  subroutine get_bottom_mass ( t_bot, tr_bot, p_bot, z_bot, p_surf, slp )
 !--------------------------------------------------------------
-! returns temp, sphum, pres, height at the lowest model level
+! returns temp, pres, height at the lowest model level
 ! and surface pressure
 !--------------------------------------------------------------
    real, intent(out), dimension(isc:iec,jsc:jec):: t_bot, p_bot, z_bot, p_surf
@@ -1069,7 +1081,7 @@ contains
          p_surf(i,j) = Atm(mygrid)%ps(i,j)
          t_bot(i,j) = Atm(mygrid)%pt(i,j,npz)
          p_bot(i,j) = Atm(mygrid)%delp(i,j,npz)/(Atm(mygrid)%peln(i,npz+1,j)-Atm(mygrid)%peln(i,npz,j))
-         z_bot(i,j) = rrg*t_bot(i,j)*(1.+zvir*Atm(mygrid)%q(i,j,npz,1)) *  &
+         z_bot(i,j) = rrg*t_bot(i,j)*(1.+zvir*Atm(mygrid)%q(i,j,npz,sphum)) *  &
                       (1. - Atm(mygrid)%pe(i,npz,j)/p_bot(i,j))
       enddo
    enddo
@@ -1151,16 +1163,18 @@ contains
 ! Perform vertical sum:
 !----------------------
      wm = 0.
-     do j=jsc,jec
-        do k=1,npz
-           do i=isc,iec
+     if (sphum .gt. 0 .and. liq_wat .gt. 0 .and. ice_wat .gt. 0) then
+        do j=jsc,jec
+           do k=1,npz
+              do i=isc,iec
 ! Warning: the following works only with AM2 physics: water vapor; cloud water, cloud ice.
-              wm(i,j) = wm(i,j) + Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,1) +    &
-                                                         Atm(mygrid)%q(i,j,k,2) +    &
-                                                         Atm(mygrid)%q(i,j,k,3) )
+                 wm(i,j) = wm(i,j) + Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
+                                                                 Atm(mygrid)%q(i,j,k,liq_wat) +  &
+                                                                 Atm(mygrid)%q(i,j,k,ice_wat) )
+              enddo
            enddo
         enddo
-     enddo
+     endif
 
 !----------------------
 ! Horizontal sum:
@@ -1211,6 +1225,7 @@ contains
    nt_dyn = ncnst-pnats   !nothing more than nq
 
    if( nq<3 ) call mpp_error(FATAL, 'GFS phys must have 3 interactive tracers')
+   if( nwat<1 ) call mpp_error(FATAL, 'nwat must be greater than 0')
 
    if (IAU_Data%in_interval) then
       if (IAU_Data%drymassfixer) then
@@ -1268,8 +1283,7 @@ contains
 !--- put u/v tendencies into haloed arrays u_dt and v_dt
 !$OMP parallel do default (none) &
 !$OMP              shared (rdt, n, nq, dnats, npz, ncnst, nwat, mygrid, u_dt, v_dt, t_dt,&
-!$OMP                      Atm, IPD_Data, Atm_block, sphum, liq_wat, rainwat, ice_wat,   &
-!$OMP                      snowwat, graupel, nq_adv)   &
+!$OMP                      Atm, IPD_Data, Atm_block, nq_adv)   &
 !$OMP             private (nb, blen, i, j, k, k1, ix, q0, qwat, qt,tracer_name)
    do nb = 1,Atm_block%nblks
 
@@ -1640,11 +1654,13 @@ contains
                 else
                      q00 = q2000_h2o + (q3000_h2o-q2000_h2o)*log(pref(k,1)/2.E3)/log(1.5)
                 endif
-                do j=jsc,jec
-                   do i=isc,iec
-                      Atm(mygrid)%q(i,j,k,sphum) = xt*(Atm(mygrid)%q(i,j,k,sphum) + wt*q00)
+                if (sphum .gt. 0) then
+                   do j=jsc,jec
+                      do i=isc,iec
+                         Atm(mygrid)%q(i,j,k,sphum) = xt*(Atm(mygrid)%q(i,j,k,sphum) + wt*q00)
+                      enddo
                    enddo
-                enddo
+                endif
              endif
           endif
           if ( nudge_dz ) then
@@ -1781,8 +1797,8 @@ contains
 ! use most up to date atmospheric properties when running serially
 !---------------------------------------------------------------------
 !$OMP parallel do default (none) &
-!$OMP             shared  (Atm_block, Atm, IPD_Data, npz, nq, ncnst, sphum, liq_wat, &
-!$OMP                      ice_wat, rainwat, snowwat, graupel, pk0inv, ptop,   &
+!$OMP             shared  (Atm_block, Atm, IPD_Data, npz, nq, ncnst, sphum, &
+!$OMP                      pk0inv, ptop,   &
 !$OMP                      pktop, zvir, mygrid, dnats, nq_adv, omega_for_physics) &
 !$OMP             private (dm, nb, blen, i, j, ix, k1, rTv, qgrs_rad)
 
@@ -1797,6 +1813,7 @@ contains
      IPD_Data(nb)%Statein%prsik(:,:) = 1.e25_kind_phys
 
      if (Atm(mygrid)%flagstruct%do_inline_mp) then
+       if (Atm(mygrid)%flagstruct%mp_flag .eq. 2) then
          do ix = 1, blen
            i = Atm_block%index(nb)%ii(ix)
            j = Atm_block%index(nb)%jj(ix)
@@ -1816,6 +1833,20 @@ contains
              enddo
            endif
          enddo
+       endif
+       if (Atm(mygrid)%flagstruct%mp_flag .eq. 7) then
+         do ix = 1, blen
+           i = Atm_block%index(nb)%ii(ix)
+           j = Atm_block%index(nb)%jj(ix)
+           IPD_Data(nb)%Statein%prer(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prer(i,j)))
+           IPD_Data(nb)%Statein%pres(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%pres(i,j)))
+           do k = 1, npz
+             k1 = npz+1-k ! flipping the index
+             IPD_Data(nb)%Statein%effc(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effc(i,j,k1)))
+             IPD_Data(nb)%Statein%effi(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effi(i,j,k1)))
+           enddo
+         enddo
+       endif
      endif
 
      do k = 1, npz
@@ -1847,17 +1878,8 @@ contains
          if ( ncnst > nq) &
              IPD_Data(nb)%Statein%qgrs(ix,k,nq+1:ncnst) = _DBL_(_RL_(Atm(mygrid)%qdiag(i,j,k1,nq+1:ncnst)))
 ! Remove the contribution of condensates to delp (mass):
-         if ( Atm(mygrid)%flagstruct%nwat .eq. 6 ) then
-            IPD_Data(nb)%Statein%prsl(ix,k) = IPD_Data(nb)%Statein%prsl(ix,k) &
-                                            - IPD_Data(nb)%Statein%qgrs(ix,k,liq_wat)   &
-                                            - IPD_Data(nb)%Statein%qgrs(ix,k,ice_wat)   &
-                                            - IPD_Data(nb)%Statein%qgrs(ix,k,rainwat)   &
-                                            - IPD_Data(nb)%Statein%qgrs(ix,k,snowwat)   &
-                                            - IPD_Data(nb)%Statein%qgrs(ix,k,graupel)
-         else !variable condensate numbers
-            IPD_Data(nb)%Statein%prsl(ix,k) = IPD_Data(nb)%Statein%prsl(ix,k) &
-                                            - sum(IPD_Data(nb)%Statein%qgrs(ix,k,2:Atm(mygrid)%flagstruct%nwat))
-         endif
+         IPD_Data(nb)%Statein%prsl(ix,k) = IPD_Data(nb)%Statein%prsl(ix,k) &
+                                         - sum(IPD_Data(nb)%Statein%qgrs(ix,k,2:Atm(mygrid)%flagstruct%nwat))
        enddo
      enddo
 
@@ -1942,91 +1964,36 @@ contains
    real, intent(IN) :: q(isd:ied,jsd:jed,npz,nq)
    type(phys_diag_type), intent(INOUT) :: phys_diag
 
-   integer  sphum, liq_wat, ice_wat        ! GFDL AM physics
-   integer  rainwat, snowwat, graupel      ! GFDL Cloud Microphysics
-
-   sphum   = get_tracer_index (MODEL_ATMOS, 'sphum')
-   liq_wat = get_tracer_index (MODEL_ATMOS, 'liq_wat')
-   ice_wat = get_tracer_index (MODEL_ATMOS, 'ice_wat')
-   rainwat = get_tracer_index (MODEL_ATMOS, 'rainwat')
-   snowwat = get_tracer_index (MODEL_ATMOS, 'snowwat')
-   graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
-
    if (begin) then
-      if (allocated(phys_diag%phys_qv_dt)) phys_diag%phys_qv_dt = q(isc:iec,jsc:jec,:,sphum)
-      if (allocated(phys_diag%phys_ql_dt)) then
-         if (liq_wat < 0) call mpp_error(FATAL, " phys_ql_dt needs at least one liquid water tracer defined")
-         phys_diag%phys_ql_dt = q(isc:iec,jsc:jec,:,liq_wat)
-      endif
-      if (allocated(phys_diag%phys_qi_dt)) then
-         if (ice_wat < 0) then
-            call mpp_error(WARNING, " phys_qi_dt needs at least one ice water tracer defined")
-            phys_diag%phys_qi_dt = 0.
-         endif
-         phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,ice_wat)
-      endif
+      if (allocated(phys_diag%phys_qv_dt) .and. sphum .gt. 0) phys_diag%phys_qv_dt = q(isc:iec,jsc:jec,:,sphum)
+      if (allocated(phys_diag%phys_ql_dt) .and. liq_wat .gt. 0) phys_diag%phys_ql_dt = q(isc:iec,jsc:jec,:,liq_wat)
+      if (allocated(phys_diag%phys_qi_dt) .and. ice_wat .gt. 0) phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,ice_wat)
+      if (allocated(phys_diag%phys_qr_dt) .and. rainwat .gt. 0) phys_diag%phys_qr_dt = q(isc:iec,jsc:jec,:,rainwat)
+      if (allocated(phys_diag%phys_qs_dt) .and. snowwat .gt. 0) phys_diag%phys_qs_dt = q(isc:iec,jsc:jec,:,snowwat)
+      if (allocated(phys_diag%phys_qg_dt) .and. graupel .gt. 0) phys_diag%phys_qg_dt = q(isc:iec,jsc:jec,:,graupel)
 
-      if (liq_wat > 0) then
-         if (allocated(phys_diag%phys_liq_wat_dt)) phys_diag%phys_liq_wat_dt = q(isc:iec,jsc:jec,:,liq_wat)
-      endif
-
-      if (rainwat > 0) then
-         if (allocated(phys_diag%phys_qr_dt)) phys_diag%phys_qr_dt = q(isc:iec,jsc:jec,:,rainwat)
-      endif
-
-      if (ice_wat > 0) then
-         if (allocated(phys_diag%phys_ice_wat_dt)) phys_diag%phys_ice_wat_dt = q(isc:iec,jsc:jec,:,ice_wat)
-      endif
-
-      if (graupel > 0) then
-         if (allocated(phys_diag%phys_qg_dt)) phys_diag%phys_qg_dt = q(isc:iec,jsc:jec,:,graupel)
-      endif
-
-      if (snowwat > 0) then
-         if (allocated(phys_diag%phys_qs_dt)) phys_diag%phys_qs_dt = q(isc:iec,jsc:jec,:,snowwat)
-      endif
+      if (allocated(phys_diag%phys_liq_wat_dt) .and. liq_wat .gt. 0) phys_diag%phys_liq_wat_dt = q(isc:iec,jsc:jec,:,liq_wat)
+      if (allocated(phys_diag%phys_ice_wat_dt) .and. ice_wat .gt. 0) phys_diag%phys_ice_wat_dt = q(isc:iec,jsc:jec,:,ice_wat)
    else
-      if (allocated(phys_diag%phys_qv_dt)) phys_diag%phys_qv_dt = q(isc:iec,jsc:jec,:,sphum) - phys_diag%phys_qv_dt
-      if (allocated(phys_diag%phys_ql_dt)) then
-         phys_diag%phys_ql_dt = q(isc:iec,jsc:jec,:,liq_wat) - phys_diag%phys_ql_dt
-      endif
-      if (allocated(phys_diag%phys_qi_dt)) then
-         phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,ice_wat) - phys_diag%phys_qi_dt
-      endif
+      if (allocated(phys_diag%phys_qv_dt) .and. sphum .gt. 0) phys_diag%phys_qv_dt = q(isc:iec,jsc:jec,:,sphum) - phys_diag%phys_qv_dt
+      if (allocated(phys_diag%phys_ql_dt) .and. liq_wat .gt. 0) phys_diag%phys_ql_dt = q(isc:iec,jsc:jec,:,liq_wat) - phys_diag%phys_ql_dt
+      if (allocated(phys_diag%phys_qi_dt) .and. ice_wat .gt. 0) phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,ice_wat) - phys_diag%phys_qi_dt
    endif
 
-   if (allocated(phys_diag%phys_ql_dt)) then
-      if (rainwat > 0) phys_diag%phys_ql_dt = q(isc:iec,jsc:jec,:,rainwat) + phys_diag%phys_ql_dt
-   endif
-   if (allocated(phys_diag%phys_qi_dt)) then
-      if (snowwat > 0) phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,snowwat) + phys_diag%phys_qi_dt
-      if (graupel > 0) phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,graupel) + phys_diag%phys_qi_dt
-   endif
+   if (allocated(phys_diag%phys_ql_dt) .and. rainwat .gt. 0) phys_diag%phys_ql_dt = q(isc:iec,jsc:jec,:,rainwat) + phys_diag%phys_ql_dt
+   if (allocated(phys_diag%phys_qi_dt) .and. snowwat .gt. 0) phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,snowwat) + phys_diag%phys_qi_dt
+   if (allocated(phys_diag%phys_qi_dt) .and. graupel .gt. 0) phys_diag%phys_qi_dt = q(isc:iec,jsc:jec,:,graupel) + phys_diag%phys_qi_dt
 
    if (.not. begin) then
       if (allocated(phys_diag%phys_qv_dt)) phys_diag%phys_qv_dt = phys_diag%phys_qv_dt / dt
       if (allocated(phys_diag%phys_ql_dt)) phys_diag%phys_ql_dt = phys_diag%phys_ql_dt / dt
       if (allocated(phys_diag%phys_qi_dt)) phys_diag%phys_qi_dt = phys_diag%phys_qi_dt / dt
+      if (allocated(phys_diag%phys_qr_dt) .and. rainwat .gt. 0) phys_diag%phys_qr_dt = (q(isc:iec,jsc:jec,:,rainwat) - phys_diag%phys_qr_dt) / dt
+      if (allocated(phys_diag%phys_qs_dt) .and. snowwat .gt. 0) phys_diag%phys_qs_dt = (q(isc:iec,jsc:jec,:,snowwat) - phys_diag%phys_qs_dt) / dt
+      if (allocated(phys_diag%phys_qg_dt) .and. graupel .gt. 0) phys_diag%phys_qg_dt = (q(isc:iec,jsc:jec,:,graupel) - phys_diag%phys_qg_dt) / dt
 
-      if (liq_wat > 0) then
-         if (allocated(phys_diag%phys_liq_wat_dt)) phys_diag%phys_liq_wat_dt = (q(isc:iec,jsc:jec,:,liq_wat) - phys_diag%phys_liq_wat_dt) / dt
-      endif
-
-      if (rainwat > 0) then
-         if (allocated(phys_diag%phys_qr_dt)) phys_diag%phys_qr_dt = (q(isc:iec,jsc:jec,:,rainwat) - phys_diag%phys_qr_dt) / dt
-      endif
-
-      if (ice_wat > 0) then
-         if (allocated(phys_diag%phys_ice_wat_dt)) phys_diag%phys_ice_wat_dt = (q(isc:iec,jsc:jec,:,ice_wat) - phys_diag%phys_ice_wat_dt) / dt
-      endif
-
-      if (graupel > 0) then
-         if (allocated(phys_diag%phys_qg_dt)) phys_diag%phys_qg_dt = (q(isc:iec,jsc:jec,:,graupel) - phys_diag%phys_qg_dt) / dt
-      endif
-
-      if (snowwat > 0) then
-         if (allocated(phys_diag%phys_qs_dt)) phys_diag%phys_qs_dt = (q(isc:iec,jsc:jec,:,snowwat) - phys_diag%phys_qs_dt) / dt
-      endif
+      if (allocated(phys_diag%phys_liq_wat_dt) .and. liq_wat .gt. 0) phys_diag%phys_liq_wat_dt = (q(isc:iec,jsc:jec,:,liq_wat) - phys_diag%phys_liq_wat_dt) / dt
+      if (allocated(phys_diag%phys_ice_wat_dt) .and. ice_wat .gt. 0) phys_diag%phys_ice_wat_dt = (q(isc:iec,jsc:jec,:,ice_wat) - phys_diag%phys_ice_wat_dt) / dt
    endif
 
  end subroutine atmos_phys_qdt_diag

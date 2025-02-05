@@ -82,7 +82,7 @@ type(fv_atmos_type), allocatable, target :: Atm(:)
 logical, allocatable :: grids_on_this_pe(:)
 integer :: mygrid = 1 !not used yet
 integer, allocatable :: pelist(:)
-integer :: axes(4)
+integer :: axes(4), sphum
 integer:: isd, ied, jsd, jed, ngc
 !-----------------------------------------------------------------------
 
@@ -147,19 +147,21 @@ contains
      jsd = Atm(mygrid)%bd%jsd
      jed = Atm(mygrid)%bd%jed
 
+     sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
+
      Atm(mygrid)%flagstruct%moist_phys = .false. ! need this for fv_diag calendar
      call fv_diag_init(Atm(mygrid:mygrid), axes, Time, Atm(mygrid)%npx, Atm(mygrid)%npy, Atm(mygrid)%npz, Atm(mygrid)%flagstruct%p_ref)
 
      !   if ( Atm(n)%flagstruct%adiabatic .or. Atm(n)%flagstruct%do_Held_Suarez ) then
-     zvir = 0.
      if ( Atm(mygrid)%flagstruct%adiabatic ) then
+        zvir = 0.
         Atm(mygrid)%flagstruct%moist_phys = .false.
      else
         zvir = rvgas/rdgas - 1.
         Atm(mygrid)%flagstruct%moist_phys = .true.
      endif
      if (.not. Atm(mygrid)%flagstruct%adiabatic .or. Atm(mygrid)%flagstruct%fv_sg_adj > 0.) then
-        call fv_phys_init(isc,iec,jsc,jec,Atm(mygrid)%npz,Atm(mygrid)%flagstruct%nwat, Atm(mygrid)%ts, Atm(mygrid)%pt(isc:iec,jsc:jec,:),   &
+        call fv_phys_init(isc,iec,jsc,jec,Atm(mygrid)%npz, Atm(mygrid)%ts, Atm(mygrid)%pt(isc:iec,jsc:jec,:),   &
                           Time, axes, Atm(mygrid)%gridstruct%agrid(isc:iec,jsc:jec,2))
      endif
 
@@ -179,9 +181,9 @@ contains
      endif
 
      theta_d = get_tracer_index (MODEL_ATMOS, 'theta_d')
-     if ( theta_d > 0 ) then
+     if ( theta_d > 0 .and. sphum .gt. 0 ) then
         call eqv_pot(Atm(mygrid)%q(isc:iec,jsc:jec,:,theta_d), Atm(mygrid)%pt, Atm(mygrid)%delp,    &
-             Atm(mygrid)%delz, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%q(isd,jsd,1,1), isc, iec, jsc, jec, Atm(mygrid)%ng,   &
+             Atm(mygrid)%delz, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%q(isd,jsd,1,sphum), isc, iec, jsc, jec, Atm(mygrid)%ng,   &
              Atm(mygrid)%npz,  Atm(mygrid)%flagstruct%hydrostatic, Atm(mygrid)%flagstruct%moist_phys)
      endif
 
@@ -249,7 +251,7 @@ contains
           enddo
           do j=jsc,jec
              do i=isc,iec
-!               t0(i,j,k) = Atm(n)%pt(i,j,k)*(1.+esl*Atm(n)%q(i,j,k,1))*(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
+!               t0(i,j,k) = Atm(n)%pt(i,j,k)*(1.+esl*Atm(n)%q(i,j,k,sphum))*(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))
                 t0(i,j,k) = Atm(n)%pt(i,j,k)
                dp0(i,j,k) = Atm(n)%delp(i,j,k)
              enddo
@@ -312,7 +314,7 @@ contains
        do k=1,npz
           do j=jsc,jec
              do i=isc,iec
-!               Atm(n)%pt(i,j,k) = xt*(Atm(n)%pt(i,j,k)+wt*t0(i,j,k)/((1.+esl*Atm(n)%q(i,j,k,1))*(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))))
+!               Atm(n)%pt(i,j,k) = xt*(Atm(n)%pt(i,j,k)+wt*t0(i,j,k)/((1.+esl*Atm(n)%q(i,j,k,sphum))*(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))))
                 Atm(n)%pt(i,j,k) = xt*(Atm(n)%pt(i,j,k)+wt*t0(i,j,k))
              enddo
           enddo
@@ -374,7 +376,7 @@ contains
        do k=1,npz
           do j=jsc,jec
              do i=isc,iec
-!               Atm(n)%pt(i,j,k) = xt*(Atm(n)%pt(i,j,k)+wt*t0(i,j,k)/((1.+esl*Atm(n)%q(i,j,k,1))*(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))))
+!               Atm(n)%pt(i,j,k) = xt*(Atm(n)%pt(i,j,k)+wt*t0(i,j,k)/((1.+esl*Atm(n)%q(i,j,k,sphum))*(Atm(n)%peln(i,k+1,j)-Atm(n)%peln(i,k,j))))
                 Atm(n)%pt(i,j,k) = xt*(Atm(n)%pt(i,j,k)+wt*t0(i,j,k))
              enddo
           enddo
@@ -397,7 +399,7 @@ contains
 
     real:: zvir
     real:: time_total
-    integer :: n, sphum, p, nc
+    integer :: n, p, nc
     integer :: psc ! p_split counter
 
     call timing_on('ATMOS_DYNAMICS')
@@ -503,7 +505,7 @@ contains
 
     call get_time (fv_time, seconds,  days)
 
-    if ( Atm(mygrid)%flagstruct%moist_phys .and. Atm(mygrid)%flagstruct%nwat==6 ) call gfdl_mp_end
+    if (.not. Atm(mygrid)%flagstruct%adiabatic) call gfdl_mp_end
 
     call fv_end(Atm, mygrid)
     deallocate(Atm)

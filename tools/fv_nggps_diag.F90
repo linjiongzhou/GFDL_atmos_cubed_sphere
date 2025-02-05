@@ -171,7 +171,6 @@ contains
     sphum   = get_tracer_index (MODEL_ATMOS, 'sphum')
     liq_wat = get_tracer_index (MODEL_ATMOS, 'liq_wat')
     ice_wat = get_tracer_index (MODEL_ATMOS, 'ice_wat')
-
     rainwat = get_tracer_index (MODEL_ATMOS, 'rainwat')
     snowwat = get_tracer_index (MODEL_ATMOS, 'snowwat')
     graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
@@ -661,11 +660,19 @@ contains
 
     !--- 3-D Reflectivity field
     if ( rainwat > 0 .and. id_dbz>0) then
-      call rad_ref(isco, ieco, jsco, jeco, isdo, iedo, jsdo, jedo, &
-                   Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
-                   wk, wk2, allmax, npzo, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
-                   zvir, Atm(n)%flagstruct%do_inline_mp, &
-                   sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
+      if (Atm(n)%flagstruct%mp_flag .eq. 2) then
+         call rad_ref(isco, ieco, jsco, jeco, isdo, iedo, jsdo, jedo, &
+                      Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
+                      wk, wk2, allmax, npzo, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
+                      zvir, Atm(n)%flagstruct%do_inline_mp, &
+                      sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
+      elseif (Atm(n)%flagstruct%mp_flag .eq. 7) then
+         do j=jsco,jeco
+           do i=isco,ieco
+             wk(i,j,:) = Atm(n)%inline_mp%zet(i,j,:)
+           enddo
+         enddo
+      endif
       call store_data(id_dbz, wk, Time, kstt_dbz, kend_dbz)
     endif
 

@@ -930,7 +930,7 @@ module fv_control_mod
        character(len=72) :: err_str
 
        namelist /fv_core_nml/npx, npy, ntiles, npz, npz_type, fv_eta_file, npz_rst, layout, io_layout, ncnst, nwat,  &
-            use_logp, p_fac, a_imp, k_split, n_split, m_split, q_split, print_freq, write_3d_diags, &
+            mp_flag, use_logp, p_fac, a_imp, k_split, n_split, m_split, q_split, print_freq, write_3d_diags, &
             do_schmidt, do_cube_transform, &
             hord_mt, hord_vt, hord_tm, hord_dp, hord_tr, shift_fac, stretch_fac, target_lat, target_lon, &
             kord_mt, kord_wz, kord_tm, kord_tr, remap_te, fv_debug, fv_land, &
@@ -1064,6 +1064,16 @@ module fv_control_mod
        target_lon = target_lon * pi/180.
        target_lat = target_lat * pi/180.
 
+       !Check if mp_flag and nwat are consistent
+       if (mp_flag .eq. 0 .and. nwat .gt. 1) call mpp_error(FATAL, "** error: if mp_flag is 0, nwat must be 0 or 1 **")
+       if (mp_flag .eq. 1 .and. nwat .ne. 3) call mpp_error(FATAL, "** error: if mp_flag is 1, nwat must be 3 **")
+       if (mp_flag .eq. 2 .and. nwat .ne. 6) call mpp_error(FATAL, "** error: if mp_flag is 2, nwat must be 6 **")
+       if (mp_flag .eq. 3 .and. nwat .ne. 3) call mpp_error(FATAL, "** error: if mp_flag is 3, nwat must be 3 **")
+       if (mp_flag .eq. 4 .and. nwat .ne. 5) call mpp_error(FATAL, "** error: if mp_flag is 4, nwat must be 5 **")
+       if (mp_flag .eq. 5 .and. nwat .ne. 6) call mpp_error(FATAL, "** error: if mp_flag is 5, nwat must be 6 **")
+       if (mp_flag .eq. 6 .and. nwat .ne. 2) call mpp_error(FATAL, "** error: if mp_flag is 6, nwat must be 2 **")
+       if (mp_flag .eq. 7 .and. nwat .ne. 4) call mpp_error(FATAL, "** error: if mp_flag is 7, nwat must be 4 **")
+
        !Checks for deprecated options
        if (abs(kord_tr) <= 7) then
           write(err_str,'(A, i2, A)') "**DEPRECATED KORD_TR = ", kord_tr, "**"
@@ -1144,7 +1154,7 @@ module fv_control_mod
      subroutine read_namelist_integ_phys_nml
 
        integer :: ios, ierr
-       namelist /integ_phys_nml/ do_sat_adj, do_fast_phys, do_intermediate_phys, do_inline_mp, mp_flag, do_aerosol, do_cosp, consv_checker, te_err, tw_err
+       namelist /integ_phys_nml/ do_sat_adj, do_fast_phys, do_intermediate_phys, do_inline_mp, do_aerosol, do_cosp, consv_checker, te_err, tw_err
 
        read (input_nml_file,integ_phys_nml,iostat=ios)
        ierr = check_nml_error(ios,'integ_phys_nml')

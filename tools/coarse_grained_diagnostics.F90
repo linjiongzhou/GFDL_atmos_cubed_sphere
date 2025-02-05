@@ -1492,11 +1492,13 @@ contains
 
     if (need_rh_array) then
       nwat = Atm(tile_count)%flagstruct%nwat
-      allocate(rh(is:ie,js:je,1:npz))
-      call get_rh(is, ie, js, je, npz, nwat, Atm(tile_count)%q(is:ie,js:je,1:npz,1:nwat), &
-                  Atm(tile_count)%delp(is:ie,js:je,1:npz), Atm(tile_count)%peln(is:ie,1:npz+1,js:je), &           
-                  Atm(tile_count)%pt(is:ie,js:je,1:npz), rh)
-      call associate_variable_pointers(is, ie, js, je, npz, rh, 'rh')
+      if (nwat .gt. 0) then
+         allocate(rh(is:ie,js:je,1:npz))
+         call get_rh(is, ie, js, je, npz, nwat, Atm(tile_count)%q(is:ie,js:je,1:npz,1:nwat), &
+                     Atm(tile_count)%delp(is:ie,js:je,1:npz), Atm(tile_count)%peln(is:ie,1:npz+1,js:je), &           
+                     Atm(tile_count)%pt(is:ie,js:je,1:npz), rh)
+         call associate_variable_pointers(is, ie, js, je, npz, rh, 'rh')
+      endif
    endif
 
     do index = 1, DIAG_SIZE
@@ -1867,7 +1869,7 @@ contains
           work_2d, &
           result &
           )
-     elseif (trim(coarse_diag%special_case) .eq. 'tq') then
+     elseif (trim(coarse_diag%special_case) .eq. 'tq' .and. nwat .gt. 0) then
         call total_water_path( &
           is, &
           ie, &
@@ -1884,7 +1886,7 @@ contains
           work_2d, &
           result &
           )
-     elseif (trim(coarse_diag%special_case) .eq. 'lw') then
+     elseif (trim(coarse_diag%special_case) .eq. 'lw' .and. nwat .gt. 0) then
         call liquid_water_path( &
           is, &
           ie, &
@@ -1901,7 +1903,7 @@ contains
           work_2d, &
           result &
           )
-     elseif (trim(coarse_diag%special_case) .eq. 'iw') then
+     elseif (trim(coarse_diag%special_case) .eq. 'iw' .and. nwat .gt. 0) then
         call ice_water_path( &
           is, &
           ie, &
@@ -2185,15 +2187,15 @@ end subroutine get_need_rh_array
     allocate(specific_heat(is:ie,js:je,1:npz))
 
     if (.not. Atm%flagstruct%hydrostatic) then
-       call compute_cvm(Atm%q, Atm%pt, is, ie, js, je, npz, Atm%bd%isd, Atm%bd%ied, Atm%bd%jsd, Atm%bd%jed, Atm%flagstruct%nwat, specific_heat)
+       call compute_cvm(Atm%q, Atm%pt, is, ie, js, je, npz, Atm%bd%isd, Atm%bd%ied, Atm%bd%jsd, Atm%bd%jed, Atm%flagstruct%nwat, Atm%flagstruct%mp_flag, specific_heat)
     else
-       call compute_cpm(Atm%q, Atm%pt, is, ie, js, je, npz, Atm%bd%isd, Atm%bd%ied, Atm%bd%jsd, Atm%bd%jed, Atm%flagstruct%nwat, specific_heat)
+       call compute_cpm(Atm%q, Atm%pt, is, ie, js, je, npz, Atm%bd%isd, Atm%bd%ied, Atm%bd%jsd, Atm%bd%jed, Atm%flagstruct%nwat, Atm%flagstruct%mp_flag, specific_heat)
     endif
     integrated_field = sum(specific_heat * Atm%delp(is:ie,js:je,1:npz) * field, dim=3) / grav
   end subroutine scale_by_specific_heat_and_vertically_integrate
 
-  subroutine compute_cvm(q, pt, isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat, cvm)
-    integer :: isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat
+  subroutine compute_cvm(q, pt, isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat, mp_flag, cvm)
+    integer :: isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat, mp_flag
     real, dimension(isd:ied,jsd:jed,1:npz,1:nwat), intent(in) :: q
     real, dimension(isd:ied,jsd:jed,1:npz), intent(in) :: pt
     real, dimension(isc:iec,jsc:jec,1:npz), intent(out) :: cvm
@@ -2207,7 +2209,7 @@ end subroutine get_need_rh_array
     graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
     do j = jsc, jec
        do k = 1, npz
-          call moist_cv(isc, iec, isd, ied, jsd, jed, npz, j, k, nwat, sphum, &
+          call moist_cv(isc, iec, isd, ied, jsd, jed, npz, j, k, nwat, mp_flag, sphum, &
                liq_wat, rainwat, ice_wat, snowwat, graupel, &
                q, qc, cvm_tmp, pt(isc:iec,j,k))
           cvm(isc:iec,j,k) = cvm_tmp
@@ -2215,8 +2217,8 @@ end subroutine get_need_rh_array
     enddo
   end subroutine compute_cvm
 
- subroutine compute_cpm(q, pt, isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat, cpm)
-    integer :: isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat
+ subroutine compute_cpm(q, pt, isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat, mp_flag, cpm)
+    integer :: isc, iec, jsc, jec, npz, isd, ied, jsd, jed, nwat, mp_flag
     real, dimension(isd:ied,jsd:jed,1:npz,1:nwat), intent(in) :: q
     real, dimension(isd:ied,jsd:jed,1:npz), intent(in) :: pt
     real, dimension(isc:iec,jsc:jec,1:npz), intent(out) :: cpm
@@ -2230,7 +2232,7 @@ end subroutine get_need_rh_array
     graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
     do j = jsc, jec
        do k = 1, npz
-          call moist_cp(isc, iec, isd, ied, jsd, jed, npz, j, k, nwat, sphum, &
+          call moist_cp(isc, iec, isd, ied, jsd, jed, npz, j, k, nwat, mp_flag, sphum, &
                liq_wat, rainwat, ice_wat, snowwat, graupel, &
                q, qc, cpm_tmp, pt(isc:iec,j,k))
           cpm(isc:iec,j,k) = cpm_tmp
@@ -2453,19 +2455,23 @@ end subroutine get_need_rh_array
    real:: work_2d(is:ie,js:je)
 
    sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
-   do k=1,npz
-     do j=js,je
-       do i=is,ie
-         work_2d(i,j) = delp(i,j,k)/(peln(i,k+1,j)-peln(i,k,j))
-       enddo
-     enddo
-     call mqs3d(ie-is+1, je-js+1, 1, pt(is:ie,js:je,k), work_2d, &
-                q(is:ie,js:je,k,sphum), rh(is:ie,js:je,k))
-     do j=js,je
-       do i=is,ie
-         rh(i,j,k) = 100.*q(i,j,k,sphum)/rh(i,j,k)
-       enddo
-     enddo
-   enddo
+   if (sphum .gt. 0) then
+      do k=1,npz
+        do j=js,je
+          do i=is,ie
+            work_2d(i,j) = delp(i,j,k)/(peln(i,k+1,j)-peln(i,k,j))
+          enddo
+        enddo
+        call mqs3d(ie-is+1, je-js+1, 1, pt(is:ie,js:je,k), work_2d, &
+                   q(is:ie,js:je,k,sphum), rh(is:ie,js:je,k))
+        do j=js,je
+          do i=is,ie
+            rh(i,j,k) = 100.*q(i,j,k,sphum)/rh(i,j,k)
+          enddo
+        enddo
+      enddo
+   else
+      rh = 0.0
+   endif
  end subroutine get_rh
 end module coarse_grained_diagnostics_mod
