@@ -1799,11 +1799,11 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
  real, intent(inout), dimension(ni,nk)  :: qvap                  ! vapor mixing ratio, mass           kg kg-1
  real, intent(inout), dimension(ni,nk)  :: temp                  ! temperature                         K
- real, intent(in),    dimension(ni,nk)  :: delp                  ! layer pressure thickness            Pa
+ real, intent(inout), dimension(ni,nk)  :: delp                  ! layer pressure thickness            Pa
  real, intent(in),    dimension(ni,nk)  :: delz                  ! layer height thickness              m
  real, intent(in),    dimension(ni,nk)  :: ww                    ! vertical motion                     m s-1
- real, intent(out),   dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    mm s-1
- real, intent(out),   dimension(ni)     :: prt_sol               ! precipitation rate, total solid     mm s-1
+ real, intent(out),   dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    mm day-1
+ real, intent(out),   dimension(ni)     :: prt_sol               ! precipitation rate, total solid     mm day-1
  real, intent(out),   dimension(ni,nk)  :: diag_Zet              ! equivalent reflectivity, 3D         dBZ
  real, intent(out),   dimension(ni,nk)  :: diag_effc             ! effective radius, cloud             m
 
@@ -1924,6 +1924,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
    ! Transform every specific mass to mixing ratio
    ! Total sum at t*
    totmass(:,:) = qvap(:,:)+qr(:,:)+qc(:,:)+qitot_1(:,:)
+   delp(:,:) = delp(:,:)*(1.-totmass(:,:))
    !if (n_iceCat > 1) totmass(:,:) = totmass(:,:) + qitot_2(:,:)
    !if (n_iceCat > 2) totmass(:,:) = totmass(:,:) + qitot_3(:,:)
    !if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:) 
@@ -2230,6 +2231,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
    !if (n_iceCat > 1) totmass(:,:) = totmass(:,:) + qitot_2(:,:)
    !if (n_iceCat > 2) totmass(:,:) = totmass(:,:) + qitot_3(:,:)
    !if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:) 
+   delp(:,:) = delp(:,:)*(1.+totmass(:,:))
    inv_totmass(:,:) = 1./(1.+totmass(:,:)) 
    ! Water vapour:
    qvap(:,:) = qvap(:,:)*inv_totmass(:,:)
