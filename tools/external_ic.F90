@@ -2759,7 +2759,7 @@ contains
 !!! High-precision
   integer i,j,k,l,m, k2,iq
   integer  sphum, o3mr, liq_wat, ice_wat, rainwat, snowwat, graupel, cld_amt, sgs_tke
-  integer  liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol
+  integer  liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol, ice_rad_ref, ice_liq_mass
   integer :: is,  ie,  js,  je
 
   is  = Atm%bd%is
@@ -2779,6 +2779,8 @@ contains
      ice_rim_mass = get_tracer_index(MODEL_ATMOS, 'ice_rim_mass')
      ice_wat_num = get_tracer_index(MODEL_ATMOS, 'ice_wat_num')
      ice_wat_vol = get_tracer_index(MODEL_ATMOS, 'ice_wat_vol')
+     ice_rad_ref = get_tracer_index(MODEL_ATMOS, 'ice_rad_ref')
+     ice_liq_mass = get_tracer_index(MODEL_ATMOS, 'ice_liq_mass')
   endif
   cld_amt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
   o3mr    = get_tracer_index(MODEL_ATMOS, 'o3mr')
@@ -2800,6 +2802,8 @@ contains
        print *, 'ice_rim_mass = ', ice_rim_mass
        print *, 'ice_wat_num  = ', ice_wat_num 
        print *, 'ice_wat_vol  = ', ice_wat_vol 
+       print *, 'ice_rad_ref  = ', ice_rad_ref 
+       print *, 'ice_liq_mass = ', ice_liq_mass 
     endif
     print *, 'o3mr = ', o3mr
     print *, 'sgs_tke = ', sgs_tke
@@ -2819,7 +2823,7 @@ contains
 !$OMP parallel do default(none) &
 !$OMP             shared(sphum,o3mr,liq_wat,rainwat,ice_wat,snowwat,graupel,source_fv3gfs,&
 !$OMP                    cld_amt,ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,Atm,z500,t_in,zvir,&
-!$OMP                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol) &
+!$OMP                    liq_wat_num,rainwat_num,ice_rim_mass,ice_wat_num,ice_wat_vol,ice_rad_ref,ice_liq_mass) &
 !$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
 
   do 5000 j=js,je
@@ -3070,6 +3074,8 @@ contains
            Atm%q(i,j,k,ice_rim_mass) = 0.0
            Atm%q(i,j,k,ice_wat_num) = 0.0
            Atm%q(i,j,k,ice_wat_vol) = 0.0
+           Atm%q(i,j,k,ice_rad_ref) = 0.0
+           Atm%q(i,j,k,ice_liq_mass) = 0.0
         enddo
      enddo
   endif

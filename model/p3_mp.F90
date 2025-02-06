@@ -111,9 +111,9 @@
  ! physical and mathematical constants
  real           :: rhosur,rhosui,ar,br,f1r,f2r,ecr,rhow,kr,kc,bimm,aimm,rin,mi0,nccnst,  &
                    eci,eri,bcn,cpw,e0,cons1,cons2,cons3,cons4,cons5,cons6,cons7,cons8,   &
-                   inv_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,inv_cp,mw,osm,   &
+                   inv_rhow,qsmall,nsmall,bsmall,zsmall,cp,cv,g,rd,rv,ep_2,inv_cp,mw,osm,&
                    vi,epsm,rhoa,map,ma,rr,bact,inv_rm1,inv_rm2,sig1,nanew1,f11,f21,sig2, &
-                   zvir,nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,             &
+                   zvir,nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,cvv,cpi,     &
                    rho_rimeMax,inv_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,       &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM
 
@@ -248,6 +248,8 @@
  g      = 9.80665 ! was 9.816, LJZ
  rd     = 287.05 ! was 287.15, LJZ
  rv     = 461.50 ! was 461.51, LJZ
+ cv     = cp-rd
+ cvv    = 3.*rv
  ep_2   = 0.622
  rhosur = 100000./(rd*273.15)
  rhosui = 60000./(rd*253.15)
@@ -258,6 +260,7 @@
  ecr    = 1.
  rhow   = 1000.
  cpw    = 4218.
+ cpi    = 2106.
  zvir   = rv*inv_cp-1
  inv_rhow = 1./rhow  !inverse of (max.) density of liquid water
  mu_r_constant = 0.  !fixed shape parameter for mu_r
@@ -1738,8 +1741,8 @@ END subroutine p3_init
 !==================================================================================================!
 
 subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,nc,qr,nr, &
-                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,cldfrac,prt_liq, &
-                              prt_sol,diag_Zet,diag_effc,te)
+                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1, &
+                              cldfrac,prt_liq,prt_sol,diag_Zet,diag_effc,te)
 
 !------------------------------------------------------------------------------------------!
 ! This wrapper subroutine is the main SHiELD interface with the P3 microphysics scheme.    !
@@ -1771,6 +1774,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, intent(inout), dimension(ni,nk)  :: nitot_1               ! ice   specific ratio, number          #  kg-1
  real, intent(inout), dimension(ni,nk)  :: birim_1               ! ice   specific ratio, volume          m3 kg-1
  real, intent(inout), dimension(ni,nk)  :: diag_effi_1           ! ice   effective radius, (cat 1)       m
+ real, intent(inout), dimension(ni,nk)  :: zitot_1               ! ice   specific ratio, reflectivity    m^6 kg-1
+ real, intent(inout), dimension(ni,nk)  :: qiliq_1               ! ice   specific ratio, mass (liquid)   kg kg-1
 
  !real, dimension(:,:), pointer, contiguous  :: qitot_2           ! ice   specific ratio, mass (total)    kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: qirim_2           ! ice   specific ratio, mass (rime)     kg kg-1
@@ -1829,9 +1834,6 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, dimension(ni,n_diag_2d)    :: diag_2d      ! user-defined 2D diagnostic fields
  real, dimension(ni,nk,n_diag_3d) :: diag_3d      ! user-defined 3D diagnostic fields
 
- real, dimension(ni,nk)  :: zitot_1               ! ice   specific ratio, reflectivity    m^6 kg-1
- real, dimension(ni,nk)  :: qiliq_1               ! ice   specific ratio, mass (liquid)   kg kg-1
-
  real, dimension(ni)     :: diag_hcb              ! height of cloud base                m
  real, dimension(ni)     :: diag_hsn              ! height of snow level                m
  real, dimension(ni,nk)  :: diag_vis              ! visibility (total)                  m
@@ -1865,6 +1867,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, dimension(ni,nk,n_iceCat)  :: diag_rhoi  ! bulk density, ice                       kg m-3 (returned but not used)
  real, dimension(ni,nk,n_iceCat)  :: diag_dhmax ! maximum hail size, ice                  m
 
+ real, dimension(ni,nk)  :: ta                  ! true temperature                        K
  real, dimension(ni,nk)  :: theta_m             ! potential temperature (previous step)   K
  real, dimension(ni,nk)  :: qvapm               ! qv (previous step)                      kg kg-1
  real, dimension(ni,nk)  :: qvapm1              ! qv (specific previous step)             kg kg-1
@@ -1879,6 +1882,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, dimension(ni,nk)  :: totmass             ! total mass specific/ratio t*            kg kg-1
  real, dimension(ni,nk)  :: totmass_mom         ! totmass on momentum levels              kg kg-1
  real, dimension(ni,nk)  :: inv_totmass         ! total mass specific/ratio t*            kg kg-1
+ real, dimension(ni,nk)  :: c_moist             ! moist heat capacity                     J kg-1 K-1
 
  real, dimension(ni,nk,n_qiType) :: qi_type     ! diagnostic precipitation types
 
@@ -1906,19 +1910,19 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
    !log_trplMomI = associated(zitot_1)
    !log_liqFrac  = associated(qiliq_1)
-   log_trplMomI = .false.
-   log_liqFrac = .false.
+   log_trplMomI = trplMomI
+   log_liqFrac = liqfrac
 
    !compute time step and number of steps for substepping
    n_substep = int((dt-0.1)/max(0.1,dt_max)) + 1
    dt_mp = dt/float(n_substep)
 
    ! convert virtual temperature to temperature
-   temp = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
+   ta = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
 
    do k = 1,nk
       do i = 1,ni
-         te(i,k) = -mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(temp(i,k)),delp(i,k),.true.)*g
+         te(i,k) = -mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(ta(i,k)),delp(i,k),.true.)*g
       enddo
    enddo
 
@@ -1983,7 +1987,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
   !air pressure, layer-centered height, and layer thickness:
    do k = kbot,ktop,kdir
-      pres(:,k)= -delp(:,k)/(g*delz(:,k))*rd*temp(:,k)
+      pres(:,k)= -delp(:,k)/(g*delz(:,k))*rd*ta(:,k)
       DZ(:,k) = -delz(:,k)
    enddo
    hgtt(:,kbot) = -delz(:,kbot)
@@ -2047,13 +2051,13 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
       snd_ave(:)  = 0.
    endif
 
-   tmparr_ik = (1.e+5/pres)**(rd*inv_cp)  !for optimization of calc of theta, temp
+   tmparr_ik = (1.e+5/pres)**(rd*inv_cp)  !for optimization of calc of theta, ta
 
    substep_loop: do i_substep = 1, n_substep
 
      !convert to potential temperature:
      qvapm   = qvap
-     theta   = temp*tmparr_ik
+     theta   = ta*tmparr_ik
      theta_m = theta
 
      if (.not. log_trplMomI)  zitot = 0.  !not used, but avoids passing uninialized values
@@ -2076,7 +2080,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
       if (global_status /= STATUS_OK) stop
 
      !convert back to temperature:
-      temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**(rd*inv_cp)
+      ta = theta/tmparr_ik    !i.e.: ta = theta*(pres*1.e-5)**(rd*inv_cp)
 
       if (n_substep > 1) then
          prt_liq_ave(:) = prt_liq_ave(:) + prt_liq(:)
@@ -2203,8 +2207,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
     !supercooled LWC:
       do k = 1,nk
-         if (temp(i,k)<273.15) then
-            tmp1 = pres(i,k)/(287.15*temp(i,k))  !air density
+         if (ta(i,k)<273.15) then
+            tmp1 = pres(i,k)/(287.15*ta(i,k))  !air density
             diag_slw(i,k) = tmp1*(qc(i,k)+qr(i,k))
          else
             diag_slw(i,k) = 0.
@@ -2274,14 +2278,18 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
    !   endif
    !endif
 
-   do k = 1,nk
-      do i = 1,ni
-         te(i,k) = te(i,k)+mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(temp(i,k)),delp(i,k),.true.)*g
-      enddo
-   enddo
+   c_moist = (1-(qvap+qc+qr+qitot_1))*cv+qvap*cvv+(qc+qr)*cpw+qitot_1*cpi
 
    ! convert temperature to virtual temperature
-   temp = temp*((1.+zvir*qvap)*(1-qc-qr-qitot_1))
+   temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))-temp)*cp/c_moist
+
+   ta = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
+
+   do k = 1,nk
+      do i = 1,ni
+         te(i,k) = te(i,k)+mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(ta(i,k)),delp(i,k),.true.)*g
+      enddo
+   enddo
 
    ! Compute tendencies and reset state
    iwc(:,:) =  qitot_1(:,:)

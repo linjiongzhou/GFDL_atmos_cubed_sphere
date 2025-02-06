@@ -115,7 +115,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
     integer :: i, j, k, m, kmp, sphum, liq_wat, ice_wat
     integer :: rainwat, snowwat, graupel, cld_amt, ccn_cm3, cin_cm3, aerosol
-    integer :: liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol, ice_eff_rad
+    integer :: liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol, ice_rad_ref, ice_liq_mass
     integer :: k_con, k_cappa
 
     real :: rrg
@@ -157,7 +157,8 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     ice_rim_mass = get_tracer_index (model_atmos, 'ice_rim_mass')
     ice_wat_num = get_tracer_index (model_atmos, 'ice_wat_num')
     ice_wat_vol = get_tracer_index (model_atmos, 'ice_wat_vol')
-    ice_eff_rad = get_tracer_index (model_atmos, 'ice_eff_rad')
+    ice_rad_ref = get_tracer_index (model_atmos, 'ice_rad_ref')
+    ice_liq_mass = get_tracer_index (model_atmos, 'ice_liq_mass')
 
     rrg = - rdgas / grav
 
@@ -857,7 +858,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 !$OMP                                    aerosol, adj_mass_vmr, conv_vmr_mmr, nq, a_step, &
 !$OMP                                    te_err, tw_err, k_con, k_cappa, thermostruct, &
 !$OMP                                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, &
-!$OMP                                    ice_wat_vol, ice_eff_rad) &
+!$OMP                                    ice_wat_vol, ice_rad_ref, ice_liq_mass) &
 !$OMP                           private (dz, wa, pe, peln, adj_vmr, qliq, qsol, &
 !$OMP                                    tz, wz, dte, te_beg, tw_beg, te_b_beg, tw_b_beg, &
 !$OMP                                    te_end, tw_end, te_b_end, tw_b_end, te_loss)
@@ -915,6 +916,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                               q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, ice_wat), &
                               q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_num), &
                               q (is:ie, j, kmp:km, ice_wat_vol), inline_mp%effi (is:ie, j, kmp:km), &
+                              q (is:ie, j, kmp:km, ice_rad_ref), q (is:ie, j, kmp:km, ice_liq_mass), &
                               q (is:ie, j, kmp:km, cld_amt), inline_mp%prer (is:ie, j), &
                               inline_mp%pres (is:ie, j), inline_mp%zet (is:ie, j, kmp:km), &
                               inline_mp%effc (is:ie, j, kmp:km), te (is:ie, j, kmp:km))
