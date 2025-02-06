@@ -38,7 +38,7 @@
 #endif
 
  use fms_mod, only: check_nml_error
- use gfdl_mp_mod, only: mqs
+ use gfdl_mp_mod, only: mqs, mte
 
  implicit none
 
@@ -218,7 +218,7 @@
  n_iceCat = nCat !used for GEM interface
 
 ! mathematical/optimization constants
- pi    = 3.14159265
+ pi    = 4.0 * atan (1.0) ! was 3.14159265, LJZ
 !pi    = acos(-1.)
  thrd  = 1./3.
  sxth  = 1./6.
@@ -243,11 +243,11 @@
  kr     = 5.78e+3
 
 ! physical constants
- cp     = 1005.
+ cp     = 1004.6 ! was 1005., LJZ
  inv_cp = 1./cp
- g      = 9.816
- rd     = 287.15
- rv     = 461.51
+ g      = 9.80665 ! was 9.816, LJZ
+ rd     = 287.05 ! was 287.15, LJZ
+ rv     = 461.50 ! was 461.51, LJZ
  ep_2   = 0.622
  rhosur = 100000./(rd*273.15)
  rhosui = 60000./(rd*253.15)
@@ -1490,8 +1490,7 @@ END subroutine p3_init
    tmparr_ik = (1.e+5/pres)**(rd*inv_cp)  !for optimization of calc of theta, temp
 
    substep_loop: do i_substep = 1, n_substep
-
-     !convert to potential temperature:
+!convert to potential temperature:
      qvapm   = qvap
      qvap    = qvap+qqdelta
      theta_m = temp*tmparr_ik
@@ -1915,10 +1914,12 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
    dt_mp = dt/float(n_substep)
 
    ! convert virtual temperature to temperature
-   temp = temp/(1.+zvir*qvap)
+   temp = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
 
    do k = 1,nk
-      te(:,k) = -cp*temp(:,k)*delp(:,k)
+      do i = 1,ni
+         te(i,k) = -mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(temp(i,k)),delp(i,k),.true.)*g
+      enddo
    enddo
 
    ! Transform every specific mass to mixing ratio
@@ -2274,11 +2275,13 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
    !endif
 
    do k = 1,nk
-      te(:,k) = te(:,k)+cp*temp(:,k)*delp(:,k)
+      do i = 1,ni
+         te(i,k) = te(i,k)+mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(temp(i,k)),delp(i,k),.true.)*g
+      enddo
    enddo
 
    ! convert temperature to virtual temperature
-   temp = temp*(1.+zvir*qvap)
+   temp = temp*((1.+zvir*qvap)*(1-qc-qr-qitot_1))
 
    ! Compute tendencies and reset state
    iwc(:,:) =  qitot_1(:,:)
@@ -2928,7 +2931,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
     if (debug_on) then
        location_ind = 100
-       force_abort  =.false.
+       force_abort  = debug_ABORT
        if (log_3momentIce) then
           call check_values(qv(i,:),T(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &
                  qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,force_abort,location_ind,   &
@@ -3056,7 +3059,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
     if (debug_on) then
        location_ind = 200
-       force_abort  =.false.
+       force_abort  = debug_ABORT
        tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
        if (log_3momentIce) then
           call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &
@@ -5741,7 +5744,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 !
    ! if (debug_on) then
    !    location_ind = 600
-   !    force_abort  = .false.
+   !    force_abort  = debug_ABORT
    !    tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
    !    if (log_3momentIce) then
    !       call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &
@@ -5992,7 +5995,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 !
 !    if (debug_on) then
 !       location_ind = 700
-!       force_abort  = .false.
+!       force_abort  = debug_ABORT
 !       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
 !       if (log_3momentIce) then
 !          call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &

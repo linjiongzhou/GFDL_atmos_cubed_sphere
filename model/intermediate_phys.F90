@@ -858,32 +858,17 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 !$OMP                                    te_err, tw_err, k_con, k_cappa, thermostruct, &
 !$OMP                                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, &
 !$OMP                                    ice_wat_vol, ice_eff_rad) &
-!$OMP                           private (q2, q3, dz, wa, pe, peln, adj_vmr, qliq, qsol, &
+!$OMP                           private (dz, wa, pe, peln, adj_vmr, qliq, qsol, &
 !$OMP                                    tz, wz, dte, te_beg, tw_beg, te_b_beg, tw_b_beg, &
 !$OMP                                    te_end, tw_end, te_b_end, tw_b_end, te_loss)
 
         do j = js, je
-
-            ! aerosol
-            if (aerosol .gt. 0) then
-                q2 (is:ie, kmp:km) = q (is:ie, j, kmp:km, aerosol)
-            elseif (ccn_cm3 .gt. 0) then
-                q2 (is:ie, kmp:km) = q (is:ie, j, kmp:km, ccn_cm3)
-            else
-                q2 (is:ie, kmp:km) = 0.0
-            endif
-            if (cin_cm3 .gt. 0) then
-                q3 (is:ie, kmp:km) = q (is:ie, j, kmp:km, cin_cm3)
-            else
-                q3 (is:ie, kmp:km) = 0.0
-            endif
 
             ! note: ua and va are A-grid variables
             ! note: pt is virtual temperature at this point
             ! note: w is vertical velocity (m/s)
             ! note: delz is negative, delp is positive, delz doesn't change in constant volume situation
             ! note: hs is geopotential height (m^2/s^2)
-            ! note: the unit of q2 or q3 is #/cm^3
             ! note: the unit of area is m^2
             ! note: the unit of prew, prer, prei, pres, preg is mm/day
             ! note: the unit of prefluxw, prefluxr, prefluxi, prefluxs, prefluxg is mm/day
