@@ -1844,46 +1844,55 @@ contains
        if(id_ps > 0) used=send_data(id_ps, Atm(n)%ps(isc:iec,jsc:jec), Time)
 
        if (Atm(n)%flagstruct%do_inline_mp) then
-          if(id_pret > 0) used=send_data(id_pret, &
-             Atm(n)%inline_mp%prew(isc:iec,jsc:jec)+&
-             Atm(n)%inline_mp%prer(isc:iec,jsc:jec)+&
-             Atm(n)%inline_mp%prei(isc:iec,jsc:jec)+&
-             Atm(n)%inline_mp%pres(isc:iec,jsc:jec)+&
-             Atm(n)%inline_mp%preg(isc:iec,jsc:jec), Time)
-          if(id_prew > 0) used=send_data(id_prew, Atm(n)%inline_mp%prew(isc:iec,jsc:jec), Time)
-          if(id_prer > 0) used=send_data(id_prer, Atm(n)%inline_mp%prer(isc:iec,jsc:jec), Time)
-          if(id_prei > 0) used=send_data(id_prei, Atm(n)%inline_mp%prei(isc:iec,jsc:jec), Time)
-          if(id_pres > 0) used=send_data(id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
-          if(id_preg > 0) used=send_data(id_preg, Atm(n)%inline_mp%preg(isc:iec,jsc:jec), Time)
+          if (Atm(n)%flagstruct%mp_flag .eq. 2) then
+             if(id_pret > 0) used=send_data(id_pret, &
+                Atm(n)%inline_mp%prew(isc:iec,jsc:jec)+&
+                Atm(n)%inline_mp%prer(isc:iec,jsc:jec)+&
+                Atm(n)%inline_mp%prei(isc:iec,jsc:jec)+&
+                Atm(n)%inline_mp%pres(isc:iec,jsc:jec)+&
+                Atm(n)%inline_mp%preg(isc:iec,jsc:jec), Time)
+             if(id_prew > 0) used=send_data(id_prew, Atm(n)%inline_mp%prew(isc:iec,jsc:jec), Time)
+             if(id_prer > 0) used=send_data(id_prer, Atm(n)%inline_mp%prer(isc:iec,jsc:jec), Time)
+             if(id_prei > 0) used=send_data(id_prei, Atm(n)%inline_mp%prei(isc:iec,jsc:jec), Time)
+             if(id_pres > 0) used=send_data(id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
+             if(id_preg > 0) used=send_data(id_preg, Atm(n)%inline_mp%preg(isc:iec,jsc:jec), Time)
+             if(id_mppcw > 0) used=send_data(id_mppcw, Atm(n)%inline_mp%mppcw(isc:iec,jsc:jec), Time)
+             if(id_mppew > 0) used=send_data(id_mppew, Atm(n)%inline_mp%mppew(isc:iec,jsc:jec), Time)
+             if(id_mppe1 > 0) used=send_data(id_mppe1, Atm(n)%inline_mp%mppe1(isc:iec,jsc:jec), Time)
+             if(id_mpper > 0) used=send_data(id_mpper, Atm(n)%inline_mp%mpper(isc:iec,jsc:jec), Time)
+             if(id_mppdi > 0) used=send_data(id_mppdi, Atm(n)%inline_mp%mppdi(isc:iec,jsc:jec), Time)
+             if(id_mppd1 > 0) used=send_data(id_mppd1, Atm(n)%inline_mp%mppd1(isc:iec,jsc:jec), Time)
+             if(id_mppds > 0) used=send_data(id_mppds, Atm(n)%inline_mp%mppds(isc:iec,jsc:jec), Time)
+             if(id_mppdg > 0) used=send_data(id_mppdg, Atm(n)%inline_mp%mppdg(isc:iec,jsc:jec), Time)
+             if(id_mppsi > 0) used=send_data(id_mppsi, Atm(n)%inline_mp%mppsi(isc:iec,jsc:jec), Time)
+             if(id_mpps1 > 0) used=send_data(id_mpps1, Atm(n)%inline_mp%mpps1(isc:iec,jsc:jec), Time)
+             if(id_mppss > 0) used=send_data(id_mppss, Atm(n)%inline_mp%mppss(isc:iec,jsc:jec), Time)
+             if(id_mppsg > 0) used=send_data(id_mppsg, Atm(n)%inline_mp%mppsg(isc:iec,jsc:jec), Time)
+             if(id_mppfw > 0) used=send_data(id_mppfw, Atm(n)%inline_mp%mppfw(isc:iec,jsc:jec), Time)
+             if(id_mppfr > 0) used=send_data(id_mppfr, Atm(n)%inline_mp%mppfr(isc:iec,jsc:jec), Time)
+             if(id_mppmi > 0) used=send_data(id_mppmi, Atm(n)%inline_mp%mppmi(isc:iec,jsc:jec), Time)
+             if(id_mppms > 0) used=send_data(id_mppms, Atm(n)%inline_mp%mppms(isc:iec,jsc:jec), Time)
+             if(id_mppmg > 0) used=send_data(id_mppmg, Atm(n)%inline_mp%mppmg(isc:iec,jsc:jec), Time)
+             if(id_mppm1 > 0) used=send_data(id_mppm1, Atm(n)%inline_mp%mppm1(isc:iec,jsc:jec), Time)
+             if(id_mppm2 > 0) used=send_data(id_mppm2, Atm(n)%inline_mp%mppm2(isc:iec,jsc:jec), Time)
+             if(id_mppm3 > 0) used=send_data(id_mppm3, Atm(n)%inline_mp%mppm3(isc:iec,jsc:jec), Time)
+             if(id_mppar > 0) used=send_data(id_mppar, Atm(n)%inline_mp%mppar(isc:iec,jsc:jec), Time)
+             if(id_mppas > 0) used=send_data(id_mppas, Atm(n)%inline_mp%mppas(isc:iec,jsc:jec), Time)
+             if(id_mppag > 0) used=send_data(id_mppag, Atm(n)%inline_mp%mppag(isc:iec,jsc:jec), Time)
+             if(id_mpprs > 0) used=send_data(id_mpprs, Atm(n)%inline_mp%mpprs(isc:iec,jsc:jec), Time)
+             if(id_mpprg > 0) used=send_data(id_mpprg, Atm(n)%inline_mp%mpprg(isc:iec,jsc:jec), Time)
+             if(id_mppxr > 0) used=send_data(id_mppxr, Atm(n)%inline_mp%mppxr(isc:iec,jsc:jec), Time)
+             if(id_mppxs > 0) used=send_data(id_mppxs, Atm(n)%inline_mp%mppxs(isc:iec,jsc:jec), Time)
+             if(id_mppxg > 0) used=send_data(id_mppxg, Atm(n)%inline_mp%mppxg(isc:iec,jsc:jec), Time)
+          endif
+          if (Atm(n)%flagstruct%mp_flag .eq. 7) then
+             if(id_pret > 0) used=send_data(id_pret, &
+                Atm(n)%inline_mp%prer(isc:iec,jsc:jec)+&
+                Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
+             if(id_prer > 0) used=send_data(id_prer, Atm(n)%inline_mp%prer(isc:iec,jsc:jec), Time)
+             if(id_pres > 0) used=send_data(id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
+          endif
        endif
-       if(id_mppcw > 0) used=send_data(id_mppcw, Atm(n)%inline_mp%mppcw(isc:iec,jsc:jec), Time)
-       if(id_mppew > 0) used=send_data(id_mppew, Atm(n)%inline_mp%mppew(isc:iec,jsc:jec), Time)
-       if(id_mppe1 > 0) used=send_data(id_mppe1, Atm(n)%inline_mp%mppe1(isc:iec,jsc:jec), Time)
-       if(id_mpper > 0) used=send_data(id_mpper, Atm(n)%inline_mp%mpper(isc:iec,jsc:jec), Time)
-       if(id_mppdi > 0) used=send_data(id_mppdi, Atm(n)%inline_mp%mppdi(isc:iec,jsc:jec), Time)
-       if(id_mppd1 > 0) used=send_data(id_mppd1, Atm(n)%inline_mp%mppd1(isc:iec,jsc:jec), Time)
-       if(id_mppds > 0) used=send_data(id_mppds, Atm(n)%inline_mp%mppds(isc:iec,jsc:jec), Time)
-       if(id_mppdg > 0) used=send_data(id_mppdg, Atm(n)%inline_mp%mppdg(isc:iec,jsc:jec), Time)
-       if(id_mppsi > 0) used=send_data(id_mppsi, Atm(n)%inline_mp%mppsi(isc:iec,jsc:jec), Time)
-       if(id_mpps1 > 0) used=send_data(id_mpps1, Atm(n)%inline_mp%mpps1(isc:iec,jsc:jec), Time)
-       if(id_mppss > 0) used=send_data(id_mppss, Atm(n)%inline_mp%mppss(isc:iec,jsc:jec), Time)
-       if(id_mppsg > 0) used=send_data(id_mppsg, Atm(n)%inline_mp%mppsg(isc:iec,jsc:jec), Time)
-       if(id_mppfw > 0) used=send_data(id_mppfw, Atm(n)%inline_mp%mppfw(isc:iec,jsc:jec), Time)
-       if(id_mppfr > 0) used=send_data(id_mppfr, Atm(n)%inline_mp%mppfr(isc:iec,jsc:jec), Time)
-       if(id_mppmi > 0) used=send_data(id_mppmi, Atm(n)%inline_mp%mppmi(isc:iec,jsc:jec), Time)
-       if(id_mppms > 0) used=send_data(id_mppms, Atm(n)%inline_mp%mppms(isc:iec,jsc:jec), Time)
-       if(id_mppmg > 0) used=send_data(id_mppmg, Atm(n)%inline_mp%mppmg(isc:iec,jsc:jec), Time)
-       if(id_mppm1 > 0) used=send_data(id_mppm1, Atm(n)%inline_mp%mppm1(isc:iec,jsc:jec), Time)
-       if(id_mppm2 > 0) used=send_data(id_mppm2, Atm(n)%inline_mp%mppm2(isc:iec,jsc:jec), Time)
-       if(id_mppm3 > 0) used=send_data(id_mppm3, Atm(n)%inline_mp%mppm3(isc:iec,jsc:jec), Time)
-       if(id_mppar > 0) used=send_data(id_mppar, Atm(n)%inline_mp%mppar(isc:iec,jsc:jec), Time)
-       if(id_mppas > 0) used=send_data(id_mppas, Atm(n)%inline_mp%mppas(isc:iec,jsc:jec), Time)
-       if(id_mppag > 0) used=send_data(id_mppag, Atm(n)%inline_mp%mppag(isc:iec,jsc:jec), Time)
-       if(id_mpprs > 0) used=send_data(id_mpprs, Atm(n)%inline_mp%mpprs(isc:iec,jsc:jec), Time)
-       if(id_mpprg > 0) used=send_data(id_mpprg, Atm(n)%inline_mp%mpprg(isc:iec,jsc:jec), Time)
-       if(id_mppxr > 0) used=send_data(id_mppxr, Atm(n)%inline_mp%mppxr(isc:iec,jsc:jec), Time)
-       if(id_mppxs > 0) used=send_data(id_mppxs, Atm(n)%inline_mp%mppxs(isc:iec,jsc:jec), Time)
-       if(id_mppxg > 0) used=send_data(id_mppxg, Atm(n)%inline_mp%mppxg(isc:iec,jsc:jec), Time)
 
        if (id_qcw > 0 .and. id_qcr > 0 .and. id_qci > 0 .and. id_qcs > 0 .and. id_qcg > 0 .and. &
            id_rew > 0 .and. id_rer > 0 .and. id_rei > 0 .and. id_res > 0 .and. id_reg > 0 .and. id_cld > 0) then
