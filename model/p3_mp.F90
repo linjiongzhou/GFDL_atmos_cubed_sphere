@@ -1742,7 +1742,7 @@ END subroutine p3_init
 
 subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,nc,qr,nr, &
                               qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1, &
-                              cldfrac,prt_liq,prt_sol,diag_Zet,diag_effc,te)
+                              cldfrac,rain,snow,diag_Zet,diag_effc,te)
 
 !------------------------------------------------------------------------------------------!
 ! This wrapper subroutine is the main SHiELD interface with the P3 microphysics scheme.    !
@@ -1806,8 +1806,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, intent(inout), dimension(ni,nk)  :: delp                  ! layer pressure thickness            Pa
  real, intent(in),    dimension(ni,nk)  :: delz                  ! layer height thickness              m
  real, intent(in),    dimension(ni,nk)  :: ww                    ! vertical motion                     m s-1
- real, intent(out),   dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    mm day-1
- real, intent(out),   dimension(ni)     :: prt_sol               ! precipitation rate, total solid     mm day-1
+ real, intent(inout), dimension(ni)     :: rain                  ! precipitation rate, total liquid    mm day-1
+ real, intent(inout), dimension(ni)     :: snow                  ! precipitation rate, total solid     mm day-1
  real, intent(out),   dimension(ni,nk)  :: diag_Zet              ! equivalent reflectivity, 3D         dBZ
  real, intent(out),   dimension(ni,nk)  :: diag_effc             ! effective radius, cloud             m
 
@@ -1821,6 +1821,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  integer, parameter :: n_diag_2d = 2              ! number of 2D diagnostic fields      -
  integer, parameter :: n_diag_3d = 2              ! number of 3D diagnostic fields      -
 
+ real, dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    mm day-1
+ real, dimension(ni)     :: prt_sol               ! precipitation rate, total solid     mm day-1
  real, dimension(ni)     :: prt_drzl              ! precipitation rate, drizzle         m s-1
  real, dimension(ni)     :: prt_rain              ! precipitation rate, rain            m s-1
  real, dimension(ni)     :: prt_crys              ! precipitation rate, ice cystals     m s-1
@@ -2177,8 +2179,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
   !convert precip rates from volume flux (m s-1) to mass flux (kg m-2 s-1): * 1000
   !convert precip rates from m s-1 to mm day-1: * 1000 * 86400
   ! (since they are computed back to liq-eqv volume flux in s/r 'ccdiagnostics.F90')
-   prt_liq = prt_liq*1000.*86400.
-   prt_sol = prt_sol*1000.*86400.
+   rain = rain+prt_liq*1000.*86400.
+   snow = snow+prt_sol*1000.*86400.
 
   !--- diagnostics:
    diag_hcb(:) = -1.
