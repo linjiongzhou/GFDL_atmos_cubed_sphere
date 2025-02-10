@@ -294,7 +294,7 @@ contains
 
    call gfdl_mp_init(input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
    if (Atm(mygrid)%flagstruct%mp_flag .eq. 7) then
-     call p3_init(input_nml_file, stdlog(), "INPUT", abort_on_err=.true., dowr=is_master())
+     call p3_init(input_nml_file, stdlog(), "INPUT", abort_on_err=.true., model='SHiELD', dowr=is_master())
    endif
 
    call timing_on('FV_RESTART')

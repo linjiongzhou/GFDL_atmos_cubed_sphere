@@ -619,7 +619,7 @@ contains
                      ng, ua, va, omga, dp1, ws, fill, reproduce_sum,             &
                      ptop, ak, bk, pfull, gridstruct, thermostruct, domain,   &
                      flagstruct%do_sat_adj, hydrostatic, &
-                     hybrid_z, a_step,    &
+                     hybrid_z, a_step, flagstruct%warm_start,    &
                      flagstruct%adiabatic, do_adiabatic_init, flagstruct%do_inline_mp, &
                      inline_mp, bd, flagstruct%fv_debug, &
                      flagstruct%do_fast_phys, flagstruct%do_intermediate_phys, &

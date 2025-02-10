@@ -58,7 +58,7 @@ module intermediate_phys_mod
 contains
 
 subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, &
-               mdt, consv, akap, ptop, pfull, hs, te0_2d, a_step, u, v, w, pt, &
+               mdt, consv, akap, ptop, pfull, hs, te0_2d, a_step, warm_start, u, v, w, pt, &
                delp, delz, q_con, cappa, q, pkz, zvir, te_err, tw_err, inline_mp, mp_flag, &
                gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
                do_inline_mp, do_sat_adj, last_step, do_fast_phys, consv_checker, adj_mass_vmr)
@@ -72,7 +72,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     integer, intent (in) :: is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, mp_flag, a_step
 
     logical, intent (in) :: hydrostatic, do_adiabatic_init, do_inline_mp, consv_checker
-    logical, intent (in) :: do_sat_adj, last_step, do_fast_phys
+    logical, intent (in) :: do_sat_adj, last_step, do_fast_phys, warm_start
     integer, intent (in) :: adj_mass_vmr
 
     real, intent (in) :: consv, mdt, akap, zvir, ptop, te_err, tw_err
@@ -851,11 +851,11 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
 !$OMP parallel do default (none) shared (is, ie, js, je, isd, jsd, kmp, km, ua, va, &
 !$OMP                                    te, delp, hydrostatic, hs, pt, delz, ptop, &
-!$OMP                                    rainwat, liq_wat, ice_wat, q_con, &
+!$OMP                                    rainwat, liq_wat, ice_wat, q_con, a_step, &
 !$OMP                                    sphum, w, pkz, last_step, consv, te0_2d, zvir, &
 !$OMP                                    gridstruct, q, mdt, cld_amt, cappa, rrg, akap, &
 !$OMP                                    ccn_cm3, cin_cm3, inline_mp, do_inline_mp, &
-!$OMP                                    aerosol, adj_mass_vmr, conv_vmr_mmr, nq, a_step, &
+!$OMP                                    aerosol, adj_mass_vmr, conv_vmr_mmr, nq, warm_start, &
 !$OMP                                    te_err, tw_err, k_con, k_cappa, thermostruct, &
 !$OMP                                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, &
 !$OMP                                    ice_wat_vol, ice_rad_ref, ice_liq_mass) &
@@ -911,7 +911,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             ! P3 cloud microphysics main program
             call mp_p3_wrapper_shield(q (is:ie, j, kmp:km, sphum), pt (is:ie, j, kmp:km), abs (mdt), &
                               abs (mdt), wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), &
-                              a_step, ie - is + 1, km - kmp + 1, q (is:ie, j, kmp:km, liq_wat), &
+                              a_step, warm_start, ie - is + 1, km - kmp + 1, q (is:ie, j, kmp:km, liq_wat), &
                               q (is:ie, j, kmp:km, liq_wat_num), q (is:ie, j, kmp:km, rainwat), &
                               q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, ice_wat), &
                               q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_num), &

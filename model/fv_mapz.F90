@@ -59,7 +59,7 @@ contains
                       akap, cappa, kord_mt, kord_wz, kord_tr, kord_tm, remap_te, peln, te0_2d,        &
                       ng, ua, va, omga, te, ws, fill, reproduce_sum,      &
                       ptop, ak, bk, pfull, gridstruct, thermostruct, domain, do_sat_adj, &
-                      hydrostatic, hybrid_z, a_step, adiabatic, do_adiabatic_init, &
+                      hydrostatic, hybrid_z, a_step, warm_start, adiabatic, do_adiabatic_init, &
                       do_inline_mp, inline_mp, bd, fv_debug, &
                       do_fast_phys, do_intermediate_phys, consv_checker, adj_mass_vmr)
 
@@ -85,6 +85,7 @@ contains
   integer, intent(in):: kord_tr(nq)           ! Mapping order for tracers
   integer, intent(in):: kord_tm               ! Mapping order for thermodynamics
   integer, intent(in):: a_step
+  logical, intent(in):: warm_start 
 
   real, intent(in):: consv                 ! factor for TE conservation
   real, intent(in):: zvir
@@ -776,7 +777,7 @@ contains
     if (do_intermediate_phys) then
         call timing_on('INTERMEDIATE_PHYS')
         call intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, &
-                 mdt, consv, akap, ptop, pfull, hs, te0_2d, a_step, u, &
+                 mdt, consv, akap, ptop, pfull, hs, te0_2d, a_step, warm_start, u, &
                  v, w, pt, delp, delz, q_con, cappa, q, pkz, zvir, te_err, tw_err, &
                  inline_mp, mp_flag, gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
                  do_inline_mp, do_sat_adj, last_step, do_fast_phys, consv_checker, adj_mass_vmr)

@@ -1740,9 +1740,9 @@ END subroutine p3_init
 
 !==================================================================================================!
 
-subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,nc,qr,nr, &
-                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1, &
-                              cldfrac,rain,snow,diag_Zet,diag_effc,te)
+subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,warm_start,ni,nk,qc,nc,qr,nr, &
+                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1,cldfrac, &
+                              rain,snow,diag_Zet,diag_effc,te)
 
 !------------------------------------------------------------------------------------------!
 ! This wrapper subroutine is the main SHiELD interface with the P3 microphysics scheme.    !
@@ -1759,8 +1759,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
  integer, intent(in)                    :: ni                    ! number of columns in slab           -
  integer, intent(in)                    :: nk                    ! number of vertical levels           -
-!integer, intent(in)                    :: n_iceCat              ! number of ice categories            -
  integer, intent(in)                    :: kount                 ! time step counter                   -
+ logical, intent(in)                    :: warm_start
 
  real, intent(in)                       :: dt                    ! model time step                     s
  real, intent(in)                       :: dt_max                ! maximum timestep for microphysics   s
@@ -1801,10 +1801,10 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  !real, dimension(:,:), pointer, contiguous  :: zitot_4           ! ice   specific ratio, reflectivity    m^6 kg-1
  !real, dimension(:,:), pointer, contiguous  :: qiliq_4           ! ice   specific ratio, mass (liquid)   kg kg-1
 
- real, intent(inout), dimension(ni,nk)  :: qvap                  ! vapor mixing ratio, mass           kg kg-1
- real, intent(inout), dimension(ni,nk)  :: temp                  ! temperature                         K
+ real, intent(inout), dimension(ni,nk)  :: qvap                  ! vapor mixing ratio, mass            kg kg-1
+ real, intent(inout), dimension(ni,nk)  :: temp                  ! virtual temperature                 K
  real, intent(inout), dimension(ni,nk)  :: delp                  ! layer pressure thickness            Pa
- real, intent(in),    dimension(ni,nk)  :: delz                  ! layer height thickness              m
+ real, intent(in),    dimension(ni,nk)  :: delz                  ! layer height thickness (negative)   m
  real, intent(in),    dimension(ni,nk)  :: ww                    ! vertical motion                     m s-1
  real, intent(inout), dimension(ni)     :: rain                  ! precipitation rate, total liquid    mm day-1
  real, intent(inout), dimension(ni)     :: snow                  ! precipitation rate, total solid     mm day-1
@@ -1832,7 +1832,6 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, dimension(ni)     :: prt_hail              ! precipitation rate, hail            m s-1
  real, dimension(ni)     :: prt_wsnow             ! precipitation rate, wet snow        m s-1
  real, dimension(ni)     :: prt_sndp              ! precipitation rate, unmelted snow   m s-1
- real, dimension(ni)     :: diag_Zec              ! equivalent reflectivity, col-max    dBZ
  real, dimension(ni,n_diag_2d)    :: diag_2d      ! user-defined 2D diagnostic fields
  real, dimension(ni,nk,n_diag_3d) :: diag_3d      ! user-defined 3D diagnostic fields
 
@@ -1872,7 +1871,6 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, dimension(ni,nk)  :: ta                  ! true temperature                        K
  real, dimension(ni,nk)  :: theta_m             ! potential temperature (previous step)   K
  real, dimension(ni,nk)  :: qvapm               ! qv (previous step)                      kg kg-1
- real, dimension(ni,nk)  :: qvapm1              ! qv (specific previous step)             kg kg-1
  real, dimension(ni,nk)  :: theta               ! potential temperature                   K
  real, dimension(ni,nk)  :: pres                ! pressure                                Pa
  real, dimension(ni,nk)  :: hgtc                ! layer-centered height                   m
@@ -1880,9 +1878,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, dimension(ni,nk)  :: DZ                  ! difference in height between levels     m
  real, dimension(ni,nk)  :: ssat                ! supersaturation
  real, dimension(ni,nk)  :: tmparr_ik           ! temporary array (for optimization)
- real, dimension(ni,nk)  :: iwc                 ! total ice water content
  real, dimension(ni,nk)  :: totmass             ! total mass specific/ratio t*            kg kg-1
- real, dimension(ni,nk)  :: totmass_mom         ! totmass on momentum levels              kg kg-1
  real, dimension(ni,nk)  :: inv_totmass         ! total mass specific/ratio t*            kg kg-1
  real, dimension(ni,nk)  :: c_moist             ! moist heat capacity                     J kg-1 K-1
 
@@ -1893,7 +1889,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real                    :: dt_mp                                               ! timestep used by microphsyics (for substepping)
  real                    :: tmp1
 
- integer                 :: i,k,ktop,kbot,kdir,i_strt,k_strt,i_substep,n_substep,tmpint1
+ integer                 :: i,k,ktop,kbot,kdir,i_strt,k_strt,i_substep,n_substep
 
  logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liqFrac
  logical, parameter      :: log_predictNc = .true.      ! temporary; to be put as SHiELD namelist
@@ -2076,7 +2072,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
                    diag_vis3 = diag_vis3,                                                       &
-                   diag_dhmax = diag_dhmax)
+                   diag_dhmax = diag_dhmax,                                                     &
+                   warm_start = warm_start)
 
 
       if (global_status /= STATUS_OK) stop
@@ -2188,9 +2185,6 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 
    do i = 1,ni
 
-    !composite (column-maximum) reflectivity:
-      diag_Zec(i) = maxval(diag_Zet(i,:))
-
     !diagnostic heights:
       log_tmp1 = .false.  !cloud base height found
       log_tmp2 = .false.  !snow level height found
@@ -2292,12 +2286,6 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
          te(i,k) = te(i,k)+mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(ta(i,k)),delp(i,k),.true.)*g
       enddo
    enddo
-
-   ! Compute tendencies and reset state
-   iwc(:,:) =  qitot_1(:,:)
-   !if (n_iceCat > 1) iwc(:,:) = iwc(:,:) + qitot_2(:,:)
-   !if (n_iceCat > 2) iwc(:,:) = iwc(:,:) + qitot_3(:,:)
-   !if (n_iceCat > 3) iwc(:,:) = iwc(:,:) + qitot_4(:,:)
 
    return
 
@@ -2506,7 +2494,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
                     scpf_on,scpf_pfrac,scpf_resfact,SCF_out,                              &
                     log_3momentIce,log_LiquidFrac,prt_drzl,prt_rain,prt_crys,prt_snow,    &
                     prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,qi_type,                &
-                    diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
+                    diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax,warm_start)
 
 !----------------------------------------------------------------------------------------!
 !                                                                                        !
@@ -2572,6 +2560,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  real, intent(out),   dimension(its:ite,kts:kte,n_diag_3d) :: diag_3d    ! user-defined 3D diagnostic fields
 
  integer, intent(in)                                  :: it         ! time step counter NOTE: starts at 1 for first time step
+ logical, intent(in), optional                        :: warm_start
 
  logical, intent(in)                                  :: log_3momentIce ! .T. for triple-moment ice
  logical, intent(in)                                  :: log_LiquidFrac ! .T. for prognostic liquid-fraction
@@ -2827,7 +2816,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  tmp1 = uzpl(1,1)    !avoids compiler warning for unused variable 'uzpl'
 
  ! direction of vertical leveling:
- if (trim(model)=='GEM' .or. trim(model)=='KIN1D') then
+ if (trim(model)=='GEM' .or. trim(model)=='KIN1D' .or. trim(model)=='SHiELD') then
     ktop = kts        !k of top level
     kbot = kte        !k of bottom level
     kdir = -1         !(k: 1=top, nk=bottom)
@@ -2969,15 +2958,28 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
        qvs(i,k)     = qv_sat(max(t_old(i,k),1.),pres(i,k),0)
        qvi(i,k)     = qv_sat(max(t_old(i,k),1.),pres(i,k),1)
 
-      ! if supersaturation is not predicted or during the first time step, then diagnose from qv and T (qvs)
-       if (.not.(log_predictSsat).or.it.le.1) then
-          ssat(i,k)    = qv_old(i,k)-qvs(i,k)
-          sup(i,k)     = qv_old(i,k)/qvs(i,k)-1.
-          supi(i,k)    = qv_old(i,k)/qvi(i,k)-1.
-      ! if supersaturation is predicted then diagnose sup and supi from ssat
-       else if ((log_predictSsat).and.it.gt.1) then
-          sup(i,k)     = ssat(i,k)/qvs(i,k)
-          supi(i,k)    = (ssat(i,k)+qvs(i,k)-qvi(i,k))/qvi(i,k)
+       if (present(warm_start)) then
+         ! if supersaturation is not predicted or during the first time step, then diagnose from qv and T (qvs)
+          if (.not.(log_predictSsat).or.(it.le.1.and.(.not.warm_start))) then
+             ssat(i,k)    = qv_old(i,k)-qvs(i,k)
+             sup(i,k)     = qv_old(i,k)/qvs(i,k)-1.
+             supi(i,k)    = qv_old(i,k)/qvi(i,k)-1.
+         ! if supersaturation is predicted then diagnose sup and supi from ssat
+          else if ((log_predictSsat).and.(it.gt.1.or.warm_start)) then
+             sup(i,k)     = ssat(i,k)/qvs(i,k)
+             supi(i,k)    = (ssat(i,k)+qvs(i,k)-qvi(i,k))/qvi(i,k)
+          endif
+       else
+         ! if supersaturation is not predicted or during the first time step, then diagnose from qv and T (qvs)
+          if (.not.(log_predictSsat).or.it.le.1) then
+             ssat(i,k)    = qv_old(i,k)-qvs(i,k)
+             sup(i,k)     = qv_old(i,k)/qvs(i,k)-1.
+             supi(i,k)    = qv_old(i,k)/qvi(i,k)-1.
+         ! if supersaturation is predicted then diagnose sup and supi from ssat
+          else if ((log_predictSsat).and.it.gt.1) then
+             sup(i,k)     = ssat(i,k)/qvs(i,k)
+             supi(i,k)    = (ssat(i,k)+qvs(i,k)-qvi(i,k))/qvi(i,k)
+          endif
        endif
 
        rhofacr(i,k) = (rhosur*inv_rho(i,k))**0.54
@@ -4223,15 +4225,28 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 ! note that this is also applied at the first time step
 ! this is not applied at the first time step, since saturation adjustment is applied at the first step
 
-       if (.not.(log_predictNc).and.sup_cld.gt.1.e-6.and.it.gt.1) then
-          dum   = nccnst*inv_rho(i,k)*cons7-qc(i,k)
-          dum   = max(0.,dum*iSCF(k))         ! in-cloud value
-          dumqvs = qv_sat(t(i,k),pres(i,k),0)
-          dqsdT = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
-          ab    = 1. + dqsdT*xxlv(i,k)*inv_cp
-          dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
-          qcnuc = dum*odt*SCF(k)
-          qcnuc = max(qcnuc,0.)
+       if (present(warm_start)) then
+          if (.not.(log_predictNc).and.sup_cld.gt.1.e-6.and.(it.gt.1.or.warm_start)) then
+             dum   = nccnst*inv_rho(i,k)*cons7-qc(i,k)
+             dum   = max(0.,dum*iSCF(k))         ! in-cloud value
+             dumqvs = qv_sat(t(i,k),pres(i,k),0)
+             dqsdT = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
+             ab    = 1. + dqsdT*xxlv(i,k)*inv_cp
+             dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
+             qcnuc = dum*odt*SCF(k)
+             qcnuc = max(qcnuc,0.)
+          endif
+       else
+          if (.not.(log_predictNc).and.sup_cld.gt.1.e-6.and.it.gt.1) then
+             dum   = nccnst*inv_rho(i,k)*cons7-qc(i,k)
+             dum   = max(0.,dum*iSCF(k))         ! in-cloud value
+             dumqvs = qv_sat(t(i,k),pres(i,k),0)
+             dqsdT = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
+             ab    = 1. + dqsdT*xxlv(i,k)*inv_cp
+             dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
+             qcnuc = dum*odt*SCF(k)
+             qcnuc = max(qcnuc,0.)
+          endif
        endif
 
        if (log_predictNc) then
@@ -4254,10 +4269,18 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
              ncnuc = dum2
            ! don't include mass increase from droplet activation during first time step
            ! since this is already accounted for by saturation adjustment below
-             if (it.le.1) then
-                qcnuc = 0.
+             if (present(warm_start)) then
+                if (it.le.1.and.(.not.warm_start)) then
+                   qcnuc = 0.
+                else
+                   qcnuc = ncnuc*cons7
+                endif
              else
-                qcnuc = ncnuc*cons7
+                if (it.le.1) then
+                   qcnuc = 0.
+                else
+                   qcnuc = ncnuc*cons7
+                endif
              endif
           endif
        endif
@@ -4269,14 +4292,26 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 ! This is only called once at the beginning of the simulation
 ! to remove any supersaturation in the intial conditions
 
-       if (it.le.1) then
-          dumt   = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
-          dumqv  = Qv_cld(k)
-          dumqvs = qv_sat(dumt,pres(i,k),0)
-          dums   = dumqv-dumqvs
-          qccon  = dums/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*dumt**2))*odt*SCF(k)
-          qccon  = max(0.,qccon)
-          if (qccon.le.1.e-7) qccon = 0.
+       if (present(warm_start)) then
+          if (it.le.1.and.(.not.warm_start)) then
+             dumt   = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
+             dumqv  = Qv_cld(k)
+             dumqvs = qv_sat(dumt,pres(i,k),0)
+             dums   = dumqv-dumqvs
+             qccon  = dums/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*dumt**2))*odt*SCF(k)
+             qccon  = max(0.,qccon)
+             if (qccon.le.1.e-7) qccon = 0.
+          endif
+       else
+          if (it.le.1) then
+             dumt   = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
+             dumqv  = Qv_cld(k)
+             dumqvs = qv_sat(dumt,pres(i,k),0)
+             dums   = dumqv-dumqvs
+             qccon  = dums/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*dumt**2))*odt*SCF(k)
+             qccon  = max(0.,qccon)
+             if (qccon.le.1.e-7) qccon = 0.
+          endif
        endif
 
 
@@ -6372,7 +6407,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
 !  note: This is not necessary for GEM, which already has these values available
 !        from the beginning of the model time step (TT_moins and HU_moins) when
 !        s/r 'p3_wrapper_gem' is called (from s/r 'condensation').
- if (trim(model) == 'WRF') then
+ if (trim(model) == 'WRF' .or. trim(model)=='SHiELD') then
     th_old = th
     qv_old = qv
  endif
@@ -6409,7 +6444,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,ni,nk,qc,
  endif
 !---
 
- compute_type_diags: if (log_typeDiags .and. (trim(model)=='GEM'.or.trim(model)=='KIN1D')) then
+ compute_type_diags: if (log_typeDiags .and. (trim(model)=='GEM'.or.trim(model)=='KIN1D'.or.trim(model)=='SHiELD')) then
 
     if (.not.(present(prt_drzl).and.present(prt_rain).and.present(prt_crys).and. &
               present(prt_snow).and.present(prt_grpl).and.present(prt_pell).and. &
