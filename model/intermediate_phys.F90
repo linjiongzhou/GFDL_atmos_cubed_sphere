@@ -910,7 +910,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
             ! P3 cloud microphysics main program
             call mp_p3_wrapper_shield(q (is:ie, j, kmp:km, sphum), pt (is:ie, j, kmp:km), abs (mdt), &
-                              abs (mdt), wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), &
+                              wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), &
                               a_step, warm_start, ie - is + 1, km - kmp + 1, q (is:ie, j, kmp:km, liq_wat), &
                               q (is:ie, j, kmp:km, liq_wat_num), q (is:ie, j, kmp:km, rainwat), &
                               q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, ice_wat), &

@@ -128,10 +128,13 @@
  logical :: debug_on = .false.   ! logical switch for internal debug checks
  logical :: scpf_on  = .false.   ! switch for activation of SCPF scheme
 
+ real :: dt_max = 60.0           ! Maximum time step (s) to be taken by the microphysics (P3) scheme, with time-splitting
+                                 ! used to reduce step to below this value if necessary
+
  real :: clbfact_dep = 1.0       ! calibration factor for deposition
  real :: clbfact_sub = 1.0       ! calibration factor for sublimation
 
- namelist / p3_mp_nml / nCat, trplMomI, liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on
+ namelist / p3_mp_nml / nCat, trplMomI, liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, dt_max
 
  contains
 
@@ -1134,7 +1137,7 @@ END subroutine p3_init
 #if defined (ECCCGEM)
 
  function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                     &
-                              qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,&
+                              qvap_m,qvap,temp_m,temp,dt,ww,psfc,gztherm,gzmom,sigma,kount,&
                               ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,          &
                               prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,diag_Zet,diag_Zec,    &
                               diag_effc,qc_m,qc,nc,qr_m,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,  &
@@ -1169,7 +1172,6 @@ END subroutine p3_init
  integer, intent(in)                    :: n_diag_3d             ! number of 3D diagnostic fields      -
 
  real, intent(in)                       :: dt                    ! model time step                     s
- real, intent(in)                       :: dt_max                ! maximum timestep for microphysics   s
  real, intent(inout), dimension(ni,nk)  :: qc                    ! cloud specific ratio, mass            kg kg-1
  real, intent(inout), dimension(ni,nk)  :: nc                    ! cloud specific ratio, number          #  kg-1
  real, intent(inout), dimension(ni,nk)  :: qr                    ! rain  specific ratio, mass            kg kg-1
@@ -1740,7 +1742,7 @@ END subroutine p3_init
 
 !==================================================================================================!
 
-subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,warm_start,ni,nk,qc,nc,qr,nr, &
+subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk,qc,nc,qr,nr, &
                               qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1,cldfrac, &
                               rain,snow,diag_Zet,diag_effc,te)
 
@@ -1763,7 +1765,6 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,dt_max,ww,delz,delp,kount,warm_star
  logical, intent(in)                    :: warm_start
 
  real, intent(in)                       :: dt                    ! model time step                     s
- real, intent(in)                       :: dt_max                ! maximum timestep for microphysics   s
  real, intent(inout), dimension(ni,nk)  :: qc                    ! cloud specific ratio, mass            kg kg-1
  real, intent(inout), dimension(ni,nk)  :: nc                    ! cloud specific ratio, number          #  kg-1
  real, intent(inout), dimension(ni,nk)  :: qr                    ! rain  specific ratio, mass            kg kg-1
