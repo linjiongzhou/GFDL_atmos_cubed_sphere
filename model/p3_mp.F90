@@ -38,7 +38,7 @@
 #endif
 
  use fms_mod, only: check_nml_error
- use gfdl_mp_mod, only: mqs, mte
+ use gfdl_mp_mod, only: wqs, iqs, mte
 
  implicit none
 
@@ -6408,7 +6408,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
 !  note: This is not necessary for GEM, which already has these values available
 !        from the beginning of the model time step (TT_moins and HU_moins) when
 !        s/r 'p3_wrapper_gem' is called (from s/r 'condensation').
- if (trim(model) == 'WRF' .or. trim(model)=='SHiELD') then
+ if (trim(model) == 'WRF') then
     th_old = th
     qv_old = qv
  endif
@@ -11943,7 +11943,8 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
   e_pres = polysvp1(t_atm,i_wrt)
   qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
 #else
-  e_pres = mqs(t_atm)
+  if (i_wrt.eq.1) e_pres = iqs(t_atm)
+  if (i_wrt.eq.0) e_pres = wqs(t_atm)
   qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
 #endif
 

@@ -734,9 +734,9 @@ if ( is_master() ) write(*,*) 'CALL atmos_global_diag_init'
  end subroutine atmosphere_resolution
 
  subroutine atmosphere_control_data (i1, i2, j1, j2, kt, p_hydro, hydro, tile_num, &
-                                     do_inline_mp, do_cosp, mp_flag)
+                                     do_inline_mp, do_cosp, nwat, mp_flag)
    integer, intent(out)           :: i1, i2, j1, j2, kt
-   integer, intent(out), optional :: mp_flag
+   integer, intent(out), optional :: nwat, mp_flag
    logical, intent(out), optional :: p_hydro, hydro
    integer, intent(out), optional :: tile_num
    logical, intent(out), optional :: do_inline_mp, do_cosp
@@ -751,6 +751,7 @@ if ( is_master() ) write(*,*) 'CALL atmos_global_diag_init'
    if (present(tile_num)) tile_num = Atm(mygrid)%global_tile
    if (present(do_inline_mp)) do_inline_mp = Atm(mygrid)%flagstruct%do_inline_mp
    if (present(do_cosp)) do_cosp = Atm(mygrid)%flagstruct%do_cosp
+   if (present(nwat)) nwat = Atm(mygrid)%flagstruct%nwat
    if (present(mp_flag)) mp_flag = Atm(mygrid)%flagstruct%mp_flag
 
  end subroutine atmosphere_control_data
