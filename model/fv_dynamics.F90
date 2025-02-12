@@ -171,7 +171,7 @@ contains
       real, allocatable :: dp1(:,:,:), cappa(:,:,:)
       real:: akap, rdg, ph1, ph2, mdt, gam, amdt, u00
       real:: recip_k_split,reg_bc_update_time
-      integer:: kord_tracer(nq_tot)
+      integer:: kord_tracer(ncnst)
       integer :: i,j,k, n, iq, n_map, nq, nr, nwat, mp_flag, k_split
       integer :: sphum, liq_wat = -999, ice_wat = -999      ! GFDL physics
       integer :: rainwat = -999, snowwat = -999, graupel = -999, cld_amt = -999
@@ -220,7 +220,7 @@ contains
       if (gridstruct%nested .or. ANY(neststruct%child_grids)) then
          call timing_on('NEST_BCs')
 
-         call setup_nested_grid_BCs(npx, npy, npz, zvir, nq_tot, &
+         call setup_nested_grid_BCs(npx, npy, npz, zvir, ncnst, &
               u, v, w, pt, delp, delz, q, uc, vc, &
               q_con, cappa, &
               neststruct%nested, flagstruct%inline_q, flagstruct%make_nh, ng, &
