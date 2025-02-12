@@ -2312,10 +2312,10 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
    !   endif
    !endif
 
-   c_moist = (1-(qvap+qc+qr+qitot_1))*cv+qvap*cvv+(qc+qr)*cpw+qitot_1*cpi
-
    ! convert temperature to virtual temperature
-   temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))-temp)*cp/c_moist
+   !c_moist = (1-(qvap+qc+qr+qitot_1))*cv+qvap*cvv+(qc+qr)*cpw+qitot_1*cpi
+   !temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))-temp)*cp/c_moist
+   temp = ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))
 
    ! reset the previous time step variables to current time step
    temp_m = temp
