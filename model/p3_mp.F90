@@ -1742,9 +1742,9 @@ END subroutine p3_init
 
 !==================================================================================================!
 
-subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk,qc,nc,qr,nr, &
-                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1,cldfrac, &
-                              rain,snow,diag_Zet,diag_effc,te)
+subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,warm_start,ni,nk,&
+                                qc_m,qc,nc,qr_m,qr,nr,qitot_1m,qitot_1,qirim_1,nitot_1,birim_1,&
+                                diag_effi_1,zitot_1,qiliq_1,cldfrac,rain,snow,diag_Zet,diag_effc,te)
 
 !------------------------------------------------------------------------------------------!
 ! This wrapper subroutine is the main SHiELD interface with the P3 microphysics scheme.    !
@@ -1769,8 +1769,11 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
  real, intent(inout), dimension(ni,nk)  :: nc                    ! cloud specific ratio, number          #  kg-1
  real, intent(inout), dimension(ni,nk)  :: qr                    ! rain  specific ratio, mass            kg kg-1
  real, intent(inout), dimension(ni,nk)  :: nr                    ! rain  specific ratio, number          #  kg-1
+ real, intent(inout), dimension(ni,nk)  :: qc_m                  ! cloud specific ratio, mass t-         kg kg-1
+ real, intent(inout), dimension(ni,nk)  :: qr_m                  ! rain  specific ratio, mass t-         kg kg-1
 
  real, intent(inout), dimension(ni,nk)  :: qitot_1               ! ice   specific ratio, mass (total)    kg kg-1
+ real, intent(inout), dimension(ni,nk)  :: qitot_1m              ! ice   specific ratio, mass (t-)       kg kg-1
  real, intent(inout), dimension(ni,nk)  :: qirim_1               ! ice   specific ratio, mass (rime)     kg kg-1
  real, intent(inout), dimension(ni,nk)  :: nitot_1               ! ice   specific ratio, number          #  kg-1
  real, intent(inout), dimension(ni,nk)  :: birim_1               ! ice   specific ratio, volume          m3 kg-1
@@ -1779,6 +1782,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
  real, intent(inout), dimension(ni,nk)  :: qiliq_1               ! ice   specific ratio, mass (liquid)   kg kg-1
 
  !real, dimension(:,:), pointer, contiguous  :: qitot_2           ! ice   specific ratio, mass (total)    kg kg-1
+ !real, dimension(:,:), pointer, contiguous  :: qitot_2m          ! ice   specific ratio, mass (t-)       kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: qirim_2           ! ice   specific ratio, mass (rime)     kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: nitot_2           ! ice   specific ratio, number          #  kg-1
  !real, dimension(:,:), pointer, contiguous  :: birim_2           ! ice   specific ratio, volume          m3 kg-1
@@ -1787,6 +1791,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
  !real, dimension(:,:), pointer, contiguous  :: qiliq_2           ! ice   specific ratio, mass (liquid)   kg kg-1
 
  !real, dimension(:,:), pointer, contiguous  :: qitot_3           ! ice   specific ratio, mass (total)    kg kg-1
+ !real, dimension(:,:), pointer, contiguous  :: qitot_3m          ! ice   specific ratio, mass (t-)       kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: qirim_3           ! ice   specific ratio, mass (rime)     kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: nitot_3           ! ice   specific ratio, number          #  kg-1
  !real, dimension(:,:), pointer, contiguous  :: birim_3           ! ice   specific ratio, volume          m3 kg-1
@@ -1795,6 +1800,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
  !real, dimension(:,:), pointer, contiguous  :: qiliq_3           ! ice   specific ratio, mass (liquid)   kg kg-1
 
  !real, dimension(:,:), pointer, contiguous  :: qitot_4           ! ice   specific ratio, mass (total)    kg kg-1
+ !real, dimension(:,:), pointer, contiguous  :: qitot_4m          ! ice   specific ratio, mass (t-)       kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: qirim_4           ! ice   specific ratio, mass (rime)     kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: nitot_4           ! ice   specific ratio, number          #  kg-1
  !real, dimension(:,:), pointer, contiguous  :: birim_4           ! ice   specific ratio, volume          m3 kg-1
@@ -1802,7 +1808,9 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
  !real, dimension(:,:), pointer, contiguous  :: zitot_4           ! ice   specific ratio, reflectivity    m^6 kg-1
  !real, dimension(:,:), pointer, contiguous  :: qiliq_4           ! ice   specific ratio, mass (liquid)   kg kg-1
 
+ real, intent(inout), dimension(ni,nk)  :: qvap_m                ! vapor mixing ratio (previous time)  kg kg-1
  real, intent(inout), dimension(ni,nk)  :: qvap                  ! vapor mixing ratio, mass            kg kg-1
+ real, intent(inout), dimension(ni,nk)  :: temp_m                ! virtual temperature (previous step) K
  real, intent(inout), dimension(ni,nk)  :: temp                  ! virtual temperature                 K
  real, intent(inout), dimension(ni,nk)  :: delp                  ! layer pressure thickness            Pa
  real, intent(in),    dimension(ni,nk)  :: delz                  ! layer height thickness (negative)   m
@@ -1870,8 +1878,10 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
  real, dimension(ni,nk,n_iceCat)  :: diag_dhmax ! maximum hail size, ice                  m
 
  real, dimension(ni,nk)  :: ta                  ! true temperature                        K
+ real, dimension(ni,nk)  :: ta_m                ! true temperature (previous step)        K
  real, dimension(ni,nk)  :: theta_m             ! potential temperature (previous step)   K
  real, dimension(ni,nk)  :: qvapm               ! qv (previous step)                      kg kg-1
+ real, dimension(ni,nk)  :: qvapm1              ! qv (specific previous step)             kg kg-1
  real, dimension(ni,nk)  :: theta               ! potential temperature                   K
  real, dimension(ni,nk)  :: pres                ! pressure                                Pa
  real, dimension(ni,nk)  :: hgtc                ! layer-centered height                   m
@@ -1879,7 +1889,10 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
  real, dimension(ni,nk)  :: DZ                  ! difference in height between levels     m
  real, dimension(ni,nk)  :: ssat                ! supersaturation
  real, dimension(ni,nk)  :: tmparr_ik           ! temporary array (for optimization)
+ real, dimension(ni,nk)  :: qqdelta,ttdelta     ! for sub_stepping
+ real, dimension(ni,nk)  :: totmassm            ! total mass specific/ratio t-            kg kg-1
  real, dimension(ni,nk)  :: totmass             ! total mass specific/ratio t*            kg kg-1
+ real, dimension(ni,nk)  :: inv_totmassm        ! total mass specific/ratio t-            kg kg-1
  real, dimension(ni,nk)  :: inv_totmass         ! total mass specific/ratio t*            kg kg-1
  real, dimension(ni,nk)  :: c_moist             ! moist heat capacity                     J kg-1 K-1
 
@@ -1907,8 +1920,6 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    kbot  = nk  ! k index of bottom level
    kdir  = -1  ! direction of vertical leveling for 1=bottom, nk=top
 
-   !log_trplMomI = associated(zitot_1)
-   !log_liqFrac  = associated(qiliq_1)
    log_trplMomI = trplMomI
    log_liqFrac = liqfrac
 
@@ -1916,7 +1927,16 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    n_substep = int((dt-0.1)/max(0.1,dt_max)) + 1
    dt_mp = dt/float(n_substep)
 
+   if (kount.eq.1.and.(.not.warm_start)) then
+      temp_m = temp
+      qvap_m = qvap
+      qc_m = qc
+      qr_m = qr
+      qitot_1m = qitot_1
+   endif
+
    ! convert virtual temperature to temperature
+   ta_m = temp_m/((1.+zvir*qvap_m)*(1-qc_m-qr_m-qitot_1m))
    ta = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
 
    do k = 1,nk
@@ -1926,6 +1946,12 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    enddo
 
    ! Transform every specific mass to mixing ratio
+   ! Total sum at t-
+   totmassm(:,:) = qvap_m(:,:)+qr_m(:,:)+qc_m(:,:)+qitot_1m(:,:)
+   !if (n_iceCat > 1) totmassm(:,:) = totmassm(:,:) + qitot_2m(:,:)
+   !if (n_iceCat > 2) totmassm(:,:) = totmassm(:,:) + qitot_3m(:,:)
+   !if (n_iceCat > 3) totmassm(:,:) = totmassm(:,:) + qitot_4m(:,:)
+   inv_totmassm(:,:) = 1./(1.-totmassm(:,:))   
    ! Total sum at t*
    totmass(:,:) = qvap(:,:)+qr(:,:)+qc(:,:)+qitot_1(:,:)
    delp(:,:) = delp(:,:)*(1.-totmass(:,:))
@@ -1935,6 +1961,7 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    inv_totmass(:,:) = 1./(1.-totmass(:,:))    
    ! Water vapour:
    qvap(:,:) = qvap(:,:)*inv_totmass(:,:)
+   qvapm1(:,:) = qvap_m(:,:)*inv_totmassm(:,:)
    ! Cloud water:
    qc(:,:) = qc(:,:)*inv_totmass(:,:)
    nc(:,:) = nc(:,:)*inv_totmass(:,:)
@@ -1953,25 +1980,33 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !   qirim_2(:,:) = qirim_2(:,:)*inv_totmass(:,:)
    !   nitot_2(:,:) = nitot_2(:,:)*inv_totmass(:,:)
    !   birim_2(:,:) = birim_2(:,:)*inv_totmass(:,:)
-   !   if (associated(zitot_2)) zitot_2(:,:) = zitot_2(:,:)*inv_totmass(:,:)
-   !   if (associated(qiliq_2)) qiliq_2(:,:) = qiliq_2(:,:)*inv_totmass(:,:)
+   !   if (log_trplMomI) zitot_2(:,:) = zitot_2(:,:)*inv_totmass(:,:)
+   !   if (log_liqFrac) qiliq_2(:,:) = qiliq_2(:,:)*inv_totmass(:,:)
    !   if (n_iceCat >= 3) then
    !      qitot_3(:,:) = qitot_3(:,:)*inv_totmass(:,:)
    !      qirim_3(:,:) = qirim_3(:,:)*inv_totmass(:,:)
    !      nitot_3(:,:) = nitot_3(:,:)*inv_totmass(:,:)
    !      birim_3(:,:) = birim_3(:,:)*inv_totmass(:,:)
-   !      if (associated(zitot_3)) zitot_3(:,:) = zitot_3(:,:)*inv_totmass(:,:)
-   !      if (associated(qiliq_3)) qiliq_3(:,:) = qiliq_3(:,:)*inv_totmass(:,:)
+   !      if (log_trplMomI) zitot_3(:,:) = zitot_3(:,:)*inv_totmass(:,:)
+   !      if (log_liqFrac) qiliq_3(:,:) = qiliq_3(:,:)*inv_totmass(:,:)
    !      if (n_iceCat >= 4) then
    !         qitot_4(:,:) = qitot_4(:,:)*inv_totmass(:,:)
    !         qirim_4(:,:) = qirim_4(:,:)*inv_totmass(:,:)
    !         nitot_4(:,:) = nitot_4(:,:)*inv_totmass(:,:)
    !         birim_4(:,:) = birim_4(:,:)*inv_totmass(:,:)
-   !         if (associated(zitot_4)) zitot_4(:,:) = zitot_4(:,:)*inv_totmass(:,:)
-   !         if (associated(qiliq_4)) qiliq_4(:,:) = qiliq_4(:,:)*inv_totmass(:,:)
+   !         if (log_trplMomI) zitot_4(:,:) = zitot_4(:,:)*inv_totmass(:,:)
+   !         if (log_liqFrac) qiliq_4(:,:) = qiliq_4(:,:)*inv_totmass(:,:)
    !      endif
    !   endif
    !endif
+
+   ! All variables are in mixing ratios
+   ! External forcings are distributed evenly over steps
+   qqdelta = (qvap-qvapm1) / float(n_substep)
+   ttdelta = (ta-ta_m) / float(n_substep)
+   ! initialise for the 1st substepping
+   qvap = qvapm1
+   ta = ta_m
 
   !if (kount == 0) then
    if (.false.) then
@@ -2011,8 +2046,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !   nitot(:,:,2) = nitot_2(:,:)
    !   birim(:,:,2) = birim_2(:,:)
    !   diag_effi(:,:,2) = diag_effi_2(:,:)
-   !   if (associated(zitot_2)) zitot(:,:,2) = zitot_2(:,:)
-   !   if (associated(qiliq_2)) qiliq(:,:,2) = qiliq_2(:,:)
+   !   if (log_trplMomI) zitot(:,:,2) = zitot_2(:,:)
+   !   if (log_liqFrac) qiliq(:,:,2) = qiliq_2(:,:)
 
    !   if (n_iceCat >= 3) then
    !      qitot(:,:,3) = qitot_3(:,:)
@@ -2020,8 +2055,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !      nitot(:,:,3) = nitot_3(:,:)
    !      birim(:,:,3) = birim_3(:,:)
    !      diag_effi(:,:,3) = diag_effi_3(:,:)
-   !      if (associated(zitot_3)) zitot(:,:,3) = zitot_3(:,:)
-   !      if (associated(qiliq_3)) qiliq(:,:,3) = qiliq_3(:,:)
+   !      if (log_trplMomI) zitot(:,:,3) = zitot_3(:,:)
+   !      if (log_liqFrac) qiliq(:,:,3) = qiliq_3(:,:)
 
    !      if (n_iceCat == 4) then
    !         qitot(:,:,4) = qitot_4(:,:)
@@ -2029,8 +2064,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !         nitot(:,:,4) = nitot_4(:,:)
    !         birim(:,:,4) = birim_4(:,:)
    !         diag_effi(:,:,4) = diag_effi_4(:,:)
-   !         if (associated(zitot_4)) zitot(:,:,4) = zitot_4(:,:)
-   !         if (associated(qiliq_4)) qiliq(:,:,4) = qiliq_4(:,:)
+   !         if (log_trplMomI) zitot(:,:,4) = zitot_4(:,:)
+   !         if (log_liqFrac) qiliq(:,:,4) = qiliq_4(:,:)
    !      endif
    !   endif
    !endif
@@ -2056,8 +2091,10 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
 
      !convert to potential temperature:
      qvapm   = qvap
+     qvap    = qvap+qqdelta
+     theta_m = ta*tmparr_ik
+     ta      = ta+ttdelta
      theta   = ta*tmparr_ik
-     theta_m = theta
 
      if (.not. log_trplMomI)  zitot = 0.  !not used, but avoids passing uninialized values
      if (.not. log_liqFrac)   qiliq = 0.  !not used, but avoids passing uninialized values
@@ -2137,8 +2174,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !   qirim_2(:,:) = qirim(:,:,2)
    !   nitot_2(:,:) = nitot(:,:,2)
    !   birim_2(:,:) = birim(:,:,2)
-   !   if (associated(zitot_2)) zitot_2(:,:) = zitot(:,:,2)
-   !   if (associated(qiliq_2)) qiliq_2(:,:) = qiliq(:,:,2)
+   !   if (log_trplMomI) zitot_2(:,:) = zitot(:,:,2)
+   !   if (log_liqFrac) qiliq_2(:,:) = qiliq(:,:,2)
    !   where (qitot_2(:,:) >= SMALL_ICE_MASS)
    !      diag_effi_2(:,:) = diag_effi(:,:,2)
    !   elsewhere
@@ -2150,8 +2187,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !      qirim_3(:,:) = qirim(:,:,3)
    !      nitot_3(:,:) = nitot(:,:,3)
    !      birim_3(:,:) = birim(:,:,3)
-   !      if (associated(zitot_3)) zitot_3(:,:) = zitot(:,:,3)
-   !      if (associated(qiliq_3)) qiliq_3(:,:) = qiliq(:,:,3)
+   !      if (log_trplMomI) zitot_3(:,:) = zitot(:,:,3)
+   !      if (log_liqFrac) qiliq_3(:,:) = qiliq(:,:,3)
    !      where (qitot_3(:,:) >= SMALL_ICE_MASS)
    !         diag_effi_3(:,:) = diag_effi(:,:,3)
    !      elsewhere
@@ -2163,8 +2200,8 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !         qirim_4(:,:) = qirim(:,:,4)
    !         nitot_4(:,:) = nitot(:,:,4)
    !         birim_4(:,:) = birim(:,:,4)
-   !         if (associated(zitot_4)) zitot_4(:,:) = zitot(:,:,4)
-   !         if (associated(qiliq_4)) qiliq_4(:,:) = qiliq(:,:,4)
+   !         if (log_trplMomI) zitot_4(:,:) = zitot(:,:,4)
+   !         if (log_liqFrac) qiliq_4(:,:) = qiliq(:,:,4)
    !         where (qitot_4(:,:) >= SMALL_ICE_MASS)
    !            diag_effi_4(:,:) = diag_effi(:,:,4)
    !         elsewhere
@@ -2255,22 +2292,22 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
    !   qirim_2(:,:) = qirim_2(:,:)*inv_totmass(:,:)
    !   nitot_2(:,:) = nitot_2(:,:)*inv_totmass(:,:)
    !   birim_2(:,:) = birim_2(:,:)*inv_totmass(:,:)
-   !   if (associated(zitot_2)) zitot_2(:,:) = zitot_2(:,:)*inv_totmass(:,:)
-   !   if (associated(qiliq_2)) qiliq_2(:,:) = qiliq_2(:,:)*inv_totmass(:,:)
+   !   if (log_trplMomI) zitot_2(:,:) = zitot_2(:,:)*inv_totmass(:,:)
+   !   if (log_liqFrac) qiliq_2(:,:) = qiliq_2(:,:)*inv_totmass(:,:)
    !   if (n_iceCat >= 3) then
    !      qitot_3(:,:) = qitot_3(:,:)*inv_totmass(:,:)
    !      qirim_3(:,:) = qirim_3(:,:)*inv_totmass(:,:)
    !      nitot_3(:,:) = nitot_3(:,:)*inv_totmass(:,:)
    !      birim_3(:,:) = birim_3(:,:)*inv_totmass(:,:)
-   !      if (associated(zitot_3)) zitot_3(:,:) = zitot_3(:,:)*inv_totmass(:,:)
-   !      if (associated(qiliq_3)) qiliq_3(:,:) = qiliq_3(:,:)*inv_totmass(:,:)
+   !      if (log_trplMomI) zitot_3(:,:) = zitot_3(:,:)*inv_totmass(:,:)
+   !      if (log_liqFrac) qiliq_3(:,:) = qiliq_3(:,:)*inv_totmass(:,:)
    !      if (n_iceCat >= 4) then
    !         qitot_4(:,:) = qitot_4(:,:)*inv_totmass(:,:)
    !         qirim_4(:,:) = qirim_4(:,:)*inv_totmass(:,:)
    !         nitot_4(:,:) = nitot_4(:,:)*inv_totmass(:,:)
    !         birim_4(:,:) = birim_4(:,:)*inv_totmass(:,:)
-   !         if (associated(zitot_4)) zitot_4(:,:) = zitot_4(:,:)*inv_totmass(:,:)
-   !         if (associated(qiliq_4)) qiliq_4(:,:) = qiliq_4(:,:)*inv_totmass(:,:)
+   !         if (log_trplMomI) zitot_4(:,:) = zitot_4(:,:)*inv_totmass(:,:)
+   !         if (log_liqFrac) qiliq_4(:,:) = qiliq_4(:,:)*inv_totmass(:,:)
    !      endif
    !   endif
    !endif
@@ -2279,6 +2316,13 @@ subroutine mp_p3_wrapper_shield(qvap,temp,dt,ww,delz,delp,kount,warm_start,ni,nk
 
    ! convert temperature to virtual temperature
    temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))-temp)*cp/c_moist
+
+   ! reset the previous time step variables to current time step
+   temp_m = temp
+   qvap_m = qvap
+   qc_m = qc
+   qr_m = qr
+   qitot_1m = qitot_1
 
    ta = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
 

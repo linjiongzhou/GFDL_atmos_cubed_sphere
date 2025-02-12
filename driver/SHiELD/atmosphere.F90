@@ -491,12 +491,12 @@ contains
      call fv_dynamics(npx, npy, npz, nq, Atm(n)%ng, dt_atmos/real(abs(p_split)),&
                       Atm(n)%flagstruct%consv_te, Atm(n)%flagstruct%fill,  &
                       Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,&
-                      Atm(n)%ptop, Atm(n)%ks, nq,                          &
+                      Atm(n)%ptop, Atm(n)%ks, ncnst,                       &
                       Atm(n)%flagstruct%n_split, Atm(n)%flagstruct%q_split,&
                       Atm(n)%u0, Atm(n)%v0, Atm(n)%u, Atm(n)%v, Atm(n)%w,  &
                       Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,          &
-                      Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,         &
-                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln,                   &
+                      Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%qdiag,      &
+                      Atm(n)%ps, Atm(n)%pe, Atm(n)%pk, Atm(n)%peln,        &
                       Atm(n)%pkz, Atm(n)%phis, Atm(n)%q_con,               &
                       Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc,        &
                       Atm(n)%vc, Atm(n)%ak, Atm(n)%bk, Atm(n)%mfx,         &
@@ -692,11 +692,11 @@ contains
 
 
  subroutine atmosphere_control_data (i1, i2, j1, j2, kt, p_hydro, hydro, tile_num, &
-                                     do_inline_mp, do_cosp, mp_flag)
+                                     nq, do_inline_mp, do_cosp, nwat, mp_flag)
    integer, intent(out)           :: i1, i2, j1, j2, kt
-   integer, intent(out), optional :: mp_flag
+   integer, intent(out), optional :: nwat, mp_flag
    logical, intent(out), optional :: p_hydro, hydro
-   integer, intent(out), optional :: tile_num
+   integer, intent(out), optional :: tile_num, nq
    logical, intent(out), optional :: do_inline_mp, do_cosp
    i1 = Atm(mygrid)%bd%isc
    i2 = Atm(mygrid)%bd%iec
@@ -704,11 +704,13 @@ contains
    j2 = Atm(mygrid)%bd%jec
    kt = Atm(mygrid)%npz
 
+   if (present(nq)) nq = Atm(mygrid)%ncnst - Atm(mygrid)%flagstruct%pnats
    if (present(p_hydro)) p_hydro = Atm(mygrid)%flagstruct%phys_hydrostatic
    if (present(  hydro))   hydro = Atm(mygrid)%flagstruct%hydrostatic
    if (present(tile_num)) tile_num = Atm(mygrid)%global_tile
    if (present(do_inline_mp)) do_inline_mp = Atm(mygrid)%flagstruct%do_inline_mp
    if (present(do_cosp)) do_cosp = Atm(mygrid)%flagstruct%do_cosp
+   if (present(nwat)) nwat = Atm(mygrid)%flagstruct%nwat
    if (present(mp_flag)) mp_flag = Atm(mygrid)%flagstruct%mp_flag
 
  end subroutine atmosphere_control_data
@@ -1220,7 +1222,7 @@ contains
 
    n = mygrid
    nwat = Atm(n)%flagstruct%nwat
-   dnats = Atm(mygrid)%flagstruct%dnats
+   dnats = Atm(n)%flagstruct%dnats
    nq_adv = nq - dnats
    nt_dyn = ncnst-pnats   !nothing more than nq
 
@@ -1282,7 +1284,7 @@ contains
 
 !--- put u/v tendencies into haloed arrays u_dt and v_dt
 !$OMP parallel do default (none) &
-!$OMP              shared (rdt, n, nq, dnats, npz, ncnst, nwat, mygrid, u_dt, v_dt, t_dt,&
+!$OMP              shared (rdt, n, nq, dnats, npz, ncnst, nwat, u_dt, v_dt, t_dt,&
 !$OMP                      Atm, IPD_Data, Atm_block, nq_adv)   &
 !$OMP             private (nb, blen, i, j, k, k1, ix, q0, qwat, qt,tracer_name)
    do nb = 1,Atm_block%nblks
@@ -1358,7 +1360,7 @@ contains
          do ix = 1, blen
            i = Atm_block%index(nb)%ii(ix)
            j = Atm_block%index(nb)%jj(ix)
-           Atm(mygrid)%qdiag(i,j,k1,iq) = IPD_Data(nb)%Stateout%gq0(ix,k,iq)
+           Atm(n)%qdiag(i,j,k1,iq) = IPD_Data(nb)%Stateout%gq0(ix,k,iq)
          enddo
        enddo
      enddo
@@ -1596,10 +1598,10 @@ contains
 ! Forward call
     call fv_dynamics(Atm(mygrid)%npx, Atm(mygrid)%npy, npz,  nq, Atm(mygrid)%ng, dt_atmos, 0.,      &
                      Atm(mygrid)%flagstruct%fill, Atm(mygrid)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
-                     Atm(mygrid)%ptop, Atm(mygrid)%ks, nq, Atm(mygrid)%flagstruct%n_split,        &
+                     Atm(mygrid)%ptop, Atm(mygrid)%ks, ncnst, Atm(mygrid)%flagstruct%n_split,        &
                      Atm(mygrid)%flagstruct%q_split, Atm(mygrid)%u0, Atm(mygrid)%v0, Atm(mygrid)%u, &
                      Atm(mygrid)%v, Atm(mygrid)%w, Atm(mygrid)%delz, Atm(mygrid)%flagstruct%hydrostatic, &
-                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%ps,                     &
+                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%qdiag, Atm(mygrid)%ps,      &
                      Atm(mygrid)%pe, Atm(mygrid)%pk, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%phis,      &
                      Atm(mygrid)%q_con, Atm(mygrid)%omga, Atm(mygrid)%ua, Atm(mygrid)%va, Atm(mygrid)%uc, Atm(mygrid)%vc, &
                      Atm(mygrid)%ak, Atm(mygrid)%bk, Atm(mygrid)%mfx, Atm(mygrid)%mfy,                    &
@@ -1610,10 +1612,10 @@ contains
 ! Backward
     call fv_dynamics(Atm(mygrid)%npx, Atm(mygrid)%npy, npz,  nq, Atm(mygrid)%ng, -dt_atmos, 0.,      &
                      Atm(mygrid)%flagstruct%fill, Atm(mygrid)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
-                     Atm(mygrid)%ptop, Atm(mygrid)%ks, nq, Atm(mygrid)%flagstruct%n_split,        &
+                     Atm(mygrid)%ptop, Atm(mygrid)%ks, ncnst, Atm(mygrid)%flagstruct%n_split,        &
                      Atm(mygrid)%flagstruct%q_split, Atm(mygrid)%u0, Atm(mygrid)%v0, Atm(mygrid)%u, &
                      Atm(mygrid)%v, Atm(mygrid)%w, Atm(mygrid)%delz, Atm(mygrid)%flagstruct%hydrostatic, &
-                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%ps,                     &
+                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%qdiag, Atm(mygrid)%ps,      &
                      Atm(mygrid)%pe, Atm(mygrid)%pk, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%phis,      &
                      Atm(mygrid)%q_con, Atm(mygrid)%omga, Atm(mygrid)%ua, Atm(mygrid)%va, Atm(mygrid)%uc, Atm(mygrid)%vc, &
                      Atm(mygrid)%ak, Atm(mygrid)%bk, Atm(mygrid)%mfx, Atm(mygrid)%mfy,                    &
@@ -1684,10 +1686,10 @@ contains
 ! Backward
     call fv_dynamics(Atm(mygrid)%npx, Atm(mygrid)%npy, npz,  nq, Atm(mygrid)%ng, -dt_atmos, 0.,      &
                      Atm(mygrid)%flagstruct%fill, Atm(mygrid)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
-                     Atm(mygrid)%ptop, Atm(mygrid)%ks, nq, Atm(mygrid)%flagstruct%n_split,        &
+                     Atm(mygrid)%ptop, Atm(mygrid)%ks, ncnst, Atm(mygrid)%flagstruct%n_split,        &
                      Atm(mygrid)%flagstruct%q_split, Atm(mygrid)%u0, Atm(mygrid)%v0, Atm(mygrid)%u, &
                      Atm(mygrid)%v, Atm(mygrid)%w, Atm(mygrid)%delz, Atm(mygrid)%flagstruct%hydrostatic, &
-                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%ps,                     &
+                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%qdiag, Atm(mygrid)%ps,      &
                      Atm(mygrid)%pe, Atm(mygrid)%pk, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%phis,      &
                      Atm(mygrid)%q_con, Atm(mygrid)%omga, Atm(mygrid)%ua, Atm(mygrid)%va, Atm(mygrid)%uc, Atm(mygrid)%vc, &
                      Atm(mygrid)%ak, Atm(mygrid)%bk, Atm(mygrid)%mfx, Atm(mygrid)%mfy,                    &
@@ -1698,10 +1700,10 @@ contains
 ! Forward call
     call fv_dynamics(Atm(mygrid)%npx, Atm(mygrid)%npy, npz,  nq, Atm(mygrid)%ng, dt_atmos, 0.,      &
                      Atm(mygrid)%flagstruct%fill, Atm(mygrid)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
-                     Atm(mygrid)%ptop, Atm(mygrid)%ks, nq, Atm(mygrid)%flagstruct%n_split,        &
+                     Atm(mygrid)%ptop, Atm(mygrid)%ks, ncnst, Atm(mygrid)%flagstruct%n_split,        &
                      Atm(mygrid)%flagstruct%q_split, Atm(mygrid)%u0, Atm(mygrid)%v0, Atm(mygrid)%u, &
                      Atm(mygrid)%v, Atm(mygrid)%w, Atm(mygrid)%delz, Atm(mygrid)%flagstruct%hydrostatic, &
-                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%ps,                     &
+                     Atm(mygrid)%pt, Atm(mygrid)%delp, Atm(mygrid)%q, Atm(mygrid)%qdiag, Atm(mygrid)%ps,      &
                      Atm(mygrid)%pe, Atm(mygrid)%pk, Atm(mygrid)%peln, Atm(mygrid)%pkz, Atm(mygrid)%phis,      &
                      Atm(mygrid)%q_con, Atm(mygrid)%omga, Atm(mygrid)%ua, Atm(mygrid)%va, Atm(mygrid)%uc, Atm(mygrid)%vc, &
                      Atm(mygrid)%ak, Atm(mygrid)%bk, Atm(mygrid)%mfx, Atm(mygrid)%mfy,                    &
@@ -1951,7 +1953,6 @@ contains
            enddo
         enddo
     endif
-    IPD_Data(nb)%Statein%nwat = Atm(mygrid)%flagstruct%nwat
   enddo
 
  end subroutine atmos_phys_driver_statein

@@ -57,10 +57,10 @@ module intermediate_phys_mod
 
 contains
 
-subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, &
+subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, nq_tot, ncnst, &
                mdt, consv, akap, ptop, pfull, hs, te0_2d, a_step, warm_start, u, v, w, pt, &
-               delp, delz, q_con, cappa, q, pkz, zvir, te_err, tw_err, inline_mp, mp_flag, &
-               gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
+               delp, delz, q_con, cappa, q, qdiag, pkz, zvir, te_err, tw_err, inline_mp, &
+               mp_flag, gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
                do_inline_mp, do_sat_adj, last_step, do_fast_phys, consv_checker, adj_mass_vmr)
 
     implicit none
@@ -69,7 +69,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     ! input / output arguments
     ! -----------------------------------------------------------------------
 
-    integer, intent (in) :: is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, mp_flag, a_step
+    integer, intent (in) :: is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, mp_flag, a_step, nq_tot, ncnst
 
     logical, intent (in) :: hydrostatic, do_adiabatic_init, do_inline_mp, consv_checker
     logical, intent (in) :: do_sat_adj, last_step, do_fast_phys, warm_start
@@ -90,6 +90,8 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     real, intent (inout), dimension (isd:ied, jsd:jed, km) :: pt, delp
 
     real, intent (inout), dimension (isd:ied, jsd:jed, km, *) :: q
+
+    real, intent (inout), dimension (isd:ied, jsd:jed, km, nq_tot+1:ncnst) :: qdiag
 
     real, intent (inout), dimension (isd:ied, jsd:jed+1, km) :: u
 
@@ -116,6 +118,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     integer :: i, j, k, m, kmp, sphum, liq_wat, ice_wat
     integer :: rainwat, snowwat, graupel, cld_amt, ccn_cm3, cin_cm3, aerosol
     integer :: liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol, ice_rad_ref, ice_liq_mass
+    integer :: pt_old, qv_old, qc_old, qr_old, qi_old
     integer :: k_con, k_cappa
 
     real :: rrg
@@ -159,6 +162,11 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     ice_wat_vol = get_tracer_index (model_atmos, 'ice_wat_vol')
     ice_rad_ref = get_tracer_index (model_atmos, 'ice_rad_ref')
     ice_liq_mass = get_tracer_index (model_atmos, 'ice_liq_mass')
+    pt_old = get_tracer_index (model_atmos, 'pt_old')
+    qv_old = get_tracer_index (model_atmos, 'qv_old')
+    qc_old = get_tracer_index (model_atmos, 'qc_old')
+    qr_old = get_tracer_index (model_atmos, 'qr_old')
+    qi_old = get_tracer_index (model_atmos, 'qi_old')
 
     rrg = - rdgas / grav
 
@@ -853,12 +861,13 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 !$OMP                                    te, delp, hydrostatic, hs, pt, delz, ptop, &
 !$OMP                                    rainwat, liq_wat, ice_wat, q_con, a_step, &
 !$OMP                                    sphum, w, pkz, last_step, consv, te0_2d, zvir, &
-!$OMP                                    gridstruct, q, mdt, cld_amt, cappa, rrg, akap, &
+!$OMP                                    gridstruct, q, qdiag, mdt, cld_amt, cappa, rrg, akap, &
 !$OMP                                    ccn_cm3, cin_cm3, inline_mp, do_inline_mp, &
 !$OMP                                    aerosol, adj_mass_vmr, conv_vmr_mmr, nq, warm_start, &
 !$OMP                                    te_err, tw_err, k_con, k_cappa, thermostruct, &
 !$OMP                                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, &
-!$OMP                                    ice_wat_vol, ice_rad_ref, ice_liq_mass) &
+!$OMP                                    ice_wat_vol, ice_rad_ref, ice_liq_mass, &
+!$OMP                                    qv_old, pt_old, qc_old, qr_old, qi_old) &
 !$OMP                           private (dz, wa, pe, peln, adj_vmr, qliq, qsol, &
 !$OMP                                    tz, wz, dte, te_beg, tw_beg, te_b_beg, tw_b_beg, &
 !$OMP                                    te_end, tw_end, te_b_end, tw_b_end, te_loss)
@@ -909,16 +918,18 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             endif
 
             ! P3 cloud microphysics main program
-            call mp_p3_wrapper_shield(q (is:ie, j, kmp:km, sphum), pt (is:ie, j, kmp:km), abs (mdt), &
-                              wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), &
-                              a_step, warm_start, ie - is + 1, km - kmp + 1, q (is:ie, j, kmp:km, liq_wat), &
-                              q (is:ie, j, kmp:km, liq_wat_num), q (is:ie, j, kmp:km, rainwat), &
-                              q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, ice_wat), &
-                              q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_num), &
-                              q (is:ie, j, kmp:km, ice_wat_vol), inline_mp%effi (is:ie, j, kmp:km), &
-                              q (is:ie, j, kmp:km, ice_rad_ref), q (is:ie, j, kmp:km, ice_liq_mass), &
-                              q (is:ie, j, kmp:km, cld_amt), inline_mp%prer (is:ie, j), &
-                              inline_mp%pres (is:ie, j), inline_mp%zet (is:ie, j, kmp:km), &
+            call mp_p3_wrapper_shield(qdiag (is:ie, j, kmp:km, qv_old), q (is:ie, j, kmp:km, sphum), &
+                              qdiag (is:ie, j, kmp:km, pt_old), pt (is:ie, j, kmp:km), abs (mdt), &
+                              wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), a_step, &
+                              warm_start, ie - is + 1, km - kmp + 1, qdiag (is:ie, j, kmp:km, qc_old), &
+                              q (is:ie, j, kmp:km, liq_wat), q (is:ie, j, kmp:km, liq_wat_num), &
+                              qdiag (is:ie, j, kmp:km, qr_old), q (is:ie, j, kmp:km, rainwat), &
+                              q (is:ie, j, kmp:km, rainwat_num), qdiag (is:ie, j, kmp:km, qi_old), &
+                              q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_rim_mass), &
+                              q (is:ie, j, kmp:km, ice_wat_num), q (is:ie, j, kmp:km, ice_wat_vol), &
+                              inline_mp%effi (is:ie, j, kmp:km), q (is:ie, j, kmp:km, ice_rad_ref), &
+                              q (is:ie, j, kmp:km, ice_liq_mass), q (is:ie, j, kmp:km, cld_amt), &
+                              inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), inline_mp%zet (is:ie, j, kmp:km), &
                               inline_mp%effc (is:ie, j, kmp:km), te (is:ie, j, kmp:km))
 
             ! update non-microphyiscs tracers due to mass change

@@ -2760,6 +2760,7 @@ contains
   integer i,j,k,l,m, k2,iq
   integer  sphum, o3mr, liq_wat, ice_wat, rainwat, snowwat, graupel, cld_amt, sgs_tke
   integer  liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol, ice_rad_ref, ice_liq_mass
+  integer  pt_old, qv_old, qc_old, qr_old, qi_old
   integer :: is,  ie,  js,  je
 
   is  = Atm%bd%is
@@ -2781,6 +2782,11 @@ contains
      ice_wat_vol = get_tracer_index(MODEL_ATMOS, 'ice_wat_vol')
      ice_rad_ref = get_tracer_index(MODEL_ATMOS, 'ice_rad_ref')
      ice_liq_mass = get_tracer_index(MODEL_ATMOS, 'ice_liq_mass')
+     pt_old = get_tracer_index(MODEL_ATMOS, 'pt_old')
+     qv_old = get_tracer_index(MODEL_ATMOS, 'qv_old')
+     qc_old = get_tracer_index(MODEL_ATMOS, 'qc_old')
+     qr_old = get_tracer_index(MODEL_ATMOS, 'qr_old')
+     qi_old = get_tracer_index(MODEL_ATMOS, 'qi_old')
   endif
   cld_amt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
   o3mr    = get_tracer_index(MODEL_ATMOS, 'o3mr')
@@ -2804,6 +2810,11 @@ contains
        print *, 'ice_wat_vol  = ', ice_wat_vol 
        print *, 'ice_rad_ref  = ', ice_rad_ref 
        print *, 'ice_liq_mass = ', ice_liq_mass 
+       print *, 'pt_old = ', pt_old
+       print *, 'qv_old = ', qv_old
+       print *, 'qc_old = ', qc_old
+       print *, 'qr_old = ', qr_old
+       print *, 'qi_old = ', qi_old
     endif
     print *, 'o3mr = ', o3mr
     print *, 'sgs_tke = ', sgs_tke

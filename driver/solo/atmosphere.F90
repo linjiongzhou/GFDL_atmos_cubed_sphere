@@ -200,7 +200,7 @@ contains
    real, parameter:: wt = 1.5  !  2.
    real:: xt, esl
    integer:: isc, iec, jsc, jec, npz
-   integer:: m, i,j,k
+   integer:: m, i,j,k, nq
 
    character(len=80) :: errstr
 
@@ -226,6 +226,8 @@ contains
     ied = iec + ngc
     jsd = jsc - ngc
     jed = jec + ngc
+
+    nq = Atm(n)%ncnst-Atm(n)%flagstruct%pnats
 
      do_adiabatic_init = .true.
 
@@ -260,12 +262,12 @@ contains
 
      do m=1,Atm(n)%flagstruct%na_init
 ! Forward call
-    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  Atm(n)%ncnst, Atm(n)%ng, dt_atmos, 0.,      &
+    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  nq, Atm(n)%ng, dt_atmos, 0.,      &
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u0, Atm(n)%v0, Atm(n)%u,       &
                      Atm(n)%v, Atm(n)%w, Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,  &
-                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
+                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%qdiag, Atm(n)%ps,       &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
                      Atm(n)%ak, Atm(n)%bk, Atm(n)%mfx, Atm(n)%mfy,                    &
@@ -274,12 +276,12 @@ contains
                      Atm(n)%thermostruct, Atm(n)%idiag, Atm(n)%bd, Atm(n)%parent_grid,&
                      Atm(n)%domain, Atm(n)%inline_mp, Atm(n)%heat_source, Atm(n)%diss_est)
 ! Backward
-    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  Atm(n)%ncnst, Atm(n)%ng, -dt_atmos, 0.,      &
+    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  nq, Atm(n)%ng, -dt_atmos, 0.,      &
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u0, Atm(n)%v0, Atm(n)%u,       &
                      Atm(n)%v, Atm(n)%w, Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,  &
-                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
+                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%qdiag, Atm(n)%ps,       &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
                      Atm(n)%ak, Atm(n)%bk, Atm(n)%mfx, Atm(n)%mfy,                    &
@@ -321,12 +323,12 @@ contains
        enddo
 
 ! Backward
-    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  Atm(n)%ncnst, Atm(n)%ng, -dt_atmos, 0.,      &
+    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  nq, Atm(n)%ng, -dt_atmos, 0.,      &
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u0, Atm(n)%v0, Atm(n)%u,       &
                      Atm(n)%v, Atm(n)%w, Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,  &
-                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
+                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%qdiag, Atm(n)%ps,       &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
                      Atm(n)%ak, Atm(n)%bk, Atm(n)%mfx, Atm(n)%mfy,                    &
@@ -335,12 +337,12 @@ contains
                      Atm(n)%thermostruct, Atm(n)%idiag, Atm(n)%bd, Atm(n)%parent_grid,  &
                      Atm(n)%domain, Atm(n)%inline_mp, Atm(n)%heat_source, Atm(n)%diss_est)
 ! Forwardward call
-    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  Atm(n)%ncnst, Atm(n)%ng, dt_atmos, 0.,      &
+    call fv_dynamics(Atm(n)%npx, Atm(n)%npy, npz,  nq, Atm(n)%ng, dt_atmos, 0.,      &
                      Atm(n)%flagstruct%fill, Atm(n)%flagstruct%reproduce_sum, kappa, cp_air, zvir,  &
                      Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, Atm(n)%flagstruct%n_split,        &
                      Atm(n)%flagstruct%q_split, Atm(n)%u0, Atm(n)%v0, Atm(n)%u,       &
                      Atm(n)%v, Atm(n)%w, Atm(n)%delz, Atm(n)%flagstruct%hydrostatic,  &
-                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps,                     &
+                     Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%qdiag, Atm(n)%ps,       &
                      Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz, Atm(n)%phis,      &
                      Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc, &
                      Atm(n)%ak, Atm(n)%bk, Atm(n)%mfx, Atm(n)%mfy,                    &
@@ -399,7 +401,7 @@ contains
 
     real:: zvir
     real:: time_total
-    integer :: n, p, nc
+    integer :: n, p, nc, nq
     integer :: psc ! p_split counter
 
     call timing_on('ATMOS_DYNAMICS')
@@ -408,6 +410,8 @@ contains
     call get_time (fv_time, seconds,  days)
 
     time_total = days*SECONDS_PER_DAY + seconds
+
+    nq = Atm(n)%ncnst-Atm(n)%flagstruct%pnats
 
     do psc=1,abs(p_split)
 
@@ -428,14 +432,14 @@ contains
     endif
 
        call timing_on('FV_DYNAMICS')
-       call fv_dynamics(Atm(n)%npx, Atm(n)%npy, Atm(n)%npz, Atm(n)%ncnst, Atm(n)%ng,   &
+       call fv_dynamics(Atm(n)%npx, Atm(n)%npy, Atm(n)%npz, nq, Atm(n)%ng,   &
             dt_atmos/real(abs(p_split)), Atm(n)%flagstruct%consv_te, Atm(n)%flagstruct%fill, &
             Atm(n)%flagstruct%reproduce_sum, kappa,   &
             cp_air, zvir, Atm(n)%ptop, Atm(n)%ks, Atm(n)%ncnst, &
             Atm(n)%flagstruct%n_split, Atm(n)%flagstruct%q_split, &
             Atm(n)%u0, Atm(n)%v0, Atm(n)%u, Atm(n)%v, Atm(n)%w, Atm(n)%delz, &
-            Atm(n)%flagstruct%hydrostatic, Atm(n)%pt, Atm(n)%delp, Atm(n)%q, Atm(n)%ps, &
-            Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz,             &
+            Atm(n)%flagstruct%hydrostatic, Atm(n)%pt, Atm(n)%delp, Atm(n)%q, &
+            Atm(n)%qdiag, Atm(n)%ps, Atm(n)%pe, Atm(n)%pk, Atm(n)%peln, Atm(n)%pkz,             &
             Atm(n)%phis, Atm(n)%q_con, Atm(n)%omga, Atm(n)%ua, Atm(n)%va, Atm(n)%uc, Atm(n)%vc,  &
             Atm(n)%ak, Atm(n)%bk, Atm(n)%mfx, Atm(n)%mfy, Atm(n)%cx, Atm(n)%cy,    &
             Atm(n)%ze0, Atm(n)%flagstruct%hybrid_z, Atm(n)%gridstruct, Atm(n)%flagstruct, &

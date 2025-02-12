@@ -678,9 +678,13 @@ contains
            write(unit,*) 'fv_restart q(prog) nq  ', trim(gn),' =',ntprog, mpp_chksum(Atm(n)%q(isc:iec,jsc:jec,:,:))
       if (ntdiag>0) &
            write(unit,*) 'fv_restart q(diag) nq  ', trim(gn),' =',ntdiag, mpp_chksum(Atm(n)%qdiag(isc:iec,jsc:jec,:,:))
-      do iq=1,min(17, ntprog)     ! Check up to 17 tracers
+      do iq=1,ntprog
         call get_tracer_names(MODEL_ATMOS, iq, tracer_name)
         write(unit,*) 'fv_restart '//trim(tracer_name)//' = ', mpp_chksum(Atm(n)%q(isc:iec,jsc:jec,:,iq))
+      enddo
+      do iq=ntprog+1,ncnst
+        call get_tracer_names(MODEL_ATMOS, iq, tracer_name)
+        write(unit,*) 'fv_restart '//trim(tracer_name)//' = ', mpp_chksum(Atm(n)%qdiag(isc:iec,jsc:jec,:,iq))
       enddo
 
 !---------------

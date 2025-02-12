@@ -514,12 +514,14 @@ contains
     !--- TRACERS
     do itrac=1, ncnsto
       call get_tracer_names (MODEL_ATMOS, itrac, tname)
-      if (id_tracer(itrac) > 0 .and. itrac.gt.nq) then
-        call store_data (id_tracer(itrac), Atm(n)%qdiag(isco:ieco,jsco:jeco,:,itrac), Time,  &
-                         kstt_tracer(itrac),kend_tracer(itrac) )
-      else
-        call store_data (id_tracer(itrac), Atm(n)%q(isco:ieco,jsco:jeco,:,itrac), Time,      &
-                         kstt_tracer(itrac),kend_tracer(itrac) )
+      if (id_tracer(itrac)) then
+         if (itrac.gt.nq) then
+           call store_data (id_tracer(itrac), Atm(n)%qdiag(isco:ieco,jsco:jeco,:,itrac), Time,  &
+                            kstt_tracer(itrac),kend_tracer(itrac) )
+         else
+           call store_data (id_tracer(itrac), Atm(n)%q(isco:ieco,jsco:jeco,:,itrac), Time,      &
+                            kstt_tracer(itrac),kend_tracer(itrac) )
+         endif
       endif
     enddo
 

@@ -78,11 +78,11 @@ contains
 
   subroutine fv_dynamics(npx, npy, npz, nq_tot,  ng, bdt, consv_te, fill,               &
                         reproduce_sum, kappa, cp_air, zvir, ptop, ks, ncnst, n_split,     &
-                        q_split, u0, v0, u, v, w, delz, hydrostatic, pt, delp, q,   &
-                        ps, pe, pk, peln, pkz, phis, q_con, omga, ua, va, uc, vc,          &
-                        ak, bk, mfx, mfy, cx, cy, ze0, hybrid_z, &
-                        gridstruct, flagstruct, neststruct, thermostruct, idiag, bd, &
-                        parent_grid, domain, inline_mp, heat_source, diss_est, time_total)
+                        q_split, u0, v0, u, v, w, delz, hydrostatic, pt, delp, q, qdiag,  &
+                        ps, pe, pk, peln, pkz, phis, q_con, omga, ua, va, uc, vc, ak, bk, &
+                        mfx, mfy, cx, cy, ze0, hybrid_z, gridstruct, flagstruct, neststruct, &
+                        thermostruct, idiag, bd, parent_grid, domain, inline_mp, heat_source, &
+                        diss_est, time_total)
 
     real, intent(IN) :: bdt  ! Large time-step
     real, intent(IN) :: consv_te
@@ -112,7 +112,8 @@ contains
     real, intent(inout) :: w(   bd%isd:  ,bd%jsd:  ,1:)  !  W (m/s)
     real, intent(inout) :: pt(  bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! temperature (K)
     real, intent(inout) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! pressure thickness (pascal)
-    real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst) ! specific humidity and constituents
+    real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, nq_tot) ! specific humidity and constituents
+    real, intent(inout) :: qdiag(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, nq_tot+1:ncnst)
     real, intent(inout) :: delz(bd%is:,bd%js:,1:)   ! delta-height (m); non-hydrostatic only
     real, intent(inout) ::  ze0(bd%is:, bd%js: ,1:) ! height at edges (m); non-hydrostatic
     real, intent(inout) :: diss_est(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! diffusion estimate for SKEB
@@ -170,7 +171,7 @@ contains
       real, allocatable :: dp1(:,:,:), cappa(:,:,:)
       real:: akap, rdg, ph1, ph2, mdt, gam, amdt, u00
       real:: recip_k_split,reg_bc_update_time
-      integer:: kord_tracer(ncnst)
+      integer:: kord_tracer(nq_tot)
       integer :: i,j,k, n, iq, n_map, nq, nr, nwat, mp_flag, k_split
       integer :: sphum, liq_wat = -999, ice_wat = -999      ! GFDL physics
       integer :: rainwat = -999, snowwat = -999, graupel = -999, cld_amt = -999
@@ -219,7 +220,7 @@ contains
       if (gridstruct%nested .or. ANY(neststruct%child_grids)) then
          call timing_on('NEST_BCs')
 
-         call setup_nested_grid_BCs(npx, npy, npz, zvir, ncnst, &
+         call setup_nested_grid_BCs(npx, npy, npz, zvir, nq_tot, &
               u, v, w, pt, delp, delz, q, uc, vc, &
               q_con, cappa, &
               neststruct%nested, flagstruct%inline_q, flagstruct%make_nh, ng, &
@@ -613,7 +614,7 @@ contains
      endif
          call Lagrangian_to_Eulerian(last_step, consv_te, ps, pe, delp,          &
                      pkz, pk, mdt, bdt, npx, npy, npz, is,ie,js,je, isd,ied,jsd,jed,       &
-                     nr, nwat, mp_flag, sphum, q_con, u,  v, w, delz, pt, q, phis,    &
+                     nr, nq_tot, ncnst, nwat, mp_flag, sphum, q_con, u,  v, w, delz, pt, q, qdiag, phis,    &
                      zvir, cp_air, flagstruct%te_err, flagstruct%tw_err, akap, cappa, flagstruct%kord_mt, flagstruct%kord_wz, &
                      kord_tracer, flagstruct%kord_tm, flagstruct%remap_te, peln, te_2d, &
                      ng, ua, va, omga, dp1, ws, fill, reproduce_sum,             &
