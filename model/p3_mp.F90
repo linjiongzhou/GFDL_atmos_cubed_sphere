@@ -128,13 +128,15 @@
  logical :: debug_on = .false.   ! logical switch for internal debug checks
  logical :: scpf_on  = .false.   ! switch for activation of SCPF scheme
 
+ logical :: log_predictNc = .true.
+
  real :: dt_max = 60.0           ! Maximum time step (s) to be taken by the microphysics (P3) scheme, with time-splitting
                                  ! used to reduce step to below this value if necessary
 
  real :: clbfact_dep = 1.0       ! calibration factor for deposition
  real :: clbfact_sub = 1.0       ! calibration factor for sublimation
 
- namelist / p3_mp_nml / nCat, trplMomI, liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, dt_max
+ namelist / p3_mp_nml / nCat, trplMomI, liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, dt_max, log_predictNc
 
  contains
 
@@ -930,7 +932,6 @@ END subroutine p3_init
    real, dimension(ims:ime, n_diag2d)           :: diag2d        ! user-defined diagnostic fields (2D)
    real, dimension(ims:ime, kms:kme, n_diag3d)  :: diag3d        ! user-defined diagnostic fields (3D)
 
-   logical                           :: log_predictNc
    logical                           :: log_3momIce
    logical                           :: log_liqFrac
    logical, parameter                :: log_scpf      = .false.  ! switch for activation of SCPF scheme
@@ -942,7 +943,6 @@ END subroutine p3_init
 
    !------------------------------------------------------------------------------------------!
 
-   log_predictNc = present(nc)
    log_3momIce   = present(qzi_1)
    log_liqFrac   = present(qli_1)
 
@@ -1312,7 +1312,6 @@ END subroutine p3_init
  integer                 :: i,k,ktop,kbot,kdir,i_strt,k_strt,i_substep,n_substep,end_status,tmpint1
 
  logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liqFrac
- logical, parameter      :: log_predictNc = .true.      ! temporary; to be put as GEM namelist
  real, parameter         :: SMALL_ICE_MASS = 1e-14      ! threshold for very small specific ice content
 
  character(len=16), parameter :: model = 'GEM'
@@ -1906,7 +1905,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  integer                 :: i,k,ktop,kbot,kdir,i_strt,k_strt,i_substep,n_substep
 
  logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liqFrac
- logical, parameter      :: log_predictNc = .true.      ! temporary; to be put as SHiELD namelist
  real, parameter         :: SMALL_ICE_MASS = 1e-14      ! threshold for very small specific ice content
 
  character(len=16), parameter :: model = 'SHiELD'
