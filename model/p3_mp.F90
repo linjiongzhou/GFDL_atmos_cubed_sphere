@@ -38,7 +38,7 @@
 #endif
 
  use fms_mod, only: check_nml_error
- use gfdl_mp_mod, only: wqs, iqs, mte
+ use gfdl_mp_mod, only: mte
 
  implicit none
 
@@ -128,15 +128,20 @@
  logical :: debug_on = .false.   ! logical switch for internal debug checks
  logical :: scpf_on  = .false.   ! switch for activation of SCPF scheme
 
- logical :: log_predictNc = .true.
+ logical :: log_predictNc = .true. ! .T. (.F.) for prediction (specification) of Nc
+ logical :: cp_heating    = .true.
 
  real :: dt_max = 60.0           ! Maximum time step (s) to be taken by the microphysics (P3) scheme, with time-splitting
                                  ! used to reduce step to below this value if necessary
 
+ real :: scpf_pfrac   = 1.0      ! precipitation fraction factor (SCPF)
+ real :: scpf_resfact = 1.0      ! model resolution factor (SCPF)
+
  real :: clbfact_dep = 1.0       ! calibration factor for deposition
  real :: clbfact_sub = 1.0       ! calibration factor for sublimation
 
- namelist / p3_mp_nml / nCat, trplMomI, liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, dt_max, log_predictNc
+ namelist / p3_mp_nml / nCat, trplMomI, liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, &
+                        dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact
 
  contains
 
@@ -426,7 +431,7 @@
        if(owr) print*, '************************************************'
        if(owr) print*
        global_status = STATUS_ERROR
-       if (trim(model) == 'WRF') then
+       if (trim(model) == 'WRF' .or. trim(model) == 'SHiELD') then
           print*,'Stopping in P3 init'
           stop
        endif
@@ -501,7 +506,7 @@
        if(owr) print*, '************************************************'
        if(owr) print*
        global_status = STATUS_ERROR
-       if (trim(model) == 'WRF') then
+       if (trim(model) == 'WRF' .or. trim(model) == 'SHiELD') then
           print*,'Stopping in P3 init'
           stop
        endif
@@ -558,7 +563,7 @@
           if(owr) print*, '************************************************'
           if(owr) print*
           global_status = STATUS_ERROR
-          if (trim(model)=='WRF' .or. trim(model)=='KIN1D') then
+          if (trim(model)=='WRF' .or. trim(model)=='KIN1D' .or. trim(model) == 'SHiELD') then
              print*,'Stopping in P3 init'
              stop
           endif
@@ -938,16 +943,11 @@ END subroutine p3_init
    logical, parameter                :: log_debug     = .false.  ! switch for internal real-time debug checking
 
    real, dimension(ims:ime, kms:kme) :: cldfrac                  ! cloud fraction computed by SCPF
-   real                              :: scpf_pfrac               ! precipitation fraction factor (SCPF)
-   real                              :: scpf_resfact             ! model resolution factor (SCPF)
 
    !------------------------------------------------------------------------------------------!
 
    log_3momIce   = present(qzi_1)
    log_liqFrac   = present(qli_1)
-
-   scpf_pfrac   = 0.  ! SCPF currently not used in WRF/CM1
-   scpf_resfact = 0.  ! SCPF currently not used in WRF/CM1
 
    j_loop: do j = jts,jte      ! j loop (north-south)
 
@@ -1009,8 +1009,7 @@ END subroutine p3_init
                       diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),  &      
                       diag_dmi(its:ite,kts:kte,1:n_iceCat),diag_rhoi(its:ite,kts:kte,1:n_iceCat),  &      
                       n_diag2d,diag2d(its:ite,1:n_diag2d),n_diag3d,diag3d(its:ite,kts:kte,1:n_diag3d), &  
-                      log_predictNc,trim(model),log_debug,log_scpf,                            &          
-                      scpf_pfrac,scpf_resfact,cldfrac,log_3momIce,log_liqFrac,                 &          
+                      trim(model),log_debug,log_scpf,cldfrac,log_3momIce,log_liqFrac,                  &          
                       diag_dhmax = diag_dhmax )
 
      !surface precipitation output:
@@ -1142,8 +1141,7 @@ END subroutine p3_init
                               prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,diag_Zet,diag_Zec,    &
                               diag_effc,qc_m,qc,nc,qr_m,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,  &
                               diag_hcb,diag_hsn,diag_vis,                                           &
-                              diag_vis1,diag_vis2,diag_vis3,diag_slw,                               &
-                              scpf_on,scpf_pfrac,scpf_resfact,cldfrac,maxD_hail,                    &
+                              diag_vis1,diag_vis2,diag_vis3,diag_slw,cldfrac,maxD_hail,             &
                               qi_type_1,qi_type_2,qi_type_3,qi_type_4,qi_type_5,qi_type_6,          &
                               qitot_1m,qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1, &
                               qitot_2m,qitot_2,qirim_2,nitot_2,birim_2,diag_effi_2,zitot_2,qiliq_2, &
@@ -1265,9 +1263,6 @@ END subroutine p3_init
  real, intent(out),   dimension(ni,nk)  :: diag_vis3             ! visibility through snow             m
  real, intent(out),   dimension(ni,nk)  :: diag_slw              ! supercooled LWC                     kg m-3
 
- logical, intent(in)                    :: scpf_on               ! switch for activation of SCPF scheme
- real,    intent(in)                    :: scpf_pfrac            ! precipitation fraction factor (SCPF)
- real,    intent(in)                    :: scpf_resfact          ! model resolution factor (SCPF)
  real,    intent(out), dimension(ni,nk) :: cldfrac               ! cloud fraction computed by SCPF
 
 !----------------------------------------------------------------------------------------!
@@ -1507,8 +1502,7 @@ END subroutine p3_init
      call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,qiliq,nitot,birim,     &
                    zitot,ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,    &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,trim(model),                                 &
-                   scpf_on,scpf_pfrac,scpf_resfact,cldfrac,log_trplMomI,log_liqFrac,            &
+                   n_diag_3d,diag_3d,trim(model),cldfrac,log_trplMomI,log_liqFrac,              &
                    prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,     &
                    prt_wsnow,qi_type,                                                           &
                    diag_vis  = diag_vis,                                                        &
@@ -1743,7 +1737,8 @@ END subroutine p3_init
 
 subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,warm_start,ni,nk,&
                                 qc_m,qc,nc,qr_m,qr,nr,qitot_1m,qitot_1,qirim_1,nitot_1,birim_1,&
-                                diag_effi_1,zitot_1,qiliq_1,cldfrac,rain,snow,diag_Zet,diag_effc,te)
+                                diag_effi_1,zitot_1,qiliq_1,cldfrac,rain,snow,diag_Zet,diag_effc,&
+                                consv_te,te)
 
 !------------------------------------------------------------------------------------------!
 ! This wrapper subroutine is the main SHiELD interface with the P3 microphysics scheme.    !
@@ -1761,7 +1756,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  integer, intent(in)                    :: ni                    ! number of columns in slab           -
  integer, intent(in)                    :: nk                    ! number of vertical levels           -
  integer, intent(in)                    :: kount                 ! time step counter                   -
- logical, intent(in)                    :: warm_start
+ logical, intent(in)                    :: warm_start, consv_te
 
  real, intent(in)                       :: dt                    ! model time step                     s
  real, intent(inout), dimension(ni,nk)  :: qc                    ! cloud specific ratio, mass            kg kg-1
@@ -1851,9 +1846,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  real, dimension(ni,nk)  :: diag_vis3             ! visibility through snow             m
  real, dimension(ni,nk)  :: diag_slw              ! supercooled LWC                     kg m-3
 
- real :: scpf_pfrac   = 1.0                       ! precipitation fraction factor (SCPF)
- real :: scpf_resfact = 1.0                       ! model resolution factor (SCPF)
-
  real, dimension(ni,nk) :: maxD_hail              ! ice, maximum hail size (all cat)    m
 
  real, dimension(ni,nk)  :: qi_type_1             ! small ice crystal mass              kg kg-1
@@ -1937,11 +1929,13 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
    ta_m = temp_m/((1.+zvir*qvap_m)*(1-qc_m-qr_m-qitot_1m))
    ta = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
 
-   do k = 1,nk
-      do i = 1,ni
-         te(i,k) = -mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(ta(i,k)),delp(i,k),.true.)*g
+   if (consv_te) then
+      do k = 1,nk
+         do i = 1,ni
+            te(i,k) = -mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(ta(i,k)),delp(i,k),.true.)*g
+         enddo
       enddo
-   enddo
+   endif
 
    ! Transform every specific mass to mixing ratio
    ! Total sum at t-
@@ -2100,8 +2094,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
      call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,qiliq,nitot,birim,     &
                    zitot,ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,    &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,trim(model),                                 &
-                   scpf_on,scpf_pfrac,scpf_resfact,cldfrac,log_trplMomI,log_liqFrac,            &
+                   n_diag_3d,diag_3d,trim(model),cldfrac,log_trplMomI,log_liqFrac,              &
                    prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,     &
                    prt_wsnow,qi_type,                                                           &
                    diag_vis  = diag_vis,                                                        &
@@ -2311,9 +2304,13 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
    !endif
 
    ! convert temperature to virtual temperature
-   !c_moist = (1-(qvap+qc+qr+qitot_1))*cv+qvap*cvv+(qc+qr)*cpw+qitot_1*cpi
-   !temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))-temp)*cp/c_moist
-   temp = ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))
+   if (cp_heating) then
+      temp = ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))
+   else
+      c_moist = (1-(qvap+qc+qr+qitot_1))*cv+qvap*cvv+(qc+qr)*cpw+qitot_1*cpi
+      temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qitot_1))-temp)*cp/c_moist
+      ta = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
+   endif
 
    ! reset the previous time step variables to current time step
    temp_m = temp
@@ -2322,13 +2319,13 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
    qr_m = qr
    qitot_1m = qitot_1
 
-   ta = temp/((1.+zvir*qvap)*(1-qc-qr-qitot_1))
-
-   do k = 1,nk
-      do i = 1,ni
-         te(i,k) = te(i,k)+mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(ta(i,k)),delp(i,k),.true.)*g
+   if (consv_te) then
+      do k = 1,nk
+         do i = 1,ni
+            te(i,k) = te(i,k)+mte(qvap(i,k),qc(i,k),qr(i,k),qitot_1(i,k),0.0,0.0,DBLE(ta(i,k)),delp(i,k),.true.)*g
+         enddo
       enddo
-   enddo
+   endif
 
    return
 
@@ -2533,8 +2530,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,qiliq,nitot,birim,     &
                     zitot,ssat,uzpl,pres,dzq,it,prt_liq,prt_sol,its,ite,kts,kte,nCat,     &
                     diag_ze,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,     &
-                    diag_2d,n_diag_3d,diag_3d,log_predictNc,model,                        &
-                    scpf_on,scpf_pfrac,scpf_resfact,SCF_out,                              &
+                    diag_2d,n_diag_3d,diag_3d,model,SCF_out,                              &
                     log_3momentIce,log_LiquidFrac,prt_drzl,prt_rain,prt_crys,prt_snow,    &
                     prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,qi_type,                &
                     diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax,warm_start)
@@ -2607,7 +2603,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 
  logical, intent(in)                                  :: log_3momentIce ! .T. for triple-moment ice
  logical, intent(in)                                  :: log_LiquidFrac ! .T. for prognostic liquid-fraction
- logical, intent(in)                                  :: log_predictNc ! .T. (.F.) for prediction (specification) of Nc
  character(len=*), intent(in)                         :: model         !driving model
 
  real, intent(out), dimension(its:ite), optional      :: prt_drzl      ! precip rate, drizzle          m s-1
@@ -2623,9 +2618,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  real, intent(out), dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size                      m
  real, intent(out), dimension(its:ite,kts:kte,n_qiType), optional :: qi_type    ! mass mixing ratio, diagnosed ice type  kg kg-1
 
- logical, intent(in)                                  :: scpf_on       ! Switch to activate SCPF
- real,    intent(in)                                  :: scpf_pfrac    ! precipitation fraction factor (SCPF)
- real,    intent(in)                                  :: scpf_resfact  ! model resolution factor (SCPF)
  real,    intent(out), dimension(its:ite,kts:kte)     :: SCF_out       ! cloud fraction from SCPF
 
 !----- Local variables and parameters:  -------------------------------------------------!
@@ -11981,12 +11973,8 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
   if (i_wrt.eq.1) e_pres = foew(t_atm)
   if (i_wrt.eq.0) e_pres = foewa(t_atm)
   qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
-#elif defined (ECCCWRF)
-  e_pres = polysvp1(t_atm,i_wrt)
-  qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
 #else
-  if (i_wrt.eq.1) e_pres = iqs(t_atm)
-  if (i_wrt.eq.0) e_pres = wqs(t_atm)
+  e_pres = polysvp1(t_atm,i_wrt)
   qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
 #endif
 

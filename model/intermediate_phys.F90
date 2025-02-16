@@ -135,7 +135,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
     real, allocatable, dimension (:,:) :: dz, wa
 
-    real, allocatable, dimension (:,:,:) :: u_dt, v_dt, dp0, u0, v0
+    real, allocatable, dimension (:,:,:) :: u_dt, v_dt, dp0, u0, v0, w0
 
     real (kind = r8), allocatable, dimension (:) :: tz
 
@@ -468,6 +468,10 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             allocate (v0 (isd:ied+1, jsd:jed, km))
             u0 = u
             v0 = v
+            if (.not. hydrostatic) then
+                allocate (w0 (isd:ied, jsd:jed, km))
+                w0 = w
+            endif
         endif
 
         ! D grid wind to A grid wind remap
@@ -770,7 +774,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
         ! update dry total energy
         if (consv .gt. consv_min) then
 !$OMP parallel do default (none) shared (is, ie, js, je, km, te0_2d, hydrostatic, delp, &
-!$OMP                                    gridstruct, u, v, dp0, u0, v0, hs, delz, w) &
+!$OMP                                    gridstruct, u, v, dp0, u0, v0, w0, hs, delz, w) &
 !$OMP                           private (phis)
             do j = js, je
                 if (hydrostatic) then
@@ -804,7 +808,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                 v (i, j, k) ** 2 + v (i+1, j, k) ** 2 - (u (i, j, k) + &
                                 u (i, j+1, k)) * (v (i, j, k) + v (i+1, j, k)) * &
                                 gridstruct%cosa_s (i, j)))) - dp0 (i, j, k) * &
-                                (0.5 * (phis (i, k) + phis (i, k+1) + w (i, j, k) ** 2 + &
+                                (0.5 * (phis (i, k) + phis (i, k+1) + w0 (i, j, k) ** 2 + &
                                 0.5 * gridstruct%rsin2 (i, j) * (u0 (i, j, k) ** 2 + &
                                 u0 (i, j+1, k) ** 2 + v0 (i, j, k) ** 2 + v0 (i+1, j, k) ** 2 - &
                                 (u0 (i, j, k) + u0 (i, j+1, k)) * (v0 (i, j, k) + v0 (i+1, j, k)) * &
@@ -818,6 +822,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
         if (consv .gt. consv_min) then
             deallocate (u0)
             deallocate (v0)
+            if (.not. hydrostatic) then
+                deallocate (w0)
+            endif
             deallocate (dp0)
         endif
 
@@ -842,6 +849,10 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             allocate (v0 (isd:ied+1, jsd:jed, km))
             u0 = u
             v0 = v
+            if (.not. hydrostatic) then
+                allocate (w0 (isd:ied, jsd:jed, km))
+                w0 = w
+            endif
         endif
 
         ! D grid wind to A grid wind remap
@@ -930,7 +941,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                               inline_mp%effi (is:ie, j, kmp:km), q (is:ie, j, kmp:km, ice_rad_ref), &
                               q (is:ie, j, kmp:km, ice_liq_mass), q (is:ie, j, kmp:km, cld_amt), &
                               inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), inline_mp%zet (is:ie, j, kmp:km), &
-                              inline_mp%effc (is:ie, j, kmp:km), te (is:ie, j, kmp:km))
+                              inline_mp%effc (is:ie, j, kmp:km), consv .gt. consv_min, te (is:ie, j, kmp:km))
 
             ! update non-microphyiscs tracers due to mass change
             if (adj_mass_vmr .gt. 0) then
@@ -999,7 +1010,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
         ! update dry total energy
         if (consv .gt. consv_min) then
 !$OMP parallel do default (none) shared (is, ie, js, je, km, te0_2d, hydrostatic, delp, &
-!$OMP                                    gridstruct, u, v, dp0, u0, v0, hs, delz, w) &
+!$OMP                                    gridstruct, u, v, dp0, u0, v0, w0, hs, delz, w) &
 !$OMP                           private (phis)
             do j = js, je
                 if (hydrostatic) then
@@ -1033,7 +1044,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                 v (i, j, k) ** 2 + v (i+1, j, k) ** 2 - (u (i, j, k) + &
                                 u (i, j+1, k)) * (v (i, j, k) + v (i+1, j, k)) * &
                                 gridstruct%cosa_s (i, j)))) - dp0 (i, j, k) * &
-                                (0.5 * (phis (i, k) + phis (i, k+1) + w (i, j, k) ** 2 + &
+                                (0.5 * (phis (i, k) + phis (i, k+1) + w0 (i, j, k) ** 2 + &
                                 0.5 * gridstruct%rsin2 (i, j) * (u0 (i, j, k) ** 2 + &
                                 u0 (i, j+1, k) ** 2 + v0 (i, j, k) ** 2 + v0 (i+1, j, k) ** 2 - &
                                 (u0 (i, j, k) + u0 (i, j+1, k)) * (v0 (i, j, k) + v0 (i+1, j, k)) * &
@@ -1047,6 +1058,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
         if (consv .gt. consv_min) then
             deallocate (u0)
             deallocate (v0)
+            if (.not. hydrostatic) then
+                deallocate (w0)
+            endif
             deallocate (dp0)
         endif
 
