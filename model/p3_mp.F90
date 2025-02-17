@@ -2433,8 +2433,16 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
        ! COMPUTE CLOUD FRACTION AND in-FRACTIONS WATER VAPOR CONTENT
        !------------------------------------------------------------
        Qtot       = Qv(k)+Qcond(k)                            ! Total "Cloudy" mean water mixing ratio
-       DELTA_Qtot = Qsi(k)*(1.-RHoo)                          ! half-width of Qtot subgrid PDF
-       SCF(k)     = 0.5*(Qtot+DELTA_Qtot-QSI(k))/DELTA_Qtot   ! subgrid cloud fraction
+       if (RHoo .lt. 0.999) then
+          DELTA_Qtot = Qsi(k)*(1.-RHoo)                          ! half-width of Qtot subgrid PDF
+          SCF(k)     = 0.5*(Qtot+DELTA_Qtot-QSI(k))/DELTA_Qtot   ! subgrid cloud fraction
+       else
+          if (Qtot .ge. QSI(k)) then
+             SCF(k) = 1.
+          else
+             SCF(k) = 0.
+          endif
+       endif
 
        if (SCF(k) .lt. 0.01 ) then          ! minimum allowed Cloud fraction (below it is clear-sky)
           SCF(k)    = 0.                    ! inverse of Cloud cover
