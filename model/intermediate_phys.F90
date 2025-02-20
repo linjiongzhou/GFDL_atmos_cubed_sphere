@@ -879,11 +879,24 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 !$OMP                                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, &
 !$OMP                                    ice_wat_vol, ice_rad_ref, ice_liq_mass, &
 !$OMP                                    qv_old, pt_old, qc_old, qr_old, qi_old) &
-!$OMP                           private (dz, wa, pe, peln, adj_vmr, qliq, qsol, &
+!$OMP                           private (q2, q3, dz, wa, pe, peln, adj_vmr, qliq, qsol, &
 !$OMP                                    tz, wz, dte, te_beg, tw_beg, te_b_beg, tw_b_beg, &
 !$OMP                                    te_end, tw_end, te_b_end, tw_b_end, te_loss)
 
         do j = js, je
+
+            ! assign q2 and q3 only when ice_rad_ref and ice_liq_mass are available
+            if (ice_rad_ref .gt. 0) then
+                q2 (is:ie, kmp:km) = q (is:ie, j, kmp:km, ice_rad_ref)
+            else
+                q2 (is:ie, kmp:km) = 0.0
+            endif
+
+            if (ice_liq_mass .gt. 0) then
+                q3 (is:ie, kmp:km) = q (is:ie, j, kmp:km, ice_liq_mass)
+            else
+                q3 (is:ie, kmp:km) = 0.0
+            endif
 
             ! note: ua and va are A-grid variables
             ! note: pt is virtual temperature at this point
@@ -938,9 +951,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                               q (is:ie, j, kmp:km, rainwat_num), qdiag (is:ie, j, kmp:km, qi_old), &
                               q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_rim_mass), &
                               q (is:ie, j, kmp:km, ice_wat_num), q (is:ie, j, kmp:km, ice_wat_vol), &
-                              inline_mp%effi (is:ie, j, kmp:km), q (is:ie, j, kmp:km, ice_rad_ref), &
-                              q (is:ie, j, kmp:km, ice_liq_mass), q (is:ie, j, kmp:km, cld_amt), &
-                              inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), inline_mp%zet (is:ie, j, kmp:km), &
+                              inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
+                              q (is:ie, j, kmp:km, cld_amt), inline_mp%prer (is:ie, j), &
+                              inline_mp%pres (is:ie, j), inline_mp%zet (is:ie, j, kmp:km), &
                               inline_mp%effc (is:ie, j, kmp:km), consv .gt. consv_min, te (is:ie, j, kmp:km))
 
             ! update non-microphyiscs tracers due to mass change
@@ -950,6 +963,15 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                         q (is:ie, j, kmp:km, m) = q (is:ie, j, kmp:km, m) * adj_vmr (is:ie, kmp:km)
                     endif
                 enddo
+            endif
+
+            ! update ice_rad_ref and ice_rad_ref
+            if (ice_rad_ref .gt. 0) then
+                q (is:ie, j, kmp:km, ice_rad_ref) = q2 (is:ie, kmp:km)
+            endif
+
+            if (ice_liq_mass .gt. 0) then
+                q (is:ie, j, kmp:km, ice_liq_mass) = q3 (is:ie, kmp:km)
             endif
 
             ! update vertical velocity

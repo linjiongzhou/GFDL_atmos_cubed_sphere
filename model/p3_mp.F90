@@ -123,24 +123,24 @@
 
  integer :: nCat     = 1         ! number of free ice categories
 
- logical :: trplMomI = .false.   ! .T.=3-moment / .F.=2-moment (ice)
- logical :: liqfrac  = .false.   ! .T.=Fi,liq / .F.=no Fi,liq (ice)
- logical :: debug_on = .false.   ! logical switch for internal debug checks
- logical :: scpf_on  = .false.   ! switch for activation of SCPF scheme
+ logical :: log_trplMomI = .false. ! .T.=3-moment / .F.=2-moment (ice)
+ logical :: log_liqfrac  = .false. ! .T.=Fi,liq / .F.=no Fi,liq (ice)
+ logical :: debug_on = .false.     ! logical switch for internal debug checks
+ logical :: scpf_on  = .false.     ! switch for activation of SCPF scheme
 
  logical :: log_predictNc = .true. ! .T. (.F.) for prediction (specification) of Nc
- logical :: cp_heating    = .true.
+ logical :: cp_heating    = .true. ! .T.=cp heating / .F.=moist cv heating
 
- real :: dt_max = 60.0           ! Maximum time step (s) to be taken by the microphysics (P3) scheme, with time-splitting
-                                 ! used to reduce step to below this value if necessary
+ real :: dt_max = 60.0             ! Maximum time step (s) to be taken by the microphysics (P3) scheme, with time-splitting
+                                   ! used to reduce step to below this value if necessary
 
- real :: scpf_pfrac   = 1.0      ! precipitation fraction factor (SCPF)
- real :: scpf_resfact = 1.0      ! model resolution factor (SCPF)
+ real :: scpf_pfrac   = 1.0        ! precipitation fraction factor (SCPF)
+ real :: scpf_resfact = 1.0        ! model resolution factor (SCPF)
 
- real :: clbfact_dep = 1.0       ! calibration factor for deposition
- real :: clbfact_sub = 1.0       ! calibration factor for sublimation
+ real :: clbfact_dep = 1.0         ! calibration factor for deposition
+ real :: clbfact_sub = 1.0         ! calibration factor for sublimation
 
- namelist / p3_mp_nml / nCat, trplMomI, liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, &
+ namelist / p3_mp_nml / nCat, log_trplMomI, log_liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, &
                         dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact
 
  contains
@@ -206,7 +206,7 @@
  read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
- if (trplMomI) then
+ if (log_trplMomI) then
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
  else
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
@@ -385,13 +385,13 @@
  call rpn_comm_rank(RPN_COMM_GRID,procnum,istat)
 #endif
 
- if (trplMomI) then
+ if (log_trplMomI) then
     itabcoll_3mom = 0.
  else
     itabcoll = 0.
  endif
  if (nCat>1) then
-  if (liqfrac) then
+  if (log_liqfrac) then
     itabcolli001 = 0.
     itabcolli002 = 0.
     itabcolli011 = 0.
@@ -412,7 +412,7 @@
   if(owr) print*, ' P3 microphysics: v',trim(version_p3)
   if(owr) print*, '   P3_INIT (reading/creating lookup tables)'
 
-  TRIPLE_MOMENT_ICE: if (.not. trplMomI) then
+  TRIPLE_MOMENT_ICE: if (.not. log_trplMomI) then
 
     print*, '     Reading table 1 [',trim(version_intended_table_1_2mom),'] ...'
 
@@ -480,7 +480,7 @@
        return
     endif
 
-  else ! TRIPLE_MOMENT_ICE  (the following is for trplMomI=.true.)
+  else ! TRIPLE_MOMENT_ICE  (the following is for log_trplMomI=.true.)
 
     print*, '     Reading table 1 [v',trim(version_intended_table_1_3mom),'] ...'
 
@@ -571,7 +571,7 @@
        IF_OKB: if (global_status /= STATUS_ERROR) then
        read(10,*)
 
-       if (liqfrac) then
+       if (log_liqfrac) then
          do i = 1,iisize
             do jjj = 1,rimsize
                do jjjj = 1,densize
@@ -609,7 +609,7 @@
                enddo
             enddo
          enddo
-       endif ! liqfrac
+       endif ! log_liqfrac
 
        endif IF_OKB
 
@@ -633,7 +633,7 @@
  endif
 
 #if defined (ECCCGEM)
- if (trplMomI) then
+ if (log_trplMomI) then
     call rpn_comm_bcast(itab_3mom,size(itab_3mom),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
     call rpn_comm_bcast(itabcoll_3mom,size(itabcoll_3mom),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  else
@@ -641,7 +641,7 @@
     call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  endif
  if (nCat>1) then
-  if (liqfrac) then
+  if (log_liqfrac) then
     call rpn_comm_bcast(itabcolli001,size(itabcolli001),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
     call rpn_comm_bcast(itabcolli002,size(itabcolli002),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
     call rpn_comm_bcast(itabcolli011,size(itabcolli011),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
@@ -1896,7 +1896,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 
  integer                 :: i,k,ktop,kbot,kdir,i_strt,k_strt,i_substep,n_substep
 
- logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liqFrac
+ logical                 :: log_tmp1,log_tmp2
  real, parameter         :: SMALL_ICE_MASS = 1e-14      ! threshold for very small specific ice content
 
  character(len=16), parameter :: model = 'SHiELD'
@@ -1909,9 +1909,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
    ktop  = 1   ! k index of top level
    kbot  = nk  ! k index of bottom level
    kdir  = -1  ! direction of vertical leveling for 1=bottom, nk=top
-
-   log_trplMomI = trplMomI
-   log_liqFrac = liqfrac
 
    !compute time step and number of steps for substepping
    n_substep = int((dt-0.1)/max(0.1,dt_max)) + 1
@@ -2956,7 +2953,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 
 ! Note (BUG), I think SCF, SPF,... should be initialize here with scpf_on=.false.
 
-! initialize the qiliq to 0. to allow gereralized use even if liqFrac is not used
+! initialize the qiliq to 0. to allow gereralized use even if log_liqFrac is not used
  if (.not.log_LiquidFrac) qiliq = 0.
 
 !-----------------------------------------------------------------------------------!

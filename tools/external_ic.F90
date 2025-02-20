@@ -3085,8 +3085,8 @@ contains
            Atm%q(i,j,k,ice_rim_mass) = 0.0
            Atm%q(i,j,k,ice_wat_num) = 0.0
            Atm%q(i,j,k,ice_wat_vol) = 0.0
-           Atm%q(i,j,k,ice_rad_ref) = 0.0
-           Atm%q(i,j,k,ice_liq_mass) = 0.0
+           if (ice_rad_ref .gt. 0) Atm%q(i,j,k,ice_rad_ref) = 0.0
+           if (ice_liq_mass .gt. 0) Atm%q(i,j,k,ice_liq_mass) = 0.0
         enddo
      enddo
   endif
