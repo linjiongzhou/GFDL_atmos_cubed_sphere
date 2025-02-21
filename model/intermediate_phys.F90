@@ -60,7 +60,7 @@ contains
 subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, nq_tot, ncnst, &
                mdt, consv, akap, ptop, pfull, hs, te0_2d, a_step, warm_start, u, v, w, pt, &
                delp, delz, q_con, cappa, q, qdiag, pkz, zvir, te_err, tw_err, inline_mp, &
-               mp_flag, gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
+               ncat, mp_flag, gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
                do_inline_mp, do_sat_adj, last_step, do_fast_phys, consv_checker, adj_mass_vmr)
 
     implicit none
@@ -69,7 +69,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     ! input / output arguments
     ! -----------------------------------------------------------------------
 
-    integer, intent (in) :: is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, mp_flag, a_step, nq_tot, ncnst
+    integer, intent (in) :: is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, ncat, mp_flag, a_step, nq_tot, ncnst
 
     logical, intent (in) :: hydrostatic, do_adiabatic_init, do_inline_mp, consv_checker
     logical, intent (in) :: do_sat_adj, last_step, do_fast_phys, warm_start
@@ -118,7 +118,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     integer :: i, j, k, m, kmp, sphum, liq_wat, ice_wat
     integer :: rainwat, snowwat, graupel, cld_amt, ccn_cm3, cin_cm3, aerosol
     integer :: liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol, ice_rad_ref, ice_liq_mass
-    integer :: pt_old, qv_old, qc_old, qr_old, qi_old
+    integer :: snow_rim_mass, snow_wat_num, snow_wat_vol, snow_rad_ref, snow_liq_mass
+    integer :: graupel_rim_mass, graupel_wat_num, graupel_wat_vol, graupel_rad_ref, graupel_liq_mass
+    integer :: pt_old, qv_old, qc_old, qr_old, qi_old, qs_old, qg_old
     integer :: k_con, k_cappa
 
     real :: rrg
@@ -136,6 +138,8 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     real, allocatable, dimension (:,:) :: dz, wa
 
     real, allocatable, dimension (:,:,:) :: u_dt, v_dt, dp0, u0, v0, w0
+
+    real, allocatable, dimension (:,:,:,:) :: q_cat
 
     real (kind = r8), allocatable, dimension (:) :: tz
 
@@ -155,18 +159,40 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     ccn_cm3 = get_tracer_index (model_atmos, 'ccn_cm3')
     cin_cm3 = get_tracer_index (model_atmos, 'cin_cm3')
     aerosol = get_tracer_index (model_atmos, 'aerosol')
-    liq_wat_num = get_tracer_index (model_atmos, 'liq_wat_num')
-    rainwat_num = get_tracer_index (model_atmos, 'rainwat_num')
-    ice_rim_mass = get_tracer_index (model_atmos, 'ice_rim_mass')
-    ice_wat_num = get_tracer_index (model_atmos, 'ice_wat_num')
-    ice_wat_vol = get_tracer_index (model_atmos, 'ice_wat_vol')
-    ice_rad_ref = get_tracer_index (model_atmos, 'ice_rad_ref')
-    ice_liq_mass = get_tracer_index (model_atmos, 'ice_liq_mass')
-    pt_old = get_tracer_index (model_atmos, 'pt_old')
-    qv_old = get_tracer_index (model_atmos, 'qv_old')
-    qc_old = get_tracer_index (model_atmos, 'qc_old')
-    qr_old = get_tracer_index (model_atmos, 'qr_old')
-    qi_old = get_tracer_index (model_atmos, 'qi_old')
+    if (mp_flag .gt. 7) then
+        liq_wat_num = get_tracer_index (model_atmos, 'liq_wat_num')
+        rainwat_num = get_tracer_index (model_atmos, 'rainwat_num')
+        ice_wat_num = get_tracer_index (model_atmos, 'ice_wat_num')
+        ice_rim_mass = get_tracer_index (model_atmos, 'ice_rim_mass')
+        ice_wat_vol = get_tracer_index (model_atmos, 'ice_wat_vol')
+        ice_rad_ref = get_tracer_index (model_atmos, 'ice_rad_ref')
+        ice_liq_mass = get_tracer_index (model_atmos, 'ice_liq_mass')
+        if (ncat .gt. 1) then
+            snow_wat_num = get_tracer_index (model_atmos, 'snow_wat_num')
+            snow_rim_mass = get_tracer_index (model_atmos, 'snow_rim_mass')
+            snow_wat_vol = get_tracer_index (model_atmos, 'snow_wat_vol')
+            snow_rad_ref = get_tracer_index (model_atmos, 'snow_rad_ref')
+            snow_liq_mass = get_tracer_index (model_atmos, 'snow_liq_mass')
+        endif
+        if (ncat .gt. 2) then
+            graupel_wat_num = get_tracer_index (model_atmos, 'graupel_wat_num')
+            graupel_rim_mass = get_tracer_index (model_atmos, 'graupel_rim_mass')
+            graupel_wat_vol = get_tracer_index (model_atmos, 'graupel_wat_vol')
+            graupel_rad_ref = get_tracer_index (model_atmos, 'graupel_rad_ref')
+            graupel_liq_mass = get_tracer_index (model_atmos, 'graupel_liq_mass')
+        endif
+        pt_old = get_tracer_index (model_atmos, 'pt_old')
+        qv_old = get_tracer_index (model_atmos, 'qv_old')
+        qc_old = get_tracer_index (model_atmos, 'qc_old')
+        qr_old = get_tracer_index (model_atmos, 'qr_old')
+        qi_old = get_tracer_index (model_atmos, 'qi_old')
+        if (ncat .gt. 1) then
+            qs_old = get_tracer_index (model_atmos, 'qs_old')
+        endif
+        if (ncat .gt. 2) then
+            qg_old = get_tracer_index (model_atmos, 'qg_old')
+        endif
+    endif
 
     rrg = - rdgas / grav
 
@@ -867,21 +893,28 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
         allocate (dz (is:ie, kmp:km))
         allocate (wa (is:ie, kmp:km))
+        if (ncat .eq. 2) allocate (q_cat (is:ie, kmp:km, 8, 1))
+        if (ncat .eq. 3) allocate (q_cat (is:ie, kmp:km, 8, 2))
 
 !$OMP parallel do default (none) shared (is, ie, js, je, isd, jsd, kmp, km, ua, va, &
 !$OMP                                    te, delp, hydrostatic, hs, pt, delz, ptop, &
-!$OMP                                    rainwat, liq_wat, ice_wat, q_con, a_step, &
+!$OMP                                    rainwat, liq_wat, ice_wat, snowwat, graupel, q_con, a_step, &
 !$OMP                                    sphum, w, pkz, last_step, consv, te0_2d, zvir, &
 !$OMP                                    gridstruct, q, qdiag, mdt, cld_amt, cappa, rrg, akap, &
 !$OMP                                    ccn_cm3, cin_cm3, inline_mp, do_inline_mp, &
 !$OMP                                    aerosol, adj_mass_vmr, conv_vmr_mmr, nq, warm_start, &
 !$OMP                                    te_err, tw_err, k_con, k_cappa, thermostruct, &
 !$OMP                                    liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, &
-!$OMP                                    ice_wat_vol, ice_rad_ref, ice_liq_mass, &
-!$OMP                                    qv_old, pt_old, qc_old, qr_old, qi_old) &
+!$OMP                                    ice_wat_vol, ice_rad_ref, ice_liq_mass, ncat, &
+!$OMP                                    snow_rim_mass, snow_wat_num, snow_wat_vol, &
+!$OMP                                    snow_rad_ref, snow_liq_mass, graupel_rim_mass, &
+!$OMP                                    graupel_wat_num, graupel_wat_vol, &
+!$OMP                                    graupel_rad_ref, graupel_liq_mass, &
+!$OMP                                    qv_old, pt_old, qc_old, qr_old, qi_old, qs_old, qg_old) &
 !$OMP                           private (q2, q3, dz, wa, pe, peln, adj_vmr, qliq, qsol, &
 !$OMP                                    tz, wz, dte, te_beg, tw_beg, te_b_beg, tw_b_beg, &
-!$OMP                                    te_end, tw_end, te_b_end, tw_b_end, te_loss)
+!$OMP                                    te_end, tw_end, te_b_end, tw_b_end, te_loss, &
+!$OMP                                    q_cat)
 
         do j = js, je
 
@@ -891,11 +924,50 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             else
                 q2 (is:ie, kmp:km) = 0.0
             endif
-
             if (ice_liq_mass .gt. 0) then
                 q3 (is:ie, kmp:km) = q (is:ie, j, kmp:km, ice_liq_mass)
             else
                 q3 (is:ie, kmp:km) = 0.0
+            endif
+
+            ! assign ice category 2
+            if (ncat .gt. 1) then
+                q_cat (is:ie, kmp:km, 1, 1) = qdiag (is:ie, j, kmp:km, qs_old)
+                q_cat (is:ie, kmp:km, 2, 1) = q (is:ie, j, kmp:km, snowwat)
+                q_cat (is:ie, kmp:km, 3, 1) = q (is:ie, j, kmp:km, snow_wat_num)
+                q_cat (is:ie, kmp:km, 4, 1) = q (is:ie, j, kmp:km, snow_rim_mass)
+                q_cat (is:ie, kmp:km, 5, 1) = q (is:ie, j, kmp:km, snow_wat_vol)
+                q_cat (is:ie, kmp:km, 6, 1) = inline_mp%effs (is:ie, j, kmp:km)
+                if (snow_rad_ref .gt. 0) then
+                    q_cat (is:ie, kmp:km, 7, 1) = q (is:ie, j, kmp:km, snow_rad_ref)
+                else
+                    q_cat (is:ie, kmp:km, 7, 1) = 0.0
+                endif
+                if (snow_liq_mass .gt. 0) then
+                    q_cat (is:ie, kmp:km, 8, 1) = q (is:ie, j, kmp:km, snow_liq_mass)
+                else
+                    q_cat (is:ie, kmp:km, 8, 1) = 0.0
+                endif
+            endif
+
+            ! assign ice category 3
+            if (ncat .gt. 2) then
+                q_cat (is:ie, kmp:km, 1, 2) = qdiag (is:ie, j, kmp:km, qg_old)
+                q_cat (is:ie, kmp:km, 2, 2) = q (is:ie, j, kmp:km, graupel)
+                q_cat (is:ie, kmp:km, 3, 2) = q (is:ie, j, kmp:km, graupel_wat_num)
+                q_cat (is:ie, kmp:km, 4, 2) = q (is:ie, j, kmp:km, graupel_rim_mass)
+                q_cat (is:ie, kmp:km, 5, 2) = q (is:ie, j, kmp:km, graupel_wat_vol)
+                q_cat (is:ie, kmp:km, 6, 2) = inline_mp%effg (is:ie, j, kmp:km)
+                if (graupel_rad_ref .gt. 0) then
+                    q_cat (is:ie, kmp:km, 7, 2) = q (is:ie, j, kmp:km, graupel_rad_ref)
+                else
+                    q_cat (is:ie, kmp:km, 7, 2) = 0.0
+                endif
+                if (graupel_liq_mass .gt. 0) then
+                    q_cat (is:ie, kmp:km, 8, 2) = q (is:ie, j, kmp:km, graupel_liq_mass)
+                else
+                    q_cat (is:ie, kmp:km, 8, 2) = 0.0
+                endif
             endif
 
             ! note: ua and va are A-grid variables
@@ -917,8 +989,20 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             if (allocated (inline_mp%ql_dt)) inline_mp%ql_dt (is:ie, j, kmp:km) = &
                 inline_mp%ql_dt (is:ie, j, kmp:km) - (q (is:ie, j, kmp:km, liq_wat) + &
                 q (is:ie, j, kmp:km, rainwat))
-            if (allocated (inline_mp%qi_dt)) inline_mp%qi_dt (is:ie, j, kmp:km) = &
+            if (allocated (inline_mp%qi_dt)) then
+                inline_mp%qi_dt (is:ie, j, kmp:km) = &
                 inline_mp%qi_dt (is:ie, j, kmp:km) - q (is:ie, j, kmp:km, ice_wat)
+                if (snowwat .gt. 0) &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) = &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) - q (is:ie, j, kmp:km, snowwat)
+                if (graupel .gt. 0) &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) = &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) - q (is:ie, j, kmp:km, graupel)
+            endif
+            if (allocated (inline_mp%qs_dt) .and. snowwat .gt. 0) inline_mp%qs_dt (is:ie, j, kmp:km) = &
+                inline_mp%qs_dt (is:ie, j, kmp:km) - q (is:ie, j, kmp:km, snowwat)
+            if (allocated (inline_mp%qg_dt) .and. graupel .gt. 0) inline_mp%qg_dt (is:ie, j, kmp:km) = &
+                inline_mp%qg_dt (is:ie, j, kmp:km) - q (is:ie, j, kmp:km, graupel)
             if (allocated (inline_mp%qr_dt)) inline_mp%qr_dt (is:ie, j, kmp:km) = &
                 inline_mp%qr_dt (is:ie, j, kmp:km) - q (is:ie, j, kmp:km, rainwat)
             if (allocated (inline_mp%t_dt)) inline_mp%t_dt (is:ie, j, kmp:km) = &
@@ -941,20 +1025,68 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                     rrg * pt (is:ie, j, kmp:km)
             endif
 
-            ! P3 cloud microphysics main program
-            call mp_p3_wrapper_shield(qdiag (is:ie, j, kmp:km, qv_old), q (is:ie, j, kmp:km, sphum), &
-                              qdiag (is:ie, j, kmp:km, pt_old), pt (is:ie, j, kmp:km), abs (mdt), &
-                              wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), a_step, &
-                              warm_start, ie - is + 1, km - kmp + 1, qdiag (is:ie, j, kmp:km, qc_old), &
-                              q (is:ie, j, kmp:km, liq_wat), q (is:ie, j, kmp:km, liq_wat_num), &
-                              qdiag (is:ie, j, kmp:km, qr_old), q (is:ie, j, kmp:km, rainwat), &
-                              q (is:ie, j, kmp:km, rainwat_num), qdiag (is:ie, j, kmp:km, qi_old), &
-                              q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_rim_mass), &
-                              q (is:ie, j, kmp:km, ice_wat_num), q (is:ie, j, kmp:km, ice_wat_vol), &
-                              inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
-                              q (is:ie, j, kmp:km, cld_amt), inline_mp%prer (is:ie, j), &
-                              inline_mp%pres (is:ie, j), inline_mp%zet (is:ie, j, kmp:km), &
-                              inline_mp%effc (is:ie, j, kmp:km), consv .gt. consv_min, te (is:ie, j, kmp:km))
+            ! P3 cloud microphysics main program, 1 ice category
+            if (ncat .eq. 1) then
+                call mp_p3_wrapper_shield(qdiag (is:ie, j, kmp:km, qv_old), q (is:ie, j, kmp:km, sphum), &
+                                  qdiag (is:ie, j, kmp:km, pt_old), pt (is:ie, j, kmp:km), abs (mdt), &
+                                  wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), a_step, &
+                                  warm_start, ie - is + 1, km - kmp + 1, qdiag (is:ie, j, kmp:km, qc_old), &
+                                  q (is:ie, j, kmp:km, liq_wat), q (is:ie, j, kmp:km, liq_wat_num), &
+                                  qdiag (is:ie, j, kmp:km, qr_old), q (is:ie, j, kmp:km, rainwat), &
+                                  q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, cld_amt), &
+                                  inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), &
+                                  inline_mp%zet (is:ie, j, kmp:km), inline_mp%effc (is:ie, j, kmp:km), &
+                                  consv .gt. consv_min, te (is:ie, j, kmp:km), qdiag (is:ie, j, kmp:km, qi_old), &
+                                  q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_wat_num), &
+                                  q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_vol), &
+                                  inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km))
+            endif
+
+            ! P3 cloud microphysics main program, 2 ice categories
+            if (ncat .eq. 2) then
+                call mp_p3_wrapper_shield(qdiag (is:ie, j, kmp:km, qv_old), q (is:ie, j, kmp:km, sphum), &
+                                  qdiag (is:ie, j, kmp:km, pt_old), pt (is:ie, j, kmp:km), abs (mdt), &
+                                  wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), a_step, &
+                                  warm_start, ie - is + 1, km - kmp + 1, qdiag (is:ie, j, kmp:km, qc_old), &
+                                  q (is:ie, j, kmp:km, liq_wat), q (is:ie, j, kmp:km, liq_wat_num), &
+                                  qdiag (is:ie, j, kmp:km, qr_old), q (is:ie, j, kmp:km, rainwat), &
+                                  q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, cld_amt), &
+                                  inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), &
+                                  inline_mp%zet (is:ie, j, kmp:km), inline_mp%effc (is:ie, j, kmp:km), &
+                                  consv .gt. consv_min, te (is:ie, j, kmp:km), qdiag (is:ie, j, kmp:km, qi_old), &
+                                  q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_wat_num), &
+                                  q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_vol), &
+                                  inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
+                                  q_cat (is:ie, kmp:km, 1, 1), q_cat (is:ie, kmp:km, 2, 1), &
+                                  q_cat (is:ie, kmp:km, 3, 1), q_cat (is:ie, kmp:km, 4, 1), &
+                                  q_cat (is:ie, kmp:km, 5, 1), q_cat (is:ie, kmp:km, 6, 1), &
+                                  q_cat (is:ie, kmp:km, 7, 1), q_cat (is:ie, kmp:km, 8, 1))
+            endif
+
+            ! P3 cloud microphysics main program, 3 ice categories
+            if (ncat .eq. 3) then
+                call mp_p3_wrapper_shield(qdiag (is:ie, j, kmp:km, qv_old), q (is:ie, j, kmp:km, sphum), &
+                                  qdiag (is:ie, j, kmp:km, pt_old), pt (is:ie, j, kmp:km), abs (mdt), &
+                                  wa (is:ie, kmp:km), dz (is:ie, kmp:km), delp (is:ie, j, kmp:km), a_step, &
+                                  warm_start, ie - is + 1, km - kmp + 1, qdiag (is:ie, j, kmp:km, qc_old), &
+                                  q (is:ie, j, kmp:km, liq_wat), q (is:ie, j, kmp:km, liq_wat_num), &
+                                  qdiag (is:ie, j, kmp:km, qr_old), q (is:ie, j, kmp:km, rainwat), &
+                                  q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, cld_amt), &
+                                  inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), &
+                                  inline_mp%zet (is:ie, j, kmp:km), inline_mp%effc (is:ie, j, kmp:km), &
+                                  consv .gt. consv_min, te (is:ie, j, kmp:km), qdiag (is:ie, j, kmp:km, qi_old), &
+                                  q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_wat_num), &
+                                  q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_vol), &
+                                  inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
+                                  q_cat (is:ie, kmp:km, 1, 1), q_cat (is:ie, kmp:km, 2, 1), &
+                                  q_cat (is:ie, kmp:km, 3, 1), q_cat (is:ie, kmp:km, 4, 1), &
+                                  q_cat (is:ie, kmp:km, 5, 1), q_cat (is:ie, kmp:km, 6, 1), &
+                                  q_cat (is:ie, kmp:km, 7, 1), q_cat (is:ie, kmp:km, 8, 1), &
+                                  q_cat (is:ie, kmp:km, 1, 2), q_cat (is:ie, kmp:km, 2, 2), &
+                                  q_cat (is:ie, kmp:km, 3, 2), q_cat (is:ie, kmp:km, 4, 2), &
+                                  q_cat (is:ie, kmp:km, 5, 2), q_cat (is:ie, kmp:km, 6, 2), &
+                                  q_cat (is:ie, kmp:km, 7, 2), q_cat (is:ie, kmp:km, 8, 2))
+            endif
 
             ! update non-microphyiscs tracers due to mass change
             if (adj_mass_vmr .gt. 0) then
@@ -969,9 +1101,40 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             if (ice_rad_ref .gt. 0) then
                 q (is:ie, j, kmp:km, ice_rad_ref) = q2 (is:ie, kmp:km)
             endif
-
             if (ice_liq_mass .gt. 0) then
                 q (is:ie, j, kmp:km, ice_liq_mass) = q3 (is:ie, kmp:km)
+            endif
+
+            ! update ice category 2
+            if (ncat .gt. 1) then
+                qdiag (is:ie, j, kmp:km, qs_old) = q_cat (is:ie, kmp:km, 1, 1)
+                q (is:ie, j, kmp:km, snowwat) = q_cat (is:ie, kmp:km, 2, 1)
+                q (is:ie, j, kmp:km, snow_wat_num) = q_cat (is:ie, kmp:km, 3, 1)
+                q (is:ie, j, kmp:km, snow_rim_mass) = q_cat (is:ie, kmp:km, 4, 1)
+                q (is:ie, j, kmp:km, snow_wat_vol) = q_cat (is:ie, kmp:km, 5, 1)
+                inline_mp%effs (is:ie, j, kmp:km) = q_cat (is:ie, kmp:km, 6, 1)
+                if (snow_rad_ref .gt. 0) then
+                    q (is:ie, j, kmp:km, snow_rad_ref) = q_cat (is:ie, kmp:km, 7, 1)
+                endif
+                if (snow_liq_mass .gt. 0) then
+                    q (is:ie, j, kmp:km, snow_liq_mass) = q_cat (is:ie, kmp:km, 8, 1)
+                endif
+            endif
+
+            ! update ice category 3
+            if (ncat .gt. 2) then
+                qdiag (is:ie, j, kmp:km, qg_old) = q_cat (is:ie, kmp:km, 1, 2)
+                q (is:ie, j, kmp:km, graupel) = q_cat (is:ie, kmp:km, 2, 2)
+                q (is:ie, j, kmp:km, graupel_wat_num) = q_cat (is:ie, kmp:km, 3, 2)
+                q (is:ie, j, kmp:km, graupel_rim_mass) = q_cat (is:ie, kmp:km, 4, 2)
+                q (is:ie, j, kmp:km, graupel_wat_vol) = q_cat (is:ie, kmp:km, 5, 2)
+                inline_mp%effg (is:ie, j, kmp:km) = q_cat (is:ie, kmp:km, 6, 2)
+                if (graupel_rad_ref .gt. 0) then
+                    q (is:ie, j, kmp:km, graupel_rad_ref) = q_cat (is:ie, kmp:km, 7, 2)
+                endif
+                if (graupel_liq_mass .gt. 0) then
+                    q (is:ie, j, kmp:km, graupel_liq_mass) = q_cat (is:ie, kmp:km, 8, 2)
+                endif
             endif
 
             ! update vertical velocity
@@ -994,8 +1157,20 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             if (allocated (inline_mp%ql_dt)) inline_mp%ql_dt (is:ie, j, kmp:km) = &
                 inline_mp%ql_dt (is:ie, j, kmp:km) + (q (is:ie, j, kmp:km, liq_wat) + &
                 q (is:ie, j, kmp:km, rainwat))
-            if (allocated (inline_mp%qi_dt)) inline_mp%qi_dt (is:ie, j, kmp:km) = &
+            if (allocated (inline_mp%qi_dt)) then
+                inline_mp%qi_dt (is:ie, j, kmp:km) = &
                 inline_mp%qi_dt (is:ie, j, kmp:km) + q (is:ie, j, kmp:km, ice_wat)
+                if (snowwat .gt. 0) &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) = &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) + q (is:ie, j, kmp:km, snowwat)
+                if (graupel .gt. 0) &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) = &
+                    inline_mp%qi_dt (is:ie, j, kmp:km) + q (is:ie, j, kmp:km, graupel)
+            endif
+            if (allocated (inline_mp%qs_dt) .and. snowwat .gt. 0) inline_mp%qs_dt (is:ie, j, kmp:km) = &
+                inline_mp%qs_dt (is:ie, j, kmp:km) + q (is:ie, j, kmp:km, snowwat)
+            if (allocated (inline_mp%qg_dt) .and. graupel .gt. 0) inline_mp%qg_dt (is:ie, j, kmp:km) = &
+                inline_mp%qg_dt (is:ie, j, kmp:km) + q (is:ie, j, kmp:km, graupel)
             if (allocated (inline_mp%qr_dt)) inline_mp%qr_dt (is:ie, j, kmp:km) = &
                 inline_mp%qr_dt (is:ie, j, kmp:km) + q (is:ie, j, kmp:km, rainwat)
             if (allocated (inline_mp%t_dt)) inline_mp%t_dt (is:ie, j, kmp:km) = &
@@ -1028,6 +1203,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
         deallocate (wa)
         deallocate (tz)
         deallocate (wz)
+        if (ncat .gt. 1) deallocate (q_cat)
 
         ! update dry total energy
         if (consv .gt. consv_min) then

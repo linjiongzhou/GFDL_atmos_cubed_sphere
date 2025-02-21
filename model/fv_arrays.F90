@@ -468,6 +468,7 @@ module fv_arrays_mod
                             !< schemes that also have prognostic hail or graupel, such as the GFDL, Thompson,
                             !< or WSM6 microphysics, set to 6. A value of 0 turns off condensate loading.
                             !< The default value is 3.
+   integer :: ncat = 1      !< Ice category in P3 microphysics, it must be the same as that in the P3 microphysics namelist
    integer :: mp_flag = 0   !< Flag to select the microphysics scheme used in the model.
                             !< 0: No microphysics, nwat = 0 (dry air) or 1 (moist air)
                             !< 1: Kessler warm-rain microphysics scheme, nwat = 3
@@ -476,7 +477,7 @@ module fv_arrays_mod
                             !< 4: Morrison-Gettelman v2 (MG2) microphysics scheme, nwat = 5
                             !< 5: Morrison-Gettelman v3 (MG3) microphysics scheme, nwat = 6
                             !< 6: Zhao-Carr microphysics scheme, nwat = 2
-                            !< 7: P3 microphysics scheme, nwat = 4
+                            !< 7: P3 microphysics scheme, nwat = 4/5/6
    logical :: warm_start = .true. !< Whether to start from restart files, instead of cold-starting
                                   !< the model. True by default; if this is set to .true. and restart
                                   !< files cannot be found the model will stop.
@@ -1044,6 +1045,8 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: zet(:,:,:)     _NULL
     real, _ALLOCATABLE :: effc(:,:,:)     _NULL
     real, _ALLOCATABLE :: effi(:,:,:)     _NULL
+    real, _ALLOCATABLE :: effs(:,:,:)     _NULL
+    real, _ALLOCATABLE :: effg(:,:,:)     _NULL
 
     real, _ALLOCATABLE :: qv_dt(:,:,:)
     real, _ALLOCATABLE :: ql_dt(:,:,:)
@@ -1624,6 +1627,12 @@ contains
           allocate ( Atm%inline_mp%zet(is:ie,js:je,npz) )
           allocate ( Atm%inline_mp%effc(is:ie,js:je,npz) )
           allocate ( Atm%inline_mp%effi(is:ie,js:je,npz) )
+          if (Atm%flagstruct%ncat .gt. 1) then
+             allocate ( Atm%inline_mp%effs(is:ie,js:je,npz) )
+          endif
+          if (Atm%flagstruct%ncat .gt. 2) then
+             allocate ( Atm%inline_mp%effg(is:ie,js:je,npz) )
+          endif
        endif
     endif
 
@@ -1763,6 +1772,12 @@ contains
                  Atm%inline_mp%zet(i,j,:) = real_big
                  Atm%inline_mp%effc(i,j,:) = real_big
                  Atm%inline_mp%effi(i,j,:) = real_big
+                 if (Atm%flagstruct%ncat .gt. 1) then
+                    Atm%inline_mp%effs(i,j,:) = real_big
+                 endif
+                 if (Atm%flagstruct%ncat .gt. 2) then
+                    Atm%inline_mp%effg(i,j,:) = real_big
+                 endif
               enddo
            enddo
         endif
@@ -2070,6 +2085,12 @@ contains
           deallocate ( Atm%inline_mp%zet )
           deallocate ( Atm%inline_mp%effc )
           deallocate ( Atm%inline_mp%effi )
+          if (Atm%flagstruct%ncat .gt. 1) then
+             deallocate ( Atm%inline_mp%effs )
+          endif
+          if (Atm%flagstruct%ncat .gt. 2) then
+             deallocate ( Atm%inline_mp%effg )
+          endif
        endif
     endif
 

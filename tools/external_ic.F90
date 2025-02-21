@@ -792,10 +792,20 @@ contains
             call register_restart_field(GFS_restart, trim(tracer_name), q(:,:,:,nt), dim_names_3d3, is_optional=.true.)
           enddo
           if (Atm%flagstruct%mp_flag .eq. 7) then
-              call register_restart_field(GFS_restart, trim("snowwat"), qtmp, dim_names_3d3, is_optional=.true.)
-              q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + qtmp
-              call register_restart_field(GFS_restart, trim("graupel"), qtmp, dim_names_3d3, is_optional=.true.)
-              q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + qtmp
+              if (snowwat .gt. 0) then
+                  q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + q(:,:,:,snowwat)
+                  q(:,:,:,snowwat) = 0.0
+              else
+                  call register_restart_field(GFS_restart, trim("snowwat"), qtmp, dim_names_3d3, is_optional=.true.)
+                  q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + qtmp
+              endif
+              if (graupel .gt. 0) then
+                  q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + q(:,:,:,graupel)
+                  q(:,:,:,graupel) = 0.0
+              else
+                  call register_restart_field(GFS_restart, trim("graupel"), qtmp, dim_names_3d3, is_optional=.true.)
+                  q(:,:,:,ice_wat) = q(:,:,:,ice_wat) + qtmp
+              endif
           endif
 
           ! read in the gfs_data and free the restart type to be re-used by the nest
@@ -2760,7 +2770,9 @@ contains
   integer i,j,k,l,m, k2,iq
   integer  sphum, o3mr, liq_wat, ice_wat, rainwat, snowwat, graupel, cld_amt, sgs_tke
   integer  liq_wat_num, rainwat_num, ice_rim_mass, ice_wat_num, ice_wat_vol, ice_rad_ref, ice_liq_mass
-  integer  pt_old, qv_old, qc_old, qr_old, qi_old
+  integer  snow_rim_mass, snow_wat_num, snow_wat_vol, snow_rad_ref, snow_liq_mass
+  integer  graupel_rim_mass, graupel_wat_num, graupel_wat_vol, graupel_rad_ref, graupel_liq_mass
+  integer  pt_old, qv_old, qc_old, qr_old, qi_old, qs_old, qg_old
   integer :: is,  ie,  js,  je
 
   is  = Atm%bd%is
@@ -2777,16 +2789,36 @@ contains
   if (Atm%flagstruct%mp_flag .eq. 7) then
      liq_wat_num = get_tracer_index(MODEL_ATMOS, 'liq_wat_num')
      rainwat_num = get_tracer_index(MODEL_ATMOS, 'rainwat_num')
-     ice_rim_mass = get_tracer_index(MODEL_ATMOS, 'ice_rim_mass')
      ice_wat_num = get_tracer_index(MODEL_ATMOS, 'ice_wat_num')
+     ice_rim_mass = get_tracer_index(MODEL_ATMOS, 'ice_rim_mass')
      ice_wat_vol = get_tracer_index(MODEL_ATMOS, 'ice_wat_vol')
      ice_rad_ref = get_tracer_index(MODEL_ATMOS, 'ice_rad_ref')
      ice_liq_mass = get_tracer_index(MODEL_ATMOS, 'ice_liq_mass')
+     if (Atm%flagstruct%ncat .gt. 1) then
+        snow_wat_num = get_tracer_index(MODEL_ATMOS, 'snow_wat_num')
+        snow_rim_mass = get_tracer_index(MODEL_ATMOS, 'snow_rim_mass')
+        snow_wat_vol = get_tracer_index(MODEL_ATMOS, 'snow_wat_vol')
+        snow_rad_ref = get_tracer_index(MODEL_ATMOS, 'snow_rad_ref')
+        snow_liq_mass = get_tracer_index(MODEL_ATMOS, 'snow_liq_mass')
+     endif
+     if (Atm%flagstruct%ncat .gt. 2) then
+        graupel_wat_num = get_tracer_index(MODEL_ATMOS, 'graupel_wat_num')
+        graupel_rim_mass = get_tracer_index(MODEL_ATMOS, 'graupel_rim_mass')
+        graupel_wat_vol = get_tracer_index(MODEL_ATMOS, 'graupel_wat_vol')
+        graupel_rad_ref = get_tracer_index(MODEL_ATMOS, 'graupel_rad_ref')
+        graupel_liq_mass = get_tracer_index(MODEL_ATMOS, 'graupel_liq_mass')
+     endif
      pt_old = get_tracer_index(MODEL_ATMOS, 'pt_old')
      qv_old = get_tracer_index(MODEL_ATMOS, 'qv_old')
      qc_old = get_tracer_index(MODEL_ATMOS, 'qc_old')
      qr_old = get_tracer_index(MODEL_ATMOS, 'qr_old')
      qi_old = get_tracer_index(MODEL_ATMOS, 'qi_old')
+     if (Atm%flagstruct%ncat .gt. 1) then
+        qs_old = get_tracer_index(MODEL_ATMOS, 'qs_old')
+     endif
+     if (Atm%flagstruct%ncat .gt. 2) then
+        qg_old = get_tracer_index(MODEL_ATMOS, 'qg_old')
+     endif
   endif
   cld_amt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
   o3mr    = get_tracer_index(MODEL_ATMOS, 'o3mr')
@@ -2805,16 +2837,36 @@ contains
     if (Atm%flagstruct%mp_flag .eq. 7) then
        print *, 'liq_wat_num  = ', liq_wat_num 
        print *, 'rainwat_num  = ', rainwat_num 
-       print *, 'ice_rim_mass = ', ice_rim_mass
        print *, 'ice_wat_num  = ', ice_wat_num 
+       print *, 'ice_rim_mass = ', ice_rim_mass
        print *, 'ice_wat_vol  = ', ice_wat_vol 
        print *, 'ice_rad_ref  = ', ice_rad_ref 
        print *, 'ice_liq_mass = ', ice_liq_mass 
+       if (Atm%flagstruct%ncat .gt. 1) then
+          print *, 'snow_wat_num  = ', snow_wat_num 
+          print *, 'snow_rim_mass = ', snow_rim_mass
+          print *, 'snow_wat_vol  = ', snow_wat_vol 
+          print *, 'snow_rad_ref  = ', snow_rad_ref 
+          print *, 'snow_liq_mass = ', snow_liq_mass 
+       endif
+       if (Atm%flagstruct%ncat .gt. 2) then
+          print *, 'graupel_wat_num  = ', graupel_wat_num 
+          print *, 'graupel_rim_mass = ', graupel_rim_mass
+          print *, 'graupel_wat_vol  = ', graupel_wat_vol 
+          print *, 'graupel_rad_ref  = ', graupel_rad_ref 
+          print *, 'graupel_liq_mass = ', graupel_liq_mass 
+       endif
        print *, 'pt_old = ', pt_old
        print *, 'qv_old = ', qv_old
        print *, 'qc_old = ', qc_old
        print *, 'qr_old = ', qr_old
        print *, 'qi_old = ', qi_old
+       if (Atm%flagstruct%ncat .gt. 1) then
+          print *, 'qs_old = ', qs_old
+       endif
+       if (Atm%flagstruct%ncat .gt. 2) then
+          print *, 'qg_old = ', qg_old
+       endif
     endif
     print *, 'o3mr = ', o3mr
     print *, 'sgs_tke = ', sgs_tke
@@ -2834,7 +2886,10 @@ contains
 !$OMP parallel do default(none) &
 !$OMP             shared(sphum,o3mr,liq_wat,rainwat,ice_wat,snowwat,graupel,source_fv3gfs,&
 !$OMP                    cld_amt,ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,Atm,z500,t_in,zvir,&
-!$OMP                    liq_wat_num,rainwat_num,ice_rim_mass,ice_wat_num,ice_wat_vol,ice_rad_ref,ice_liq_mass) &
+!$OMP                    liq_wat_num,rainwat_num,ice_rim_mass,ice_wat_num,ice_wat_vol,ice_rad_ref, &
+!$OMP                    ice_liq_mass,snow_rim_mass,snow_wat_num,snow_wat_vol,snow_rad_ref,&
+!$OMP                    snow_liq_mass,graupel_rim_mass,graupel_wat_num,graupel_wat_vol,graupel_rad_ref,&
+!$OMP                    graupel_liq_mass) &
 !$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
 
   do 5000 j=js,je
@@ -3082,11 +3137,25 @@ contains
         do i=is,ie
            Atm%q(i,j,k,liq_wat_num) = 0.0
            Atm%q(i,j,k,rainwat_num) = 0.0
-           Atm%q(i,j,k,ice_rim_mass) = 0.0
            Atm%q(i,j,k,ice_wat_num) = 0.0
+           Atm%q(i,j,k,ice_rim_mass) = 0.0
            Atm%q(i,j,k,ice_wat_vol) = 0.0
            if (ice_rad_ref .gt. 0) Atm%q(i,j,k,ice_rad_ref) = 0.0
            if (ice_liq_mass .gt. 0) Atm%q(i,j,k,ice_liq_mass) = 0.0
+           if (Atm%flagstruct%ncat .gt. 1) then
+              Atm%q(i,j,k,snow_wat_num) = 0.0
+              Atm%q(i,j,k,snow_rim_mass) = 0.0
+              Atm%q(i,j,k,snow_wat_vol) = 0.0
+              if (snow_rad_ref .gt. 0) Atm%q(i,j,k,snow_rad_ref) = 0.0
+              if (snow_liq_mass .gt. 0) Atm%q(i,j,k,snow_liq_mass) = 0.0
+           endif
+           if (Atm%flagstruct%ncat .gt. 2) then
+              Atm%q(i,j,k,graupel_wat_num) = 0.0
+              Atm%q(i,j,k,graupel_rim_mass) = 0.0
+              Atm%q(i,j,k,graupel_wat_vol) = 0.0
+              if (graupel_rad_ref .gt. 0) Atm%q(i,j,k,graupel_rad_ref) = 0.0
+              if (graupel_liq_mass .gt. 0) Atm%q(i,j,k,graupel_liq_mass) = 0.0
+           endif
         enddo
      enddo
   endif

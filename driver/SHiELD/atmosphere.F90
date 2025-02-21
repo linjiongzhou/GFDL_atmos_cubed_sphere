@@ -294,7 +294,8 @@ contains
 
    call gfdl_mp_init(input_nml_file, stdlog(), Atm(mygrid)%flagstruct%hydrostatic)
    if (Atm(mygrid)%flagstruct%mp_flag .eq. 7) then
-     call p3_init(input_nml_file, stdlog(), "INPUT", abort_on_err=.true., model='SHiELD', dowr=is_master())
+     call p3_init(input_nml_file, stdlog(), "INPUT", abort_on_err=.true., model='SHiELD', dowr=is_master(), &
+                  Atm(mygrid)%flagstruct%ncat)
    endif
 
    call timing_on('FV_RESTART')
@@ -692,9 +693,9 @@ contains
 
 
  subroutine atmosphere_control_data (i1, i2, j1, j2, kt, p_hydro, hydro, tile_num, &
-                                     nq, do_inline_mp, do_cosp, nwat, mp_flag)
+                                     nq, do_inline_mp, do_cosp, nwat, ncat, mp_flag)
    integer, intent(out)           :: i1, i2, j1, j2, kt
-   integer, intent(out), optional :: nwat, mp_flag
+   integer, intent(out), optional :: nwat, ncat, mp_flag
    logical, intent(out), optional :: p_hydro, hydro
    integer, intent(out), optional :: tile_num, nq
    logical, intent(out), optional :: do_inline_mp, do_cosp
@@ -711,6 +712,7 @@ contains
    if (present(do_inline_mp)) do_inline_mp = Atm(mygrid)%flagstruct%do_inline_mp
    if (present(do_cosp)) do_cosp = Atm(mygrid)%flagstruct%do_cosp
    if (present(nwat)) nwat = Atm(mygrid)%flagstruct%nwat
+   if (present(ncat)) ncat = Atm(mygrid)%flagstruct%ncat
    if (present(mp_flag)) mp_flag = Atm(mygrid)%flagstruct%mp_flag
 
  end subroutine atmosphere_control_data
@@ -1846,6 +1848,12 @@ contains
              k1 = npz+1-k ! flipping the index
              IPD_Data(nb)%Statein%effc(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effc(i,j,k1)))
              IPD_Data(nb)%Statein%effi(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effi(i,j,k1)))
+             if (Atm(mygrid)%flagstruct%ncat .gt. 1) then
+               IPD_Data(nb)%Statein%effs(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effs(i,j,k1)))
+             endif
+             if (Atm(mygrid)%flagstruct%ncat .gt. 2) then
+               IPD_Data(nb)%Statein%effg(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effg(i,j,k1)))
+             endif
            enddo
          enddo
        endif

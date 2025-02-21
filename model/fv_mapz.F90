@@ -54,7 +54,7 @@ module fv_mapz_mod
 contains
 
  subroutine Lagrangian_to_Eulerian(last_step, consv, ps, pe, delp, pkz, pk, mdt, pdt, npx, npy, &
-                      km, is,ie,js,je, isd,ied,jsd,jed, nq, nq_tot, ncnst, nwat, mp_flag, sphum, q_con, u, v, w, &
+                      km, is,ie,js,je, isd,ied,jsd,jed, nq, nq_tot, ncnst, nwat, ncat, mp_flag, sphum, q_con, u, v, w, &
                       delz, pt, q, qdiag, hs, zvir, cp, te_err, tw_err, &
                       akap, cappa, kord_mt, kord_wz, kord_tr, kord_tm, remap_te, peln, te0_2d,        &
                       ng, ua, va, omga, te, ws, fill, reproduce_sum,      &
@@ -76,6 +76,7 @@ contains
   integer, intent(in):: nq                    ! number of tracers (including h2o)
   integer, intent(in):: nq_tot, ncnst
   integer, intent(in):: nwat
+  integer, intent(in):: ncat
   integer, intent(in):: mp_flag
   integer, intent(in):: sphum                 ! index for water vapor (specific humidity)
   integer, intent(in):: ng
@@ -781,7 +782,7 @@ contains
         call intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, nq, nq_tot, ncnst, &
                  mdt, consv, akap, ptop, pfull, hs, te0_2d, a_step, warm_start, u, v, w, pt, &
                  delp, delz, q_con, cappa, q, qdiag, pkz, zvir, te_err, tw_err, inline_mp, &
-                 mp_flag, gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
+                 ncat, mp_flag, gridstruct, thermostruct, domain, bd, hydrostatic, do_adiabatic_init, &
                  do_inline_mp, do_sat_adj, last_step, do_fast_phys, consv_checker, adj_mass_vmr)
         call timing_off('INTERMEDIATE_PHYS')
     endif

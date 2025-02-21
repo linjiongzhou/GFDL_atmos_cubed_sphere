@@ -182,6 +182,7 @@ module fv_control_mod
      integer , pointer :: n_sponge
      real    , pointer :: d_ext
      integer , pointer :: nwat
+     integer , pointer :: ncat
      integer , pointer :: mp_flag
      logical , pointer :: warm_start
 
@@ -721,6 +722,7 @@ module fv_control_mod
        n_sponge                      => Atm%flagstruct%n_sponge
        d_ext                         => Atm%flagstruct%d_ext
        nwat                          => Atm%flagstruct%nwat
+       ncat                          => Atm%flagstruct%ncat
        mp_flag                       => Atm%flagstruct%mp_flag
        use_logp                      => Atm%flagstruct%use_logp
        warm_start                    => Atm%flagstruct%warm_start
@@ -929,7 +931,7 @@ module fv_control_mod
 
        character(len=72) :: err_str
 
-       namelist /fv_core_nml/npx, npy, ntiles, npz, npz_type, fv_eta_file, npz_rst, layout, io_layout, ncnst, nwat,  &
+       namelist /fv_core_nml/npx, npy, ntiles, npz, npz_type, fv_eta_file, npz_rst, layout, io_layout, ncnst, nwat, ncat, &
             mp_flag, use_logp, p_fac, a_imp, k_split, n_split, m_split, q_split, print_freq, write_3d_diags, &
             do_schmidt, do_cube_transform, &
             hord_mt, hord_vt, hord_tm, hord_dp, hord_tr, shift_fac, stretch_fac, target_lat, target_lon, &
@@ -1072,7 +1074,10 @@ module fv_control_mod
        if (mp_flag .eq. 4 .and. nwat .ne. 5) call mpp_error(FATAL, "** error: if mp_flag is 4, nwat must be 5 **")
        if (mp_flag .eq. 5 .and. nwat .ne. 6) call mpp_error(FATAL, "** error: if mp_flag is 5, nwat must be 6 **")
        if (mp_flag .eq. 6 .and. nwat .ne. 2) call mpp_error(FATAL, "** error: if mp_flag is 6, nwat must be 2 **")
-       if (mp_flag .eq. 7 .and. nwat .ne. 4) call mpp_error(FATAL, "** error: if mp_flag is 7, nwat must be 4 **")
+       if (mp_flag .eq. 7) then
+          if (nwat .ne. 4 .and. nwat .ne. 5 .and. nwat .ne. 6) call mpp_error(FATAL, "** error: if mp_flag is 7, nwat must be 4/5/6 **")
+          if (ncat .ne. 1 .and. ncat .ne. 2 .and. ncat .ne. 3) call mpp_error(FATAL, "** error: if mp_flag is 7, ncat must be 1/2/3 **")
+       endif
 
        !Checks for deprecated options
        if (abs(kord_tr) <= 7) then
