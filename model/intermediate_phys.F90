@@ -159,7 +159,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
     ccn_cm3 = get_tracer_index (model_atmos, 'ccn_cm3')
     cin_cm3 = get_tracer_index (model_atmos, 'cin_cm3')
     aerosol = get_tracer_index (model_atmos, 'aerosol')
-    if (mp_flag .gt. 7) then
+    if (mp_flag .eq. 7) then
         liq_wat_num = get_tracer_index (model_atmos, 'liq_wat_num')
         rainwat_num = get_tracer_index (model_atmos, 'rainwat_num')
         ice_wat_num = get_tracer_index (model_atmos, 'ice_wat_num')
