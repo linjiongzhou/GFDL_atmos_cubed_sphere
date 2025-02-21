@@ -90,9 +90,6 @@
  real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli111
  real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli112
 
-! integer switch for warm rain autoconversion/accretion schemes
- integer :: iparam
-
 ! number of diagnostic ice-phase hydrometeor types
  integer, public, parameter :: n_qiType = 6
 
@@ -119,9 +116,16 @@
 
  integer :: n_iceCat = -1   !used for GEM interface
 
+ integer :: nCat                   ! number of free ice categories
+
  ! namelist variables
 
- integer :: nCat                   ! number of free ice categories
+ integer :: iparam = 3             ! integer switch for warm rain autoconversion/accretion schemes
+                                   ! switch for warm-rain parameterization
+                                   ! = 1 Seifert and Beheng 2001
+                                   ! = 2 Beheng 1994
+                                   ! = 3 Khairoutdinov and Kogan 2000
+                                   ! = 4 Kogan 2013
 
  logical :: log_trplMomI = .false. ! .T.=3-moment / .F.=2-moment (ice)
  logical :: log_liqfrac  = .false. ! .T.=Fi,liq / .F.=no Fi,liq (ice)
@@ -141,7 +145,7 @@
  real :: clbfact_sub = 1.0         ! calibration factor for sublimation
 
  namelist / p3_mp_nml / log_trplMomI, log_liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, &
-                        dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact
+                        dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact, iparam
 
  contains
 
@@ -239,13 +243,6 @@
 
 ! maximum total ice concentration (sum of all categories)
  max_total_Ni = 2000.e+3  !(m)
-
-! switch for warm-rain parameterization
-! = 1 Seifert and Beheng 2001
-! = 2 Beheng 1994
-! = 3 Khairoutdinov and Kogan 2000
-! = 4 Kogan 2013
- iparam = 3
 
 ! droplet concentration (m-3)
  nccnst = 200.e+6
