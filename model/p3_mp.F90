@@ -4533,7 +4533,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
                 dum = 2.-exp(2300.*(dum2-dum1))
 !               dum = 2.-dexp(dble(2300.*(dum2-dum1)))
              endif
-          elseif (rparam.eq.2) then 
+          else if (rparam.eq.2) then 
              dum1 = 600.e-6
              nr(i,k) = max(nr(i,k),nsmall)
            ! use mass-mean diameter (do this by using
@@ -4548,7 +4548,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
                 dum = 2.-exp(2300.*(dum2-dum1))
 !               dum = 2.-dexp(dble(2300.*(dum2-dum1)))
              endif
-          elseif (rparam.eq.3) then
+          else if (rparam.eq.3) then
              dum1 = 600.e-6
              nr(i,k) = max(nr(i,k),nsmall)
            ! use mass-mean diameter (do this by using
@@ -4559,12 +4559,12 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
              dum2 = (qr(i,k)/(pi*rhow*nr(i,k)))**thrd
              if (dum2.lt.dum1) then
                 dum = 1.
-             if (dum2.ge.2000.e-6) then
+             else if (dum2.ge.2000.e-6) then
                 dum = 0.
              else
                 dum = exp(-2500.*(dum2-dum1))
              endif
-          elseif (rparam.eq.4) then
+          else if (rparam.eq.4) then
              dum1 = 300.e-6
              nr(i,k) = max(nr(i,k),nsmall)
            ! use mass-mean diameter (do this by using
