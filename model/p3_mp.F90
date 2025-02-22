@@ -118,38 +118,43 @@
 
  integer :: nCat                   ! number of free ice categories
 
+ !----------------------------------------------------------------------
  ! namelist variables
+ !----------------------------------------------------------------------
 
- integer :: iparam = 3             ! integer switch for warm rain autoconversion/accretion schemes
-                                   ! = 1 Seifert and Beheng 2001
-                                   ! = 2 Beheng 1994
-                                   ! = 3 Khairoutdinov and Kogan 2000 (default)
-                                   ! = 4 Kogan 2013
- integer :: rparam = 1             ! integer switch for rain breakup schemes
-                                   ! = 1 Revised Verlinde and Cotton 1993
-                                   ! = 2 Verlinde and Cotton 1993
-                                   ! = 3 Ziegler 1985
-                                   ! = 4 Seifert 2008
+ integer :: iparam = 3                ! integer switch for warm rain autoconversion/accretion schemes
+                                      ! = 1 Seifert and Beheng 2001
+                                      ! = 2 Beheng 1994
+                                      ! = 3 Khairoutdinov and Kogan 2000 (default)
+                                      ! = 4 Kogan 2013
+ integer :: rparam = 1                ! integer switch for rain breakup schemes
+                                      ! = 1 Revised Verlinde and Cotton 1993
+                                      ! = 2 Verlinde and Cotton 1993
+                                      ! = 3 Ziegler 1985
+                                      ! = 4 Seifert 2008
 
- logical :: log_trplMomI = .false. ! .T.=3-moment / .F.=2-moment (ice)
- logical :: log_liqfrac  = .false. ! .T.=Fi,liq / .F.=no Fi,liq (ice)
- logical :: debug_on = .false.     ! logical switch for internal debug checks
- logical :: scpf_on  = .false.     ! switch for activation of SCPF scheme
+ logical :: log_trplMomI = .false.    ! .T.=3-moment / .F.=2-moment (ice)
+ logical :: log_liqfrac  = .false.    ! .T.=Fi,liq / .F.=no Fi,liq (ice)
+ logical :: debug_on = .false.        ! logical switch for internal debug checks
+ logical :: scpf_on  = .false.        ! switch for activation of SCPF scheme
 
- logical :: log_predictNc = .true. ! .T. (.F.) for prediction (specification) of Nc
- logical :: cp_heating    = .true. ! .T.=cp heating / .F.=moist cv heating
+ logical :: log_predictSsat = .false. ! prediction of supersaturation
+ logical :: log_liqsatadj = .false.   ! to remove any supersaturation w.r.t to water at the end of P3
+ logical :: log_predictNc = .true.    ! .T. (.F.) for prediction (specification) of Nc
+ logical :: cp_heating    = .true.    ! .T.=cp heating / .F.=moist cv heating
 
- real :: dt_max = 60.0             ! Maximum time step (s) to be taken by the microphysics (P3) scheme, with time-splitting
-                                   ! used to reduce step to below this value if necessary
+ real :: dt_max = 60.0                ! Maximum time step (s) to be taken by the microphysics (P3) scheme, with time-splitting
+                                      ! used to reduce step to below this value if necessary
 
- real :: scpf_pfrac   = 1.0        ! precipitation fraction factor (SCPF)
- real :: scpf_resfact = 1.0        ! model resolution factor (SCPF)
+ real :: scpf_pfrac   = 1.0           ! precipitation fraction factor (SCPF)
+ real :: scpf_resfact = 1.0           ! model resolution factor (SCPF)
 
- real :: clbfact_dep = 1.0         ! calibration factor for deposition
- real :: clbfact_sub = 1.0         ! calibration factor for sublimation
+ real :: clbfact_dep = 1.0            ! calibration factor for deposition
+ real :: clbfact_sub = 1.0            ! calibration factor for sublimation
 
  namelist / p3_mp_nml / log_trplMomI, log_liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, &
-                        dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact, iparam, rparam
+                        dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact, iparam, &
+                        rparam, log_liqsatadj, log_predictSsat
 
  contains
 
@@ -2671,8 +2676,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  real, dimension(its:ite,kts:kte) :: t_old ! temperature at the beginning of the model time step [K]
  real, dimension(its:ite,nCat)    :: prt_soli ! precipitation rate, solid iice-dep  m s-1
 
- logical, parameter      :: log_liqsatadj = .false.       ! temporary; to be put as GEM namelist
-
 ! 2D size distribution and fallspeed parameters:
 
  real, dimension(its:ite,kts:kte) :: lamc
@@ -2787,7 +2790,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  integer :: dumi,i,k,ii,iice,iice_dest,dumj,dumii,dumjj,dumzz,tmpint1,ktop,kbot,kdir,    &
             dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,k_temp,dumll,dumllc
 
- logical :: log_nucleationPossible,log_hydrometeorsPresent,log_predictSsat,              &
+ logical :: log_nucleationPossible,log_hydrometeorsPresent,                              &
             log_exitlevel,log_hmossopOn,log_qxpresent
 
 ! quantities related to process rates/parameters, interpolated from lookup tables:
@@ -2936,10 +2939,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 
 ! deltaD_init = 250.e-6   !for testing
 ! deltaD_init = dummy_in   !temporary; passed in from cld1d
-
-! Note:  Code for prediction of supersaturation is available in current version.
-!        In the future 'log_predictSsat' will be a user-defined namelist key.
- log_predictSsat = .false.
 
  log_typeDiags  = .true.
 
