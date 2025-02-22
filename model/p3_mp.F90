@@ -121,11 +121,15 @@
  ! namelist variables
 
  integer :: iparam = 3             ! integer switch for warm rain autoconversion/accretion schemes
-                                   ! switch for warm-rain parameterization
                                    ! = 1 Seifert and Beheng 2001
                                    ! = 2 Beheng 1994
-                                   ! = 3 Khairoutdinov and Kogan 2000
+                                   ! = 3 Khairoutdinov and Kogan 2000 (default)
                                    ! = 4 Kogan 2013
+ integer :: rparam = 1             ! integer switch for rain breakup schemes
+                                   ! = 1 Revised Verlinde and Cotton 1993
+                                   ! = 2 Verlinde and Cotton 1993
+                                   ! = 3 Ziegler 1985
+                                   ! = 4 Seifert 2008
 
  logical :: log_trplMomI = .false. ! .T.=3-moment / .F.=2-moment (ice)
  logical :: log_liqfrac  = .false. ! .T.=Fi,liq / .F.=no Fi,liq (ice)
@@ -145,7 +149,7 @@
  real :: clbfact_sub = 1.0         ! calibration factor for sublimation
 
  namelist / p3_mp_nml / log_trplMomI, log_liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, &
-                        dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact, iparam
+                        dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact, iparam, rparam
 
  contains
 
@@ -4514,19 +4518,66 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
        if (qr(i,k).ge.qsmall) then
 
         ! include breakup
-          dum1 = 280.e-6
-          nr(i,k) = max(nr(i,k),nsmall)
-        ! use mass-mean diameter (do this by using
-        ! the old version of lambda w/o mu dependence)
-        ! note there should be a factor of 6^(1/3), but we
-        ! want to keep breakup threshold consistent so 'dum'
-        ! is expressed in terms of lambda rather than mass-mean D
-          dum2 = (qr(i,k)/(pi*rhow*nr(i,k)))**thrd
-          if (dum2.lt.dum1) then
-             dum = 1.
-          else if (dum2.ge.dum1) then
-             dum = 2.-exp(2300.*(dum2-dum1))
-!            dum = 2.-dexp(dble(2300.*(dum2-dum1)))
+          if (rparam.eq.1) then
+             dum1 = 280.e-6
+             nr(i,k) = max(nr(i,k),nsmall)
+           ! use mass-mean diameter (do this by using
+           ! the old version of lambda w/o mu dependence)
+           ! note there should be a factor of 6^(1/3), but we
+           ! want to keep breakup threshold consistent so 'dum'
+           ! is expressed in terms of lambda rather than mass-mean D
+             dum2 = (qr(i,k)/(pi*rhow*nr(i,k)))**thrd
+             if (dum2.lt.dum1) then
+                dum = 1.
+             else if (dum2.ge.dum1) then
+                dum = 2.-exp(2300.*(dum2-dum1))
+!               dum = 2.-dexp(dble(2300.*(dum2-dum1)))
+             endif
+          elseif (rparam.eq.2) then 
+             dum1 = 600.e-6
+             nr(i,k) = max(nr(i,k),nsmall)
+           ! use mass-mean diameter (do this by using
+           ! the old version of lambda w/o mu dependence)
+           ! note there should be a factor of 6^(1/3), but we
+           ! want to keep breakup threshold consistent so 'dum'
+           ! is expressed in terms of lambda rather than mass-mean D
+             dum2 = (qr(i,k)/(pi*rhow*nr(i,k)))**thrd
+             if (dum2.lt.dum1) then
+                dum = 1.
+             else if (dum2.ge.dum1) then
+                dum = 2.-exp(2300.*(dum2-dum1))
+!               dum = 2.-dexp(dble(2300.*(dum2-dum1)))
+             endif
+          elseif (rparam.eq.3) then
+             dum1 = 600.e-6
+             nr(i,k) = max(nr(i,k),nsmall)
+           ! use mass-mean diameter (do this by using
+           ! the old version of lambda w/o mu dependence)
+           ! note there should be a factor of 6^(1/3), but we
+           ! want to keep breakup threshold consistent so 'dum'
+           ! is expressed in terms of lambda rather than mass-mean D
+             dum2 = (qr(i,k)/(pi*rhow*nr(i,k)))**thrd
+             if (dum2.lt.dum1) then
+                dum = 1.
+             if (dum2.ge.2000.e-6) then
+                dum = 0.
+             else
+                dum = exp(-2500.*(dum2-dum1))
+             endif
+          elseif (rparam.eq.4) then
+             dum1 = 300.e-6
+             nr(i,k) = max(nr(i,k),nsmall)
+           ! use mass-mean diameter (do this by using
+           ! the old version of lambda w/o mu dependence)
+           ! note there should be a factor of 6^(1/3), but we
+           ! want to keep breakup threshold consistent so 'dum'
+           ! is expressed in terms of lambda rather than mass-mean D
+             dum2 = (qr(i,k)/(pi*rhow*nr(i,k)))**thrd
+             if (dum2.lt.dum1) then
+                dum = 1.
+             else if (dum2.ge.dum1) then
+                dum = -1000.*(dum2-1100.e-6)
+             endif
           endif
 
           if (iparam.eq.1.) then
