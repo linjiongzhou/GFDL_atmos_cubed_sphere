@@ -1101,6 +1101,23 @@ module fv_arrays_mod
     real, _ALLOCATABLE :: mppxs(:,:)     _NULL
     real, _ALLOCATABLE :: mppxg(:,:)     _NULL
 
+    real, _ALLOCATABLE :: acc_drzl(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_rain(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_crys(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_snow(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_grpl(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_pell(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_hail(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_wsnow(:,:)     _NULL
+    real, _ALLOCATABLE :: acc_sndp(:,:)     _NULL
+
+    real, _ALLOCATABLE :: qi_type_1(:,:,:)     _NULL
+    real, _ALLOCATABLE :: qi_type_2(:,:,:)     _NULL
+    real, _ALLOCATABLE :: qi_type_3(:,:,:)     _NULL
+    real, _ALLOCATABLE :: qi_type_4(:,:,:)     _NULL
+    real, _ALLOCATABLE :: qi_type_5(:,:,:)     _NULL
+    real, _ALLOCATABLE :: qi_type_6(:,:,:)     _NULL
+
   end type inline_mp_type
 
   type phys_diag_type
@@ -1633,6 +1650,21 @@ contains
           if (Atm%flagstruct%ncat .gt. 2) then
              allocate ( Atm%inline_mp%effg(is:ie,js:je,npz) )
           endif
+          allocate ( Atm%inline_mp%acc_drzl(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_rain(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_crys(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_snow(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_grpl(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_pell(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_hail(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_wsnow(is:ie,js:je) )
+          allocate ( Atm%inline_mp%acc_sndp(is:ie,js:je) )
+          allocate ( Atm%inline_mp%qi_type_1(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%qi_type_2(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%qi_type_3(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%qi_type_4(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%qi_type_5(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%qi_type_6(is:ie,js:je,npz) )
        endif
     endif
 
@@ -1778,6 +1810,21 @@ contains
                  if (Atm%flagstruct%ncat .gt. 2) then
                     Atm%inline_mp%effg(i,j,:) = real_big
                  endif
+                 Atm%inline_mp%acc_drzl(i,j) = real_big
+                 Atm%inline_mp%acc_rain(i,j) = real_big
+                 Atm%inline_mp%acc_crys(i,j) = real_big
+                 Atm%inline_mp%acc_snow(i,j) = real_big
+                 Atm%inline_mp%acc_grpl(i,j) = real_big
+                 Atm%inline_mp%acc_pell(i,j) = real_big
+                 Atm%inline_mp%acc_hail(i,j) = real_big
+                 Atm%inline_mp%acc_wsnow(i,j) = real_big
+                 Atm%inline_mp%acc_sndp(i,j) = real_big
+                 Atm%inline_mp%qi_type_1(i,j,:) = real_big
+                 Atm%inline_mp%qi_type_2(i,j,:) = real_big
+                 Atm%inline_mp%qi_type_3(i,j,:) = real_big
+                 Atm%inline_mp%qi_type_4(i,j,:) = real_big
+                 Atm%inline_mp%qi_type_5(i,j,:) = real_big
+                 Atm%inline_mp%qi_type_6(i,j,:) = real_big
               enddo
            enddo
         endif
@@ -2091,6 +2138,21 @@ contains
           if (Atm%flagstruct%ncat .gt. 2) then
              deallocate ( Atm%inline_mp%effg )
           endif
+          deallocate ( Atm%inline_mp%acc_drzl )
+          deallocate ( Atm%inline_mp%acc_rain )
+          deallocate ( Atm%inline_mp%acc_crys )
+          deallocate ( Atm%inline_mp%acc_snow )
+          deallocate ( Atm%inline_mp%acc_grpl )
+          deallocate ( Atm%inline_mp%acc_pell )
+          deallocate ( Atm%inline_mp%acc_hail )
+          deallocate ( Atm%inline_mp%acc_wsnow )
+          deallocate ( Atm%inline_mp%acc_sndp )
+          deallocate ( Atm%inline_mp%qi_type_1 )
+          deallocate ( Atm%inline_mp%qi_type_2 )
+          deallocate ( Atm%inline_mp%qi_type_3 )
+          deallocate ( Atm%inline_mp%qi_type_4 )
+          deallocate ( Atm%inline_mp%qi_type_5 )
+          deallocate ( Atm%inline_mp%qi_type_6 )
        endif
     endif
 

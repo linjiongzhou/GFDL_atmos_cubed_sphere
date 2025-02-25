@@ -460,6 +460,15 @@ contains
          if (allocated(inline_mp%t_dt))  inline_mp%t_dt = 0.0
          if (allocated(inline_mp%u_dt)) inline_mp%u_dt = 0.0
          if (allocated(inline_mp%v_dt)) inline_mp%v_dt = 0.0
+         inline_mp%acc_drzl = 0.0
+         inline_mp%acc_rain = 0.0
+         inline_mp%acc_crys = 0.0
+         inline_mp%acc_snow = 0.0
+         inline_mp%acc_grpl = 0.0
+         inline_mp%acc_pell = 0.0
+         inline_mp%acc_hail = 0.0
+         inline_mp%acc_wsnow = 0.0
+         inline_mp%acc_sndp = 0.0
       endif
   endif
 
@@ -741,6 +750,15 @@ contains
          if (allocated(inline_mp%t_dt))  inline_mp%t_dt = inline_mp%t_dt / bdt
          if (allocated(inline_mp%u_dt)) inline_mp%u_dt = inline_mp%u_dt / bdt
          if (allocated(inline_mp%v_dt)) inline_mp%v_dt = inline_mp%v_dt / bdt
+         inline_mp%acc_drzl = inline_mp%acc_drzl / k_split
+         inline_mp%acc_rain = inline_mp%acc_rain / k_split
+         inline_mp%acc_crys = inline_mp%acc_crys / k_split
+         inline_mp%acc_snow = inline_mp%acc_snow / k_split
+         inline_mp%acc_grpl = inline_mp%acc_grpl / k_split
+         inline_mp%acc_pell = inline_mp%acc_pell / k_split
+         inline_mp%acc_hail = inline_mp%acc_hail / k_split
+         inline_mp%acc_wsnow = inline_mp%acc_wsnow / k_split
+         inline_mp%acc_sndp = inline_mp%acc_sndp / k_split
       endif
   endif
 

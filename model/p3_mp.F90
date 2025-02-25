@@ -1743,11 +1743,13 @@ END subroutine p3_init
 
 !==================================================================================================!
 
-subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,warm_start,ni,nk,&
-                                qc_m,qc,nc,qr_m,qr,nr,cldfrac,rain,snow,diag_Zet,diag_effc,consv_te,te,&
+subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,warm_start,ni,nk,qc_m,qc,&
+                                nc,qr_m,qr,nr,cldfrac,acc_liq,acc_sol,diag_Zet,diag_effc,consv_te,te,&
                                 qitot_1m,qitot_1,nitot_1,qirim_1,birim_1,diag_effi_1,zitot_1,qiliq_1,&
                                 qitot_2m,qitot_2,nitot_2,qirim_2,birim_2,diag_effi_2,zitot_2,qiliq_2,&
-                                qitot_3m,qitot_3,nitot_3,qirim_3,birim_3,diag_effi_3,zitot_3,qiliq_3)
+                                qitot_3m,qitot_3,nitot_3,qirim_3,birim_3,diag_effi_3,zitot_3,qiliq_3,&
+                                acc_drzl,acc_rain,acc_crys,acc_snow,acc_grpl,acc_pell,acc_hail,acc_wsnow,acc_sndp,&
+                                qi_type_1,qi_type_2,qi_type_3,qi_type_4,qi_type_5,qi_type_6)
 
 !------------------------------------------------------------------------------------------!
 ! This wrapper subroutine is the main SHiELD interface with the P3 microphysics scheme.    !
@@ -1784,23 +1786,23 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  real, intent(inout), dimension(ni,nk)  :: zitot_1               ! ice   specific ratio, reflectivity    m^6 kg-1
  real, intent(inout), dimension(ni,nk)  :: qiliq_1               ! ice   specific ratio, mass (liquid)   kg kg-1
 
- real, intent(inout), dimension(ni,nk), optional  :: qitot_2               ! ice   specific ratio, mass (total)    kg kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qitot_2m              ! ice   specific ratio, mass (t-)       kg kg-1
- real, intent(inout), dimension(ni,nk), optional  :: nitot_2               ! ice   specific ratio, number          #  kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qirim_2               ! ice   specific ratio, mass (rime)     kg kg-1
- real, intent(inout), dimension(ni,nk), optional  :: birim_2               ! ice   specific ratio, volume          m3 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: diag_effi_2           ! ice   effective radius, (cat 2)       m
- real, intent(inout), dimension(ni,nk), optional  :: zitot_2               ! ice   specific ratio, reflectivity    m^6 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qiliq_2               ! ice   specific ratio, mass (liquid)   kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qitot_2     ! ice   specific ratio, mass (total)    kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qitot_2m    ! ice   specific ratio, mass (t-)       kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: nitot_2     ! ice   specific ratio, number          #  kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qirim_2     ! ice   specific ratio, mass (rime)     kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: birim_2     ! ice   specific ratio, volume          m3 kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: diag_effi_2 ! ice   effective radius, (cat 2)       m
+ real, intent(inout), dimension(ni,nk), optional  :: zitot_2     ! ice   specific ratio, reflectivity    m^6 kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qiliq_2     ! ice   specific ratio, mass (liquid)   kg kg-1
 
- real, intent(inout), dimension(ni,nk), optional  :: qitot_3               ! ice   specific ratio, mass (total)    kg kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qitot_3m              ! ice   specific ratio, mass (t-)       kg kg-1
- real, intent(inout), dimension(ni,nk), optional  :: nitot_3               ! ice   specific ratio, number          #  kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qirim_3               ! ice   specific ratio, mass (rime)     kg kg-1
- real, intent(inout), dimension(ni,nk), optional  :: birim_3               ! ice   specific ratio, volume          m3 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: diag_effi_3           ! ice   effective radius,  (cat 3)      m
- real, intent(inout), dimension(ni,nk), optional  :: zitot_3               ! ice   specific ratio, reflectivity    m^6 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qiliq_3               ! ice   specific ratio, mass (liquid)   kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qitot_3     ! ice   specific ratio, mass (total)    kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qitot_3m    ! ice   specific ratio, mass (t-)       kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: nitot_3     ! ice   specific ratio, number          #  kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qirim_3     ! ice   specific ratio, mass (rime)     kg kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: birim_3     ! ice   specific ratio, volume          m3 kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: diag_effi_3 ! ice   effective radius,  (cat 3)      m
+ real, intent(inout), dimension(ni,nk), optional  :: zitot_3     ! ice   specific ratio, reflectivity    m^6 kg-1
+ real, intent(inout), dimension(ni,nk), optional  :: qiliq_3     ! ice   specific ratio, mass (liquid)   kg kg-1
 
  !real, dimension(:,:), pointer, contiguous  :: qitot_4           ! ice   specific ratio, mass (total)    kg kg-1
  !real, dimension(:,:), pointer, contiguous  :: qitot_4m          ! ice   specific ratio, mass (t-)       kg kg-1
@@ -1818,14 +1820,32 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  real, intent(inout), dimension(ni,nk)  :: delp                  ! layer pressure thickness            Pa
  real, intent(in),    dimension(ni,nk)  :: delz                  ! layer height thickness (negative)   m
  real, intent(in),    dimension(ni,nk)  :: ww                    ! vertical motion                     m s-1
- real, intent(inout), dimension(ni)     :: rain                  ! precipitation rate, total liquid    mm day-1
- real, intent(inout), dimension(ni)     :: snow                  ! precipitation rate, total solid     mm day-1
  real, intent(out),   dimension(ni,nk)  :: diag_Zet              ! equivalent reflectivity, 3D         dBZ
  real, intent(out),   dimension(ni,nk)  :: diag_effc             ! effective radius, cloud             m
 
- real, intent(out),   dimension(ni,nk)   :: cldfrac               ! cloud fraction computed by SCPF
+ real, intent(inout), dimension(ni)     :: acc_liq               ! precipitation rate, total liquid    mm day-1
+ real, intent(inout), dimension(ni)     :: acc_sol               ! precipitation rate, total solid     mm day-1
+
+ real, intent(inout), dimension(ni), optional     :: acc_drzl    ! precipitation rate, drizzle         mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_rain    ! precipitation rate, rain            mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_crys    ! precipitation rate, ice cystals     mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_snow    ! precipitation rate, snow            mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_grpl    ! precipitation rate, graupel         mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_pell    ! precipitation rate, ice pellets     mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_hail    ! precipitation rate, hail            mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_wsnow   ! precipitation rate, wet snow        mm day-1
+ real, intent(inout), dimension(ni), optional     :: acc_sndp    ! precipitation rate, unmelted snow   mm day-1
+
+ real, intent(out),   dimension(ni,nk)   :: cldfrac              ! cloud fraction computed by SCPF
 
  real, intent(inout), dimension(ni,nk)    :: te
+
+ real, intent(out), dimension(ni,nk), optional  :: qi_type_1     ! small ice crystal mass              kg kg-1
+ real, intent(out), dimension(ni,nk), optional  :: qi_type_2     ! unrimed snow crystal mass           kg kg-1
+ real, intent(out), dimension(ni,nk), optional  :: qi_type_3     ! lightly rimed snow mass             kg kg-1
+ real, intent(out), dimension(ni,nk), optional  :: qi_type_4     ! graupel mass                        kg kg-1
+ real, intent(out), dimension(ni,nk), optional  :: qi_type_5     ! hail mass                           kg kg-1
+ real, intent(out), dimension(ni,nk), optional  :: qi_type_6     ! ice pellet mass                     kg kg-1
 
 !----------------------------------------------------------------------------------------!
 ! change from input/output variables to local variables
@@ -1833,17 +1853,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  integer, parameter :: n_diag_2d = 2              ! number of 2D diagnostic fields      -
  integer, parameter :: n_diag_3d = 2              ! number of 3D diagnostic fields      -
 
- real, dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    mm day-1
- real, dimension(ni)     :: prt_sol               ! precipitation rate, total solid     mm day-1
- real, dimension(ni)     :: prt_drzl              ! precipitation rate, drizzle         m s-1
- real, dimension(ni)     :: prt_rain              ! precipitation rate, rain            m s-1
- real, dimension(ni)     :: prt_crys              ! precipitation rate, ice cystals     m s-1
- real, dimension(ni)     :: prt_snow              ! precipitation rate, snow            m s-1
- real, dimension(ni)     :: prt_grpl              ! precipitation rate, graupel         m s-1
- real, dimension(ni)     :: prt_pell              ! precipitation rate, ice pellets     m s-1
- real, dimension(ni)     :: prt_hail              ! precipitation rate, hail            m s-1
- real, dimension(ni)     :: prt_wsnow             ! precipitation rate, wet snow        m s-1
- real, dimension(ni)     :: prt_sndp              ! precipitation rate, unmelted snow   m s-1
  real, dimension(ni,n_diag_2d)    :: diag_2d      ! user-defined 2D diagnostic fields
  real, dimension(ni,nk,n_diag_3d) :: diag_3d      ! user-defined 3D diagnostic fields
 
@@ -1855,14 +1864,19 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  real, dimension(ni,nk)  :: diag_vis3             ! visibility through snow             m
  real, dimension(ni,nk)  :: diag_slw              ! supercooled LWC                     kg m-3
 
- real, dimension(ni,nk) :: maxD_hail              ! ice, maximum hail size (all cat)    m
+ real, dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    m s-1
+ real, dimension(ni)     :: prt_sol               ! precipitation rate, total solid     m s-1
+ real, dimension(ni)     :: prt_drzl              ! precipitation rate, drizzle         m s-1
+ real, dimension(ni)     :: prt_rain              ! precipitation rate, rain            m s-1
+ real, dimension(ni)     :: prt_crys              ! precipitation rate, ice cystals     m s-1
+ real, dimension(ni)     :: prt_snow              ! precipitation rate, snow            m s-1
+ real, dimension(ni)     :: prt_grpl              ! precipitation rate, graupel         m s-1
+ real, dimension(ni)     :: prt_pell              ! precipitation rate, ice pellets     m s-1
+ real, dimension(ni)     :: prt_hail              ! precipitation rate, hail            m s-1
+ real, dimension(ni)     :: prt_wsnow             ! precipitation rate, wet snow        m s-1
+ real, dimension(ni)     :: prt_sndp              ! precipitation rate, unmelted snow   m s-1
 
- real, dimension(ni,nk)  :: qi_type_1             ! small ice crystal mass              kg kg-1
- real, dimension(ni,nk)  :: qi_type_2             ! unrimed snow crystal mass           kg kg-1
- real, dimension(ni,nk)  :: qi_type_3             ! lightly rimed snow mass             kg kg-1
- real, dimension(ni,nk)  :: qi_type_4             ! graupel mass                        kg kg-1
- real, dimension(ni,nk)  :: qi_type_5             ! hail mass                           kg kg-1
- real, dimension(ni,nk)  :: qi_type_6             ! ice pellet mass                     kg kg-1
+ real, dimension(ni,nk) :: maxD_hail              ! ice, maximum hail size (all cat)    m
 
 !----- local variables and parameters:
  real, dimension(ni,nk,n_iceCat)  :: qitot      ! ice mixing ratio, mass (total)          kg kg-1
@@ -2231,8 +2245,17 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
   !convert precip rates from volume flux (m s-1) to mass flux (kg m-2 s-1): * 1000
   !convert precip rates from m s-1 to mm day-1: * 1000 * 86400
   ! (since they are computed back to liq-eqv volume flux in s/r 'ccdiagnostics.F90')
-   rain = rain+prt_liq*1000.*86400.
-   snow = snow+prt_sol*1000.*86400.
+   acc_liq = acc_liq+prt_liq*1000.*86400.
+   acc_sol = acc_sol+prt_sol*1000.*86400.
+   if (present(acc_drzl)) acc_drzl = acc_drzl+prt_drzl*1000.*86400.
+   if (present(acc_rain)) acc_rain = acc_rain+prt_rain*1000.*86400.
+   if (present(acc_crys)) acc_crys = acc_crys+prt_crys*1000.*86400.
+   if (present(acc_snow)) acc_snow = acc_snow+prt_snow*1000.*86400.
+   if (present(acc_grpl)) acc_grpl = acc_grpl+prt_grpl*1000.*86400.
+   if (present(acc_pell)) acc_pell = acc_pell+prt_pell*1000.*86400.
+   if (present(acc_hail)) acc_hail = acc_hail+prt_hail*1000.*86400.
+   if (present(acc_wsnow)) acc_wsnow = acc_wsnow+prt_wsnow*1000.*86400.
+   if (present(acc_sndp)) acc_sndp = acc_sndp+prt_sndp*1000.*86400.
 
   !--- diagnostics:
    diag_hcb(:) = -1.
@@ -2270,12 +2293,12 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 
    ! Diagnostic ice particle types:
    if (n_qiType >= 6) then
-      qi_type_1 = qi_type(:,:,1)  !small ice crystals
-      qi_type_2 = qi_type(:,:,2)  !unrimed snow crystals
-      qi_type_3 = qi_type(:,:,3)  !lightly rimed snow
-      qi_type_4 = qi_type(:,:,4)  !graupel
-      qi_type_5 = qi_type(:,:,5)  !hail
-      qi_type_6 = qi_type(:,:,6)  !ice pellets
+      if (present(qi_type_1)) qi_type_1 = qi_type(:,:,1)  !small ice crystals
+      if (present(qi_type_2)) qi_type_2 = qi_type(:,:,2)  !unrimed snow crystals
+      if (present(qi_type_3)) qi_type_3 = qi_type(:,:,3)  !lightly rimed snow
+      if (present(qi_type_4)) qi_type_4 = qi_type(:,:,4)  !graupel
+      if (present(qi_type_5)) qi_type_5 = qi_type(:,:,5)  !hail
+      if (present(qi_type_6)) qi_type_6 = qi_type(:,:,6)  !ice pellets
    else
       print *, 'microphy_p3::mp_p3_wrapper_shield', &
            'Insufficient size for qi_type'

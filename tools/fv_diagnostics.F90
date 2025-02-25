@@ -746,6 +746,42 @@ contains
        id_mppxg = register_diag_field ( trim(field), 'mppxg', axes(1:2), Time,           &
             'Accretion (to Graupel) Rate', 'mm/day', missing_value=missing_value )
 !-------------------
+! Precipitation from P3 MP
+!-------------------
+       id_acc_drzl = register_diag_field ( trim(field), 'acc_drzl', axes(1:2), Time,           &
+            'Drizzle Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_rain = register_diag_field ( trim(field), 'acc_rain', axes(1:2), Time,           &
+            'Rain Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_crys = register_diag_field ( trim(field), 'acc_crys', axes(1:2), Time,           &
+            'Ice Crystals Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_snow = register_diag_field ( trim(field), 'acc_snow', axes(1:2), Time,           &
+            'Snow Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_grpl = register_diag_field ( trim(field), 'acc_grpl', axes(1:2), Time,           &
+            'Graupel Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_pell = register_diag_field ( trim(field), 'acc_pell', axes(1:2), Time,           &
+            'Ice Pellets Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_hail = register_diag_field ( trim(field), 'acc_hail', axes(1:2), Time,           &
+            'Hail Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_wsnow = register_diag_field ( trim(field), 'acc_wsnow', axes(1:2), Time,           &
+            'Wet Snow Precipitation Rate', 'mm/day', missing_value=missing_value )
+       id_acc_sndp = register_diag_field ( trim(field), 'acc_sndp', axes(1:2), Time,           &
+            'Unmelted Snow Precipitation Rate', 'mm/day', missing_value=missing_value )
+!-------------------
+! qi type from P3 MP
+!-------------------
+       id_qi_type_1 = register_diag_field ( trim(field), 'qi_type_1', axes(1:3), Time,           &
+            'small ice crystal mass', 'kg/kg', missing_value=missing_value )
+       id_qi_type_2 = register_diag_field ( trim(field), 'qi_type_2', axes(1:3), Time,           &
+            'unrimed snow crystal mass', 'kg/kg', missing_value=missing_value )
+       id_qi_type_3 = register_diag_field ( trim(field), 'qi_type_3', axes(1:3), Time,           &
+            'lightly rimed snow mass', 'kg/kg', missing_value=missing_value )
+       id_qi_type_4 = register_diag_field ( trim(field), 'qi_type_4', axes(1:3), Time,           &
+            'graupel mass', 'kg/kg', missing_value=missing_value )
+       id_qi_type_5 = register_diag_field ( trim(field), 'qi_type_5', axes(1:3), Time,           &
+            'hail mass', 'kg/kg', missing_value=missing_value )
+       id_qi_type_6 = register_diag_field ( trim(field), 'qi_type_6', axes(1:3), Time,           &
+            'ice pellet mass', 'kg/kg', missing_value=missing_value )
+!-------------------
 !! 3D Tendency terms from GFDL MP and physics
 !-------------------
        if (Atm(n)%flagstruct%write_3d_diags) then
@@ -1891,6 +1927,21 @@ contains
                 Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
              if(id_prer > 0) used=send_data(id_prer, Atm(n)%inline_mp%prer(isc:iec,jsc:jec), Time)
              if(id_pres > 0) used=send_data(id_pres, Atm(n)%inline_mp%pres(isc:iec,jsc:jec), Time)
+             if(id_acc_drzl > 0) used=send_data(id_acc_drzl, Atm(n)%inline_mp%acc_drzl(isc:iec,jsc:jec), Time)
+             if(id_acc_rain > 0) used=send_data(id_acc_rain, Atm(n)%inline_mp%acc_rain(isc:iec,jsc:jec), Time)
+             if(id_acc_crys > 0) used=send_data(id_acc_crys, Atm(n)%inline_mp%acc_crys(isc:iec,jsc:jec), Time)
+             if(id_acc_snow > 0) used=send_data(id_acc_snow, Atm(n)%inline_mp%acc_snow(isc:iec,jsc:jec), Time)
+             if(id_acc_grpl > 0) used=send_data(id_acc_grpl, Atm(n)%inline_mp%acc_grpl(isc:iec,jsc:jec), Time)
+             if(id_acc_pell > 0) used=send_data(id_acc_pell, Atm(n)%inline_mp%acc_pell(isc:iec,jsc:jec), Time)
+             if(id_acc_hail > 0) used=send_data(id_acc_hail, Atm(n)%inline_mp%acc_hail(isc:iec,jsc:jec), Time)
+             if(id_acc_wsnow > 0) used=send_data(id_acc_wsnow, Atm(n)%inline_mp%acc_wsnow(isc:iec,jsc:jec), Time)
+             if(id_acc_sndp > 0) used=send_data(id_acc_sndp, Atm(n)%inline_mp%acc_sndp(isc:iec,jsc:jec), Time)
+             if(id_qi_type_1 > 0) used=send_data(id_qi_type_1, Atm(n)%inline_mp%qi_type_1(isc:iec,jsc:jec,1:npz), Time)
+             if(id_qi_type_2 > 0) used=send_data(id_qi_type_2, Atm(n)%inline_mp%qi_type_2(isc:iec,jsc:jec,1:npz), Time)
+             if(id_qi_type_3 > 0) used=send_data(id_qi_type_3, Atm(n)%inline_mp%qi_type_3(isc:iec,jsc:jec,1:npz), Time)
+             if(id_qi_type_4 > 0) used=send_data(id_qi_type_4, Atm(n)%inline_mp%qi_type_4(isc:iec,jsc:jec,1:npz), Time)
+             if(id_qi_type_5 > 0) used=send_data(id_qi_type_5, Atm(n)%inline_mp%qi_type_5(isc:iec,jsc:jec,1:npz), Time)
+             if(id_qi_type_6 > 0) used=send_data(id_qi_type_6, Atm(n)%inline_mp%qi_type_6(isc:iec,jsc:jec,1:npz), Time)
           endif
        endif
 

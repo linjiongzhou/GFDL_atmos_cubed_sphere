@@ -866,9 +866,6 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
     if ((.not. do_adiabatic_init) .and. do_inline_mp .and. mp_flag .eq. 7) then
 
-        allocate (tz (kmp:km))
-        allocate (wz (kmp:km))
-
         ! save D grid u and v
         if (consv .gt. consv_min) then
             allocate (u0 (isd:ied, jsd:jed+1, km))
@@ -912,7 +909,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 !$OMP                                    graupel_rad_ref, graupel_liq_mass, &
 !$OMP                                    qv_old, pt_old, qc_old, qr_old, qi_old, qs_old, qg_old) &
 !$OMP                           private (q2, q3, dz, wa, pe, peln, adj_vmr, qliq, qsol, &
-!$OMP                                    tz, wz, dte, te_beg, tw_beg, te_b_beg, tw_b_beg, &
+!$OMP                                    dte, te_beg, tw_beg, te_b_beg, tw_b_beg, &
 !$OMP                                    te_end, tw_end, te_b_end, tw_b_end, te_loss, &
 !$OMP                                    q_cat)
 
@@ -1039,7 +1036,18 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                   consv .gt. consv_min, te (is:ie, j, kmp:km), qdiag (is:ie, j, kmp:km, qi_old), &
                                   q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_wat_num), &
                                   q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_vol), &
-                                  inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km))
+                                  inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
+                                  acc_drzl = inline_mp%acc_drzl (is:ie, j), acc_rain = inline_mp%acc_rain (is:ie, j), &
+                                  acc_crys = inline_mp%acc_crys (is:ie, j), acc_snow = inline_mp%acc_snow (is:ie, j), &
+                                  acc_grpl = inline_mp%acc_grpl (is:ie, j), acc_pell = inline_mp%acc_pell (is:ie, j), &
+                                  acc_hail = inline_mp%acc_hail (is:ie, j), acc_wsnow = inline_mp%acc_wsnow (is:ie, j), &
+                                  acc_sndp = inline_mp%acc_sndp (is:ie, j), &
+                                  qi_type_1 = inline_mp%qi_type_1 (is:ie, j, kmp:km), &
+                                  qi_type_2 = inline_mp%qi_type_2 (is:ie, j, kmp:km), &
+                                  qi_type_3 = inline_mp%qi_type_3 (is:ie, j, kmp:km), &
+                                  qi_type_4 = inline_mp%qi_type_4 (is:ie, j, kmp:km), &
+                                  qi_type_5 = inline_mp%qi_type_5 (is:ie, j, kmp:km), &
+                                  qi_type_6 = inline_mp%qi_type_6 (is:ie, j, kmp:km))
             endif
 
             ! P3 cloud microphysics main program, 2 ice categories
@@ -1060,7 +1068,18 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                   q_cat (is:ie, kmp:km, 1, 1), q_cat (is:ie, kmp:km, 2, 1), &
                                   q_cat (is:ie, kmp:km, 3, 1), q_cat (is:ie, kmp:km, 4, 1), &
                                   q_cat (is:ie, kmp:km, 5, 1), q_cat (is:ie, kmp:km, 6, 1), &
-                                  q_cat (is:ie, kmp:km, 7, 1), q_cat (is:ie, kmp:km, 8, 1))
+                                  q_cat (is:ie, kmp:km, 7, 1), q_cat (is:ie, kmp:km, 8, 1), &
+                                  acc_drzl = inline_mp%acc_drzl (is:ie, j), acc_rain = inline_mp%acc_rain (is:ie, j), &
+                                  acc_crys = inline_mp%acc_crys (is:ie, j), acc_snow = inline_mp%acc_snow (is:ie, j), &
+                                  acc_grpl = inline_mp%acc_grpl (is:ie, j), acc_pell = inline_mp%acc_pell (is:ie, j), &
+                                  acc_hail = inline_mp%acc_hail (is:ie, j), acc_wsnow = inline_mp%acc_wsnow (is:ie, j), &
+                                  acc_sndp = inline_mp%acc_sndp (is:ie, j), &
+                                  qi_type_1 = inline_mp%qi_type_1 (is:ie, j, kmp:km), &
+                                  qi_type_2 = inline_mp%qi_type_2 (is:ie, j, kmp:km), &
+                                  qi_type_3 = inline_mp%qi_type_3 (is:ie, j, kmp:km), &
+                                  qi_type_4 = inline_mp%qi_type_4 (is:ie, j, kmp:km), &
+                                  qi_type_5 = inline_mp%qi_type_5 (is:ie, j, kmp:km), &
+                                  qi_type_6 = inline_mp%qi_type_6 (is:ie, j, kmp:km))
             endif
 
             ! P3 cloud microphysics main program, 3 ice categories
@@ -1085,7 +1104,18 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                   q_cat (is:ie, kmp:km, 1, 2), q_cat (is:ie, kmp:km, 2, 2), &
                                   q_cat (is:ie, kmp:km, 3, 2), q_cat (is:ie, kmp:km, 4, 2), &
                                   q_cat (is:ie, kmp:km, 5, 2), q_cat (is:ie, kmp:km, 6, 2), &
-                                  q_cat (is:ie, kmp:km, 7, 2), q_cat (is:ie, kmp:km, 8, 2))
+                                  q_cat (is:ie, kmp:km, 7, 2), q_cat (is:ie, kmp:km, 8, 2), &
+                                  acc_drzl = inline_mp%acc_drzl (is:ie, j), acc_rain = inline_mp%acc_rain (is:ie, j), &
+                                  acc_crys = inline_mp%acc_crys (is:ie, j), acc_snow = inline_mp%acc_snow (is:ie, j), &
+                                  acc_grpl = inline_mp%acc_grpl (is:ie, j), acc_pell = inline_mp%acc_pell (is:ie, j), &
+                                  acc_hail = inline_mp%acc_hail (is:ie, j), acc_wsnow = inline_mp%acc_wsnow (is:ie, j), &
+                                  acc_sndp = inline_mp%acc_sndp (is:ie, j), &
+                                  qi_type_1 = inline_mp%qi_type_1 (is:ie, j, kmp:km), &
+                                  qi_type_2 = inline_mp%qi_type_2 (is:ie, j, kmp:km), &
+                                  qi_type_3 = inline_mp%qi_type_3 (is:ie, j, kmp:km), &
+                                  qi_type_4 = inline_mp%qi_type_4 (is:ie, j, kmp:km), &
+                                  qi_type_5 = inline_mp%qi_type_5 (is:ie, j, kmp:km), &
+                                  qi_type_6 = inline_mp%qi_type_6 (is:ie, j, kmp:km))
             endif
 
             ! update non-microphyiscs tracers due to mass change
@@ -1201,8 +1231,6 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
         deallocate (dz)
         deallocate (wa)
-        deallocate (tz)
-        deallocate (wz)
         if (ncat .gt. 1) deallocate (q_cat)
 
         ! update dry total energy

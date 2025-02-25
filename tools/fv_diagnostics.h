@@ -96,6 +96,12 @@
  integer :: id_mpprs, id_mpprg, id_mppxr, id_mppxs, id_mppxg
  integer :: id_mppm1, id_mppm2, id_mppm3
 
+ integer :: id_acc_drzl, id_acc_rain, id_acc_crys
+ integer :: id_acc_snow, id_acc_grpl, id_acc_pell
+ integer :: id_acc_hail, id_acc_wsnow, id_acc_sndp
+ integer :: id_qi_type_1, id_qi_type_2, id_qi_type_3
+ integer :: id_qi_type_4, id_qi_type_5, id_qi_type_6
+
  integer :: id_qcw, id_qcr, id_qci, id_qcs, id_qcg
  integer :: id_rew, id_rer, id_rei, id_res, id_reg, id_cld
 
