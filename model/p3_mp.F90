@@ -279,7 +279,7 @@
  rhow   = 1000.
  cpw    = 4218.
  cpi    = 2106.
- zvir   = rv*inv_cp-1
+ zvir   = rv/rd-1.
  inv_rhow = 1./rhow  !inverse of (max.) density of liquid water
  mu_r_constant = 0.  !fixed shape parameter for mu_r
 
