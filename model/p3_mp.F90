@@ -1745,6 +1745,7 @@ END subroutine p3_init
 
 subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,warm_start,ni,nk,qc_m,qc,&
                                 nc,qr_m,qr,nr,cldfrac,acc_liq,acc_sol,diag_Zet,diag_effc,consv_te,te,&
+                                use_cond,moist_kappa,q_con,cappa,&
                                 qitot_1m,qitot_1,nitot_1,qirim_1,birim_1,diag_effi_1,zitot_1,qiliq_1,&
                                 qitot_2m,qitot_2,nitot_2,qirim_2,birim_2,diag_effi_2,zitot_2,qiliq_2,&
                                 qitot_3m,qitot_3,nitot_3,qirim_3,birim_3,diag_effi_3,zitot_3,qiliq_3,&
@@ -1767,7 +1768,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  integer, intent(in)                    :: ni                    ! number of columns in slab           -
  integer, intent(in)                    :: nk                    ! number of vertical levels           -
  integer, intent(in)                    :: kount                 ! time step counter                   -
- logical, intent(in)                    :: warm_start, consv_te
+ logical, intent(in)                    :: warm_start, consv_te, use_cond, moist_kappa
 
  real, intent(in)                       :: dt                    ! model time step                     s
  real, intent(inout), dimension(ni,nk)  :: qc                    ! cloud specific ratio, mass            kg kg-1
@@ -1812,6 +1813,8 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  !real, dimension(:,:), pointer, contiguous  :: diag_effi_4       ! ice   effective radius, (cat 4)       m
  !real, dimension(:,:), pointer, contiguous  :: zitot_4           ! ice   specific ratio, reflectivity    m^6 kg-1
  !real, dimension(:,:), pointer, contiguous  :: qiliq_4           ! ice   specific ratio, mass (liquid)   kg kg-1
+
+ real, intent (inout), dimension (1:, 1:) :: q_con, cappa
 
  real, intent(inout), dimension(ni,nk)  :: qvap_m                ! vapor mixing ratio (previous time)  kg kg-1
  real, intent(inout), dimension(ni,nk)  :: qvap                  ! vapor mixing ratio, mass            kg kg-1
@@ -2361,13 +2364,15 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
       endif
    endif
 
+   c_moist = (1-(qvap+qc+qr+qi_tot))*cv+qvap*cvv+(qc+qr)*cpw+qi_tot*cpi
    if (cp_heating) then
       temp = ta*((1.+zvir*qvap)*(1-qc-qr-qi_tot))
    else
-      c_moist = (1-(qvap+qc+qr+qi_tot))*cv+qvap*cvv+(qc+qr)*cpw+qi_tot*cpi
       temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qi_tot))-temp)*cp/c_moist
       ta = temp/((1.+zvir*qvap)*(1-qc-qr-qi_tot))
    endif
+   if (use_cond) q_con = qc+qr+qi_tot
+   if (moist_kappa) cappa = rd/(rd+c_moist/(1.+zvir*qvap))
 
    if (consv_te) then
       do k = 1,nk

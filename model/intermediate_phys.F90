@@ -1033,7 +1033,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                   q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, cld_amt), &
                                   inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), &
                                   inline_mp%zet (is:ie, j, kmp:km), inline_mp%effc (is:ie, j, kmp:km), &
-                                  consv .gt. consv_min, te (is:ie, j, kmp:km), qdiag (is:ie, j, kmp:km, qi_old), &
+                                  consv .gt. consv_min, te (is:ie, j, kmp:km), thermostruct%use_cond, &
+                                  thermostruct%moist_kappa, q_con (is:ie, j, k_con:), &
+                                  cappa (is:ie, j, k_cappa:), qdiag (is:ie, j, kmp:km, qi_old), &
                                   q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_wat_num), &
                                   q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_vol), &
                                   inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
@@ -1061,7 +1063,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                   q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, cld_amt), &
                                   inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), &
                                   inline_mp%zet (is:ie, j, kmp:km), inline_mp%effc (is:ie, j, kmp:km), &
-                                  consv .gt. consv_min, te (is:ie, j, kmp:km), qdiag (is:ie, j, kmp:km, qi_old), &
+                                  consv .gt. consv_min, te (is:ie, j, kmp:km), thermostruct%use_cond, &
+                                  thermostruct%moist_kappa, q_con (is:ie, j, k_con:), &
+                                  cappa (is:ie, j, k_cappa:), qdiag (is:ie, j, kmp:km, qi_old), &
                                   q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_wat_num), &
                                   q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_vol), &
                                   inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
@@ -1093,7 +1097,9 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                                   q (is:ie, j, kmp:km, rainwat_num), q (is:ie, j, kmp:km, cld_amt), &
                                   inline_mp%prer (is:ie, j), inline_mp%pres (is:ie, j), &
                                   inline_mp%zet (is:ie, j, kmp:km), inline_mp%effc (is:ie, j, kmp:km), &
-                                  consv .gt. consv_min, te (is:ie, j, kmp:km), qdiag (is:ie, j, kmp:km, qi_old), &
+                                  consv .gt. consv_min, te (is:ie, j, kmp:km), thermostruct%use_cond, &
+                                  thermostruct%moist_kappa, q_con (is:ie, j, k_con:), &
+                                  cappa (is:ie, j, k_cappa:), qdiag (is:ie, j, kmp:km, qi_old), &
                                   q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, ice_wat_num), &
                                   q (is:ie, j, kmp:km, ice_rim_mass), q (is:ie, j, kmp:km, ice_wat_vol), &
                                   inline_mp%effi (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), &
