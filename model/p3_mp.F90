@@ -1821,7 +1821,7 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
  real, intent(inout), dimension(ni,nk)  :: temp_m                ! virtual temperature (previous step) K
  real, intent(inout), dimension(ni,nk)  :: temp                  ! virtual temperature                 K
  real, intent(inout), dimension(ni,nk)  :: delp                  ! layer pressure thickness            Pa
- real, intent(in),    dimension(ni,nk)  :: delz                  ! layer height thickness (negative)   m
+ real, intent(inout), dimension(ni,nk)  :: delz                  ! layer height thickness (negative)   m
  real, intent(in),    dimension(ni,nk)  :: ww                    ! vertical motion                     m s-1
  real, intent(out),   dimension(ni,nk)  :: diag_Zet              ! equivalent reflectivity, 3D         dBZ
  real, intent(out),   dimension(ni,nk)  :: diag_effc             ! effective radius, cloud             m
@@ -2366,7 +2366,9 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 
    c_moist = (1-(qvap+qc+qr+qi_tot))*cv+qvap*cvv+(qc+qr)*cpw+qi_tot*cpi
    if (cp_heating) then
+      delz = delz/tmp
       temp = ta*((1.+zvir*qvap)*(1-qc-qr-qi_tot))
+      delz = delz*tmp
    else
       temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qi_tot))-temp)*cp/c_moist
       ta = temp/((1.+zvir*qvap)*(1-qc-qr-qi_tot))
