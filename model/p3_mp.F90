@@ -2366,9 +2366,9 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 
    c_moist = (1-(qvap+qc+qr+qi_tot))*cv+qvap*cvv+(qc+qr)*cpw+qi_tot*cpi
    if (cp_heating) then
-      delz = delz/temp
+      !delz = delz/temp
       temp = ta*((1.+zvir*qvap)*(1-qc-qr-qi_tot))
-      delz = delz*temp
+      !delz = delz*temp
    else
       temp = temp+(ta*((1.+zvir*qvap)*(1-qc-qr-qi_tot))-temp)*cp/c_moist
       ta = temp/((1.+zvir*qvap)*(1-qc-qr-qi_tot))
