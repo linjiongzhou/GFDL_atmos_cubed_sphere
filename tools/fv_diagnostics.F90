@@ -3402,8 +3402,7 @@ contains
                   Atm(n)%bd%isd, Atm(n)%bd%ied, Atm(n)%bd%jsd, Atm(n)%bd%jed, &
                   Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
                   a3, a2, allmax, npz, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
-                  zvir, Atm(n)%flagstruct%do_inline_mp, &
-                  sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
+                  zvir, sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
            elseif (Atm(n)%flagstruct%mp_flag .eq. 7) then
               do j=jsc,jec
                  do i=isc,iec

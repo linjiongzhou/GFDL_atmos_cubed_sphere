@@ -6465,7 +6465,7 @@ end subroutine cld_eff_rad
 
 subroutine rad_ref (is, ie, js, je, isd, ied, jsd, jed, q, pt, delp, peln, &
         delz, dbz, maxdbz, allmax, npz, ncnst, hydrostatic, zvir, &
-        do_inline_mp, sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top)
+        sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top)
 
     implicit none
 
@@ -6473,7 +6473,7 @@ subroutine rad_ref (is, ie, js, je, isd, ied, jsd, jed, q, pt, delp, peln, &
     ! input / output arguments
     ! -----------------------------------------------------------------------
 
-    logical, intent (in) :: hydrostatic, do_inline_mp
+    logical, intent (in) :: hydrostatic
 
     integer, intent (in) :: is, ie, js, je, isd, ied, jsd, jed
     integer, intent (in) :: npz, ncnst, mp_top
@@ -6566,7 +6566,7 @@ subroutine rad_ref (is, ie, js, je, isd, ied, jsd, jed, q, pt, delp, peln, &
             endif
 
             if (radg_flag .eq. 3) then
-                if (do_hail .and. .not. do_inline_mp) then
+                if (do_hail) then
                     call term_rsg (1, npz, qmg, den, denfac, vg_fac, blinh, &
                         muh, tvah, tvbh, vg_max, const_vg, vtg)
                     vtg = vtg / rhoh
@@ -6629,7 +6629,7 @@ subroutine rad_ref (is, ie, js, je, isd, ied, jsd, jed, q, pt, delp, peln, &
 
                 if (graupel .gt. 0) then
                     qden = den (k) * qmg (k)
-                    if (do_hail .and. .not. do_inline_mp) then
+                    if (do_hail) then
                         if (qmg (k) .gt. qcmin) then
                             call cal_pc_ed_oe_rr_tv (qmg (k), den (k), blinh, muh, &
                                 rra = rrah, rrb = rrbh, rr = fac_g)

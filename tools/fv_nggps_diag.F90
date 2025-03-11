@@ -666,8 +666,7 @@ contains
          call rad_ref(isco, ieco, jsco, jeco, isdo, iedo, jsdo, jedo, &
                       Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
                       wk, wk2, allmax, npzo, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
-                      zvir, Atm(n)%flagstruct%do_inline_mp, &
-                      sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
+                      zvir, sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
       elseif (Atm(n)%flagstruct%mp_flag .eq. 7) then
          do j=jsco,jeco
            do i=isco,ieco
