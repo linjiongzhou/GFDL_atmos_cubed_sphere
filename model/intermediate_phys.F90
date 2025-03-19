@@ -196,14 +196,18 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
     rrg = - rdgas / grav
 
-    ! time saving trick
-    if (last_step) then
+    if (mp_flag .eq. 7) then
         kmp = 1
     else
-        do k = 1, km
-            kmp = k
-            if (pfull (k) .gt. 50.E2) exit
-        enddo
+        ! time saving trick
+        if (last_step) then
+            kmp = 1
+        else
+            do k = 1, km
+                kmp = k
+                if (pfull (k) .gt. 50.E2) exit
+            enddo
+        endif
     endif
 
     ! decide which tracer needs adjustment
