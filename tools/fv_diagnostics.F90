@@ -54,7 +54,7 @@ module fv_diagnostics_mod
  use sat_vapor_pres_mod, only: compute_qs, lookup_es
 
  use fv_arrays_mod, only: max_step
- use gfdl_mp_mod, only: wqs, mqs3d, c_liq, rad_ref, cld_eff_rad
+ use gfdl_mp_mod, only: wqs, mqs3d, c_liq, cld_eff_rad
 
  use fv_diag_column_mod, only: fv_diag_column_init, sounding_column, debug_column
 
@@ -84,7 +84,7 @@ module fv_diagnostics_mod
  logical :: m_calendar
  integer  sphum, liq_wat, ice_wat, cld_amt    ! GFDL physics
  integer  rainwat, snowwat, graupel, o3mr, aerosol
- integer :: istep, mp_top
+ integer :: istep
  real    :: ptop
  real, parameter    ::     rad2deg = 180./pi
  logical :: do_diag_sonde, do_diag_debug
@@ -244,17 +244,6 @@ contains
 
     allocate ( phalf(npz+1) )
     call get_eta_level(Atm(1)%npz, p_ref, pfull, phalf, Atm(1)%ak, Atm(1)%bk, 0.01)
-
-    mp_top = 1
-    do k=1,npz
-       if ( pfull(k) > 30.e2 ) then
-            mp_top = k
-            exit
-       endif
-    enddo
-    if ( (user_prt_level >= PRT_LEVEL_2 .or. Atm(1)%flagstruct%fv_debug) .and. is_master() ) then
-       write(*,'(2x, A, G20.8, A, G20.8)') 'radar reflectivity: mp_top=', mp_top, 'pfull=', pfull(mp_top)
-    endif
 
 !   allocate(grid_xt(npx-1), grid_yt(npy-1), grid_xe(npx), grid_ye(npy-1), grid_xn(npx-1), grid_yn(npy))
     allocate(grid_xt(npx-1), grid_yt(npy-1))
@@ -1654,7 +1643,7 @@ contains
     real, parameter:: ws_1 = 20.
     real, parameter:: vort_c0= 2.2e-5
     logical, allocatable :: storm(:,:), cat_crt(:,:)
-    real :: tmp2, pvsum, e2, einf, qm, mm, maxdbz, allmax, rgrav, cv_vapor
+    real :: tmp2, pvsum, e2, einf, qm, mm, maxdbz, rgrav, cv_vapor
     real, allocatable :: cvm(:)
     integer :: Cl, Cl2, k1, k2
 
@@ -3392,25 +3381,16 @@ contains
           if(prt_minmax) call prt_mxm('wind100m', a2, isc, iec, jsc, jec, 0, 1, 1., Atm(n)%gridstruct%area_64, Atm(n)%domain)
        endif
 
-       if ( rainwat > 0 .and. (id_dbz>0 .or. id_maxdbz>0 .or. id_basedbz>0 .or. id_dbz4km>0 &
-            & .or. id_dbztop>0 .or. id_dbz_m10C>0 .or. id_40dbzht>0)) then
+       if ( id_dbz>0 .or. id_maxdbz>0 .or. id_basedbz>0 .or. id_dbz4km>0 .or. id_dbztop>0 .or. id_dbz_m10C>0 .or. id_40dbzht>0) then
 
           if (.not. allocated(a3)) allocate(a3(isc:iec,jsc:jec,npz))
 
-          if (Atm(n)%flagstruct%mp_flag .eq. 2) then
-             call rad_ref(Atm(n)%bd%is, Atm(n)%bd%ie, Atm(n)%bd%js, Atm(n)%bd%je, &
-                  Atm(n)%bd%isd, Atm(n)%bd%ied, Atm(n)%bd%jsd, Atm(n)%bd%jed, &
-                  Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
-                  a3, a2, allmax, npz, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
-                  zvir, sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
-           elseif (Atm(n)%flagstruct%mp_flag .eq. 7) then
-              do j=jsc,jec
-                 do i=isc,iec
-                    a3(i,j,:) = Atm(n)%inline_mp%zet(i,j,:)
-                    a2(i,j) = maxval(a3(i,j,:))
-                 enddo
-              enddo
-           endif
+          do j=jsc,jec
+             do i=isc,iec
+                a3(i,j,:) = Atm(n)%inline_mp%zet(i,j,:)
+                a2(i,j) = maxval(a3(i,j,:))
+             enddo
+          enddo
 
           if (id_dbz > 0) used=send_data(id_dbz, a3, time)
           if (id_maxdbz > 0) used=send_data(id_maxdbz, a2, time)
@@ -3471,11 +3451,6 @@ contains
              enddo
              enddo
              used=send_data(id_40dbzht, a2, time)
-          endif
-
-          if (prt_minmax .and. user_prt_level >= PRT_LEVEL_1) then
-             call mpp_max(allmax)
-             if (master) write(*,'(2x, A16, G20.8, A4)') 'max reflectivity = ', allmax, ' dBZ'
           endif
 
           deallocate(a3)

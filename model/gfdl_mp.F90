@@ -604,7 +604,7 @@ end subroutine gfdl_mp_init
 ! GFDL cloud microphysics driver
 ! =======================================================================
 
-subroutine gfdl_mp_driver (qv, ql, qr, qi, qs, qg, qa, qnl, qni, pt, wa, &
+subroutine gfdl_mp_driver (qv, ql, qr, qi, qs, qg, qa, zet, qnl, qni, pt, wa, &
         ua, va, delz, delp, gsize, dtm, hs, water, rain, ice, snow, graupel, &
         hydrostatic, is, ie, ks, ke, q_con, cappa, consv_te, adj_vmr, te, dte, &
         prefluxw, prefluxr, prefluxi, prefluxs, prefluxg, mppcw, mppew, mppe1, &
@@ -631,7 +631,7 @@ subroutine gfdl_mp_driver (qv, ql, qr, qi, qs, qg, qa, qnl, qni, pt, wa, &
     real, intent (in), dimension (is:ie, ks:ke) :: qnl, qni
 
     real, intent (inout), dimension (is:ie, ks:ke) :: delp, delz, pt, ua, va, wa, te
-    real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa
+    real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa, zet
     real, intent (inout), dimension (is:ie, ks:ke) :: prefluxw, prefluxr, prefluxi, prefluxs, prefluxg
 
     real, intent (inout), dimension (is:, ks:) :: q_con, cappa
@@ -653,7 +653,7 @@ subroutine gfdl_mp_driver (qv, ql, qr, qi, qs, qg, qa, qnl, qni, pt, wa, &
     ! -----------------------------------------------------------------------
 
     call mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, qa, &
-        qnl, qni, delz, is, ie, ks, ke, dtm, water, rain, ice, snow, graupel, &
+        zet, qnl, qni, delz, is, ie, ks, ke, dtm, water, rain, ice, snow, graupel, &
         gsize, hs, q_con, cappa, consv_te, adj_vmr, te, dte, prefluxw, prefluxr, &
         prefluxi, prefluxs, prefluxg, mppcw, mppew, mppe1, mpper, mppdi, mppd1, &
         mppds, mppdg, mppsi, mpps1, mppss, mppsg, mppfw, mppfr, mppmi, mppms, &
@@ -1164,8 +1164,8 @@ end subroutine setup_mhc_lhc
 ! major cloud microphysics driver
 ! =======================================================================
 
-subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, &
-        qa, qnl, qni, delz, is, ie, ks, ke, dtm, water, rain, ice, snow, graupel, &
+subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, qa, &
+        zet, qnl, qni, delz, is, ie, ks, ke, dtm, water, rain, ice, snow, graupel, &
         gsize, hs, q_con, cappa, consv_te, adj_vmr, te, dte, prefluxw, prefluxr, &
         prefluxi, prefluxs, prefluxg, mppcw, mppew, mppe1, mpper, mppdi, mppd1, &
         mppds, mppdg, mppsi, mpps1, mppss, mppsg, mppfw, mppfr, mppmi, mppms, &
@@ -1191,7 +1191,7 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, &
     real, intent (in), dimension (is:ie, ks:ke) :: qnl, qni
 
     real, intent (inout), dimension (is:ie, ks:ke) :: delp, delz, pt, ua, va, wa
-    real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa
+    real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa, zet
     real, intent (inout), dimension (is:ie, ks:ke) :: prefluxw, prefluxr, prefluxi, prefluxs, prefluxg
 
     real, intent (inout), dimension (is:, ks:) :: q_con, cappa
@@ -1218,7 +1218,7 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, &
     real :: convt, dts, q_cond, t_lnd, t_ocn, h_var, tmp, nl, ni
 
     real, dimension (ks:ke) :: q_liq, q_sol, dp, dz, dp0
-    real, dimension (ks:ke) :: qvz, qlz, qrz, qiz, qsz, qgz, qaz
+    real, dimension (ks:ke) :: qvz, qlz, qrz, qiz, qsz, qgz, qaz, zez
     real, dimension (ks:ke) :: den, pz, denfac, ccn, cin
     real, dimension (ks:ke) :: u, v, w
 
@@ -1317,6 +1317,7 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, &
             qsz (k) = qs (i, k)
             qgz (k) = qg (i, k)
             qaz (k) = qa (i, k)
+            zez (k) = zet (i, k)
 
             if (do_inline_mp) then
                 q_cond = qlz (k) + qrz (k) + qiz (k) + qsz (k) + qgz (k)
@@ -1471,6 +1472,14 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, &
                 tz, h_var, gsize (i))
         endif
 
+        ! -----------------------------------------------------------------------
+        ! radar reflectivity diagnostic
+        ! -----------------------------------------------------------------------
+
+        if (last_step) then
+            call rad_ref (ks, ke, qrz, qsz, qgz, tz, den, denfac, zez)
+        endif
+
         ! =======================================================================
         ! calculation of particle concentration (pc), effective diameter (ed),
         ! optical extinction (oe), radar reflectivity factor (rr), and
@@ -1608,6 +1617,7 @@ subroutine mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, &
             qs (i, k) = qsz (k)
             qg (i, k) = qgz (k)
             qa (i, k) = qaz (k)
+            zet (i, k) = zez (k)
 
             ! -----------------------------------------------------------------------
             ! calculate some more variables needed outside
@@ -5724,7 +5734,7 @@ end subroutine sedi_heat
 ! =======================================================================
 
 subroutine fast_sat_adj (dtm, is, ie, ks, ke, hydrostatic, consv_te, &
-        adj_vmr, te, dte, qv, ql, qr, qi, qs, qg, qa, qnl, qni, hs, delz, &
+        adj_vmr, te, dte, qv, ql, qr, qi, qs, qg, qa, zet, qnl, qni, hs, delz, &
         pt, delp, q_con, cappa, gsize, mppcw, mppew, mppe1, mpper, mppdi, &
         mppd1, mppds, mppdg, mppsi, mpps1, mppss, mppsg, mppfw, mppfr, &
         mppmi, mppms, mppmg, mppm1, mppm2, mppm3, mppar, mppas, mppag, &
@@ -5749,7 +5759,7 @@ subroutine fast_sat_adj (dtm, is, ie, ks, ke, hydrostatic, consv_te, &
     real, intent (in), dimension (is:ie, ks:ke) :: qnl, qni
 
     real, intent (inout), dimension (is:ie, ks:ke) :: delp, delz, pt, te
-    real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa
+    real, intent (inout), dimension (is:ie, ks:ke) :: qv, ql, qr, qi, qs, qg, qa, zet
 
     real, intent (inout), dimension (is:, ks:) :: q_con, cappa
 
@@ -5797,7 +5807,7 @@ subroutine fast_sat_adj (dtm, is, ie, ks, ke, hydrostatic, consv_te, &
     ! -----------------------------------------------------------------------
 
     call mpdrv (hydrostatic, ua, va, wa, delp, pt, qv, ql, qr, qi, qs, qg, qa, &
-        qnl, qni, delz, is, ie, ks, ke, dtm, water, rain, ice, snow, graupel, &
+        zet, qnl, qni, delz, is, ie, ks, ke, dtm, water, rain, ice, snow, graupel, &
         gsize, hs, q_con, cappa, consv_te, adj_vmr, te, dte, prefluxw, prefluxr, &
         prefluxi, prefluxs, prefluxg, mppcw, mppew, mppe1, mpper, mppdi, mppd1, &
         mppds, mppdg, mppsi, mpps1, mppss, mppsg, mppfw, mppfr, mppmi, mppms, &
@@ -6463,9 +6473,7 @@ end subroutine cld_eff_rad
 ! radar reflectivity
 ! =======================================================================
 
-subroutine rad_ref (is, ie, js, je, isd, ied, jsd, jed, q, pt, delp, peln, &
-        delz, dbz, maxdbz, allmax, npz, ncnst, hydrostatic, zvir, &
-        sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top)
+subroutine rad_ref (ks, ke, qr, qs, qg, tz, den, denfac, dbz)
 
     implicit none
 
@@ -6473,212 +6481,140 @@ subroutine rad_ref (is, ie, js, je, isd, ied, jsd, jed, q, pt, delp, peln, &
     ! input / output arguments
     ! -----------------------------------------------------------------------
 
-    logical, intent (in) :: hydrostatic
+    integer, intent (in) :: ks, ke
 
-    integer, intent (in) :: is, ie, js, je, isd, ied, jsd, jed
-    integer, intent (in) :: npz, ncnst, mp_top
-    integer, intent (in) :: sphum, liq_wat, ice_wat, rainwat, snowwat, graupel
+    real (kind = r8), intent (in), dimension (ks:ke) :: tz
 
-    real, intent (in) :: zvir
+    real, intent (in), dimension (ks:ke) :: den, denfac, qr, qs, qg
 
-    real, intent (in), dimension (is:, js:, 1:) :: delz
-
-    real, intent (in), dimension (isd:ied, jsd:jed, npz) :: pt, delp
-
-    real, intent (in), dimension (isd:ied, jsd:jed, npz, ncnst) :: q
-
-    real, intent (in), dimension (is:ie, npz + 1, js:je) :: peln
-
-    real, intent (out) :: allmax
-
-    real, intent (out), dimension (is:ie, js:je) :: maxdbz
-
-    real, intent (out), dimension (is:ie, js:je, npz) :: dbz
+    real, intent (out), dimension (ks:ke) :: dbz
 
     ! -----------------------------------------------------------------------
     ! local variables
     ! -----------------------------------------------------------------------
 
-    integer :: i, j, k
+    integer :: k
 
     real, parameter :: alpha = 0.224, mp_const = 200 * exp (1.6 * log (3.6e6))
 
-    real (kind = r8) :: qden, z_e
-    real :: fac_r, fac_s, fac_g
+    real (kind = r8) :: z_e
+    real :: qden, fac_r, fac_s, fac_g
 
-    real, dimension (npz) :: den, denfac, qmr, qms, qmg, vtr, vts, vtg
-
-    ! -----------------------------------------------------------------------
-    ! return if the microphysics scheme doesn't include rain
-    ! -----------------------------------------------------------------------
-
-    if (rainwat .lt. 1) return
+    real, dimension (ks:ke) :: vtr, vts, vtg
 
     ! -----------------------------------------------------------------------
     ! initialization
     ! -----------------------------------------------------------------------
 
     dbz = - 20.
-    maxdbz = - 20.
-    allmax = - 20.
 
     ! -----------------------------------------------------------------------
-    ! calculate radar reflectivity
+    ! fall speed
     ! -----------------------------------------------------------------------
 
-    do j = js, je
-        do i = is, ie
+    if (radr_flag .eq. 3) then
+        call term_rsg (ks, ke, qr, den, denfac, vr_fac, blinr, mur, tvar, tvbr, vr_max, const_vr, vtr)
+        vtr = vtr / rhor
+    endif
 
-            ! -----------------------------------------------------------------------
-            ! air density
-            ! -----------------------------------------------------------------------
+    if (rads_flag .eq. 3) then
+        call term_rsg (ks, ke, qs, den, denfac, vs_fac, blins, mus, tvas, tvbs, vs_max, const_vs, vts)
+        vts = vts / rhos
+    endif
 
-            do k = 1, npz
-                if (hydrostatic) then
-                    den (k) = delp (i, j, k) / ((peln (i, k + 1, j) - peln (i, k, j)) * &
-                        rdgas * pt (i, j, k) * (1. + zvir * q (i, j, k, sphum)))
+    if (radg_flag .eq. 3) then
+        if (do_hail) then
+            call term_rsg (ks, ke, qg, den, denfac, vg_fac, blinh, muh, tvah, tvbh, vg_max, const_vg, vtg)
+            vtg = vtg / rhoh
+        else
+            call term_rsg (ks, ke, qg, den, denfac, vg_fac, bling, mug, tvag, tvbg, vg_max, const_vg, vtg)
+            vtg = vtg / rhog
+        endif
+    endif
+
+    ! -----------------------------------------------------------------------
+    ! radar reflectivity
+    ! -----------------------------------------------------------------------
+
+    do k = ks, ke
+        z_e = 0.
+
+        qden = den (k) * qr (k)
+        if (qr (k) .gt. qcmin) then
+            call cal_pc_ed_oe_rr_tv (qr (k), den (k), blinr, mur, rra = rrar, rrb = rrbr, rr = fac_r)
+        else
+            fac_r = 0.0
+        endif
+        if (radr_flag .eq. 1 .or. radr_flag .eq. 2) then
+            z_e = z_e + fac_r * 1.e18
+        endif
+        if (radr_flag .eq. 3) then
+            z_e = z_e + mp_const * exp (1.6 * log (qden * vtr (k)))
+        endif
+
+        qden = den (k) * qs (k)
+        if (qs (k) .gt. qcmin) then
+            call cal_pc_ed_oe_rr_tv (qs (k), den (k), blins, mus, rra = rras, rrb = rrbs, rr = fac_s)
+        else
+            fac_s = 0.0
+        endif
+        if (rads_flag .eq. 1) then
+            if (tz (k) .lt. tice) then
+                z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhor) ** 2
+            else
+                z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhor) ** 2 / alpha
+            endif
+        endif
+        if (rads_flag .eq. 2) then
+            if (tz (k) .lt. tice) then
+                z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhoi) ** 2
+            else
+                z_e = z_e + fac_s * 1.e18
+            endif
+        endif
+        if (rads_flag .eq. 3) then
+            z_e = z_e + mp_const * exp (1.6 * log (qden * vts (k)))
+        endif
+
+        qden = den (k) * qg (k)
+        if (do_hail) then
+            if (qg (k) .gt. qcmin) then
+                call cal_pc_ed_oe_rr_tv (qg (k), den (k), blinh, muh, rra = rrah, rrb = rrbh, rr = fac_g)
+            else
+                fac_g = 0.0
+            endif
+            if (radg_flag .eq. 1) then
+                if (tz (k) .lt. tice) then
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhor) ** 2
                 else
-                    den (k) = - delp (i, j, k) / (grav * delz (i, j, k))
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhor) ** 2 / alpha
                 endif
-                qmr (k) = max (qcmin, q (i, j, k, rainwat))
-                qms (k) = max (qcmin, q (i, j, k, snowwat))
-                qmg (k) = max (qcmin, q (i, j, k, graupel))
-            enddo
-
-            do k = 1, npz
-                denfac (k) = sqrt (den (npz) / den (k))
-            enddo
-
-            ! -----------------------------------------------------------------------
-            ! fall speed
-            ! -----------------------------------------------------------------------
-
-            if (radr_flag .eq. 3) then
-                call term_rsg (1, npz, qmr, den, denfac, vr_fac, blinr, &
-                    mur, tvar, tvbr, vr_max, const_vr, vtr)
-                vtr = vtr / rhor
             endif
-
-            if (rads_flag .eq. 3) then
-                call term_rsg (1, npz, qms, den, denfac, vs_fac, blins, &
-                    mus, tvas, tvbs, vs_max, const_vs, vts)
-                vts = vts / rhos
+            if (radg_flag .eq. 2) then
+                z_e = z_e + fac_g * 1.e18
             endif
-
-            if (radg_flag .eq. 3) then
-                if (do_hail) then
-                    call term_rsg (1, npz, qmg, den, denfac, vg_fac, blinh, &
-                        muh, tvah, tvbh, vg_max, const_vg, vtg)
-                    vtg = vtg / rhoh
+        else
+            if (qg (k) .gt. qcmin) then
+                call cal_pc_ed_oe_rr_tv (qg (k), den (k), bling, mug, rra = rrag, rrb = rrbg, rr = fac_g)
+            else
+                fac_g = 0.0
+            endif
+            if (radg_flag .eq. 1) then
+                if (tz (k) .lt. tice) then
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhor) ** 2
                 else
-                    call term_rsg (1, npz, qmg, den, denfac, vg_fac, bling, &
-                        mug, tvag, tvbg, vg_max, const_vg, vtg)
-                    vtg = vtg / rhog
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhor) ** 2 / alpha
                 endif
             endif
+            if (radg_flag .eq. 2) then
+                z_e = z_e + fac_g * 1.e18
+            endif
+        endif
+        if (radg_flag .eq. 3) then
+            z_e = z_e + mp_const * exp (1.6 * log (qden * vtg (k)))
+        endif
 
-            ! -----------------------------------------------------------------------
-            ! radar reflectivity
-            ! -----------------------------------------------------------------------
-
-            do k = mp_top + 1, npz
-                z_e = 0.
-
-                if (rainwat .gt. 0) then
-                    qden = den (k) * qmr (k)
-                    if (qmr (k) .gt. qcmin) then
-                        call cal_pc_ed_oe_rr_tv (qmr (k), den (k), blinr, mur, &
-                            rra = rrar, rrb = rrbr, rr = fac_r)
-                    else
-                        fac_r = 0.0
-                    endif
-                    if (radr_flag .eq. 1 .or. radr_flag .eq. 2) then
-                        z_e = z_e + fac_r * 1.e18
-                    endif
-                    if (radr_flag .eq. 3) then
-                        z_e = z_e + mp_const * exp (1.6 * log (qden * vtr (k)))
-                    endif
-                endif
-
-                if (snowwat .gt. 0) then
-                    qden = den (k) * qms (k)
-                    if (qms (k) .gt. qcmin) then
-                        call cal_pc_ed_oe_rr_tv (qms (k), den (k), blins, mus, &
-                            rra = rras, rrb = rrbs, rr = fac_s)
-                    else
-                        fac_s = 0.0
-                    endif
-                    if (rads_flag .eq. 1) then
-                        if (pt (i, j, k) .lt. tice) then
-                            z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhor) ** 2
-                        else
-                            z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhor) ** 2 / alpha
-                        endif
-                    endif
-                    if (rads_flag .eq. 2) then
-                        if (pt (i, j, k) .lt. tice) then
-                            z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhoi) ** 2
-                        else
-                            z_e = z_e + fac_s * 1.e18
-                        endif
-                    endif
-                    if (rads_flag .eq. 3) then
-                        z_e = z_e + mp_const * exp (1.6 * log (qden * vts (k)))
-                    endif
-                endif
-
-                if (graupel .gt. 0) then
-                    qden = den (k) * qmg (k)
-                    if (do_hail) then
-                        if (qmg (k) .gt. qcmin) then
-                            call cal_pc_ed_oe_rr_tv (qmg (k), den (k), blinh, muh, &
-                                rra = rrah, rrb = rrbh, rr = fac_g)
-                        else
-                            fac_g = 0.0
-                        endif
-                        if (radg_flag .eq. 1) then
-                            if (pt (i, j, k) .lt. tice) then
-                                z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhor) ** 2
-                            else
-                                z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhor) ** 2 / alpha
-                            endif
-                        endif
-                        if (radg_flag .eq. 2) then
-                            z_e = z_e + fac_g * 1.e18
-                        endif
-                    else
-                        if (qmg (k) .gt. qcmin) then
-                            call cal_pc_ed_oe_rr_tv (qmg (k), den (k), bling, mug, &
-                                rra = rrag, rrb = rrbg, rr = fac_g)
-                        else
-                            fac_g = 0.0
-                        endif
-                        if (radg_flag .eq. 1) then
-                            if (pt (i, j, k) .lt. tice) then
-                                z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhor) ** 2
-                            else
-                                z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhor) ** 2 / alpha
-                            endif
-                        endif
-                        if (radg_flag .eq. 2) then
-                            z_e = z_e + fac_g * 1.e18
-                        endif
-                    endif
-                    if (radg_flag .eq. 3) then
-                        z_e = z_e + mp_const * exp (1.6 * log (qden * vtg (k)))
-                    endif
-                endif
-
-                dbz (i, j, k) = 10. * log10 (max (0.01, z_e))
-            enddo
-
-            do k = mp_top + 1, npz
-                maxdbz (i, j) = max (dbz (i, j, k), maxdbz (i, j))
-            enddo
-
-            allmax = max (maxdbz (i, j), allmax)
-
-        enddo
+        dbz (k) = 10. * log10 (max (0.01, z_e))
     enddo
 
 end subroutine rad_ref

@@ -1609,6 +1609,7 @@ contains
           allocate ( Atm%inline_mp%prefluxi(is:ie,js:je,npz) )
           allocate ( Atm%inline_mp%prefluxs(is:ie,js:je,npz) )
           allocate ( Atm%inline_mp%prefluxg(is:ie,js:je,npz) )
+          allocate ( Atm%inline_mp%zet(is:ie,js:je,npz) )
           allocate ( Atm%inline_mp%mppcw(is:ie,js:je) )
           allocate ( Atm%inline_mp%mppew(is:ie,js:je) )
           allocate ( Atm%inline_mp%mppe1(is:ie,js:je) )
@@ -1765,6 +1766,7 @@ contains
                  Atm%inline_mp%prefluxi(i,j,:) = real_big
                  Atm%inline_mp%prefluxs(i,j,:) = real_big
                  Atm%inline_mp%prefluxg(i,j,:) = real_big
+                 Atm%inline_mp%zet(i,j,:) = real_big
                  Atm%inline_mp%mppcw(i,j) = real_big
                  Atm%inline_mp%mppew(i,j) = real_big
                  Atm%inline_mp%mppe1(i,j) = real_big
@@ -2097,6 +2099,7 @@ contains
           deallocate ( Atm%inline_mp%prefluxi )
           deallocate ( Atm%inline_mp%prefluxs )
           deallocate ( Atm%inline_mp%prefluxg )
+          deallocate ( Atm%inline_mp%zet )
           deallocate ( Atm%inline_mp%mppcw )
           deallocate ( Atm%inline_mp%mppew )
           deallocate ( Atm%inline_mp%mppe1 )

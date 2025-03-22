@@ -79,7 +79,6 @@ module fv_nggps_diags_mod
                                max_uh, bunkers_vector, helicity_relative_CAPS
  use fv_arrays_mod,      only: fv_atmos_type
  use mpp_domains_mod,    only: domain1d, domainUG
- use gfdl_mp_mod,        only: rad_ref
  use fv_eta_mod,         only: get_eta_level
 #ifdef MULTI_GASES
  use multi_gases_mod,  only:  virq
@@ -112,7 +111,6 @@ module fv_nggps_diags_mod
  integer :: id_maxvort02,kstt_maxvort02,kend_maxvort02
  integer :: isco, ieco, jsco, jeco, npzo, ncnsto
  integer :: isdo, iedo, jsdo, jedo
- integer :: mp_top
  integer :: nlevs
  logical :: hydrostatico
  integer, allocatable :: id_tracer(:), all_axes(:)
@@ -179,13 +177,6 @@ contains
     allocate ( phalf(npzo+1) )
     call get_eta_level(Atm(1)%npz, Atm(1)%flagstruct%p_ref, pfull, phalf, Atm(1)%ak, Atm(1)%bk, 0.01)
 
-    mp_top = 1
-    do i=1,npzo
-       if ( pfull(i) > 30.e2 ) then
-            mp_top = i
-            exit
-       endif
-    enddo
     deallocate (phalf)
     deallocate (pfull)
 
@@ -454,14 +445,13 @@ contains
 
     integer :: i, j, k, n, ngc, nq, itrac
     logical :: bad_range
-    real    :: ptop, allmax
+    real    :: ptop
     real, allocatable :: wk(:,:,:), wk2(:,:,:)
     real, dimension(:,:),allocatable :: ustm,vstm,srh01,srh03
 
     n = 1
     ngc = Atm(n)%ng
     ptop = Atm(n)%ak(1)
-    allmax = -20.
     nq = size (Atm(n)%q,4)
     allocate ( wk(isco:ieco,jsco:jeco,npzo) )
     allocate ( wk2(isco:ieco,jsco:jeco,npzo) )
@@ -661,19 +651,12 @@ contains
     endif
 
     !--- 3-D Reflectivity field
-    if ( rainwat > 0 .and. id_dbz>0) then
-      if (Atm(n)%flagstruct%mp_flag .eq. 2) then
-         call rad_ref(isco, ieco, jsco, jeco, isdo, iedo, jsdo, jedo, &
-                      Atm(n)%q, Atm(n)%pt, Atm(n)%delp, Atm(n)%peln, Atm(n)%delz, &
-                      wk, wk2, allmax, npzo, Atm(n)%ncnst, Atm(n)%flagstruct%hydrostatic, &
-                      zvir, sphum, liq_wat, ice_wat, rainwat, snowwat, graupel, mp_top) ! GFDL MP has constant N_0 intercept
-      elseif (Atm(n)%flagstruct%mp_flag .eq. 7) then
-         do j=jsco,jeco
-           do i=isco,ieco
-             wk(i,j,:) = Atm(n)%inline_mp%zet(i,j,:)
-           enddo
-         enddo
-      endif
+    if ( id_dbz>0) then
+      do j=jsco,jeco
+        do i=isco,ieco
+          wk(i,j,:) = Atm(n)%inline_mp%zet(i,j,:)
+        enddo
+      enddo
       call store_data(id_dbz, wk, Time, kstt_dbz, kend_dbz)
     endif
 

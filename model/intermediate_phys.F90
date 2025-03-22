@@ -196,16 +196,19 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
 
     rrg = - rdgas / grav
 
-    kmp = 1
-    ! time saving trick
-    ! if (last_step) then
-    !     kmp = 1
-    ! else
-    !     do k = 1, km
-    !         kmp = k
-    !         if (pfull (k) .gt. 50.E2) exit
-    !     enddo
-    ! endif
+    if (mp_flag .eq. 7) then
+        kmp = 1
+    else
+        ! time saving trick
+        if (last_step) then
+            kmp = 1
+        else
+            do k = 1, km
+                kmp = k
+                if (pfull (k) .gt. 50.E2) exit
+            enddo
+        endif
+    endif
 
     ! decide which tracer needs adjustment
     if (.not. allocated (conv_vmr_mmr)) allocate (conv_vmr_mmr (nq))
@@ -342,7 +345,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
                      q (is:ie, j, kmp:km, liq_wat), q (is:ie, j, kmp:km, rainwat), &
                      q (is:ie, j, kmp:km, ice_wat), q (is:ie, j, kmp:km, snowwat), &
                      q (is:ie, j, kmp:km, graupel), q (is:ie, j, kmp:km, cld_amt), &
-                     q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), hs (is:ie, j), &
+                     inline_mp%zet (is:ie, j, kmp:km), q2 (is:ie, kmp:km), q3 (is:ie, kmp:km), hs (is:ie, j), &
                      dz (is:ie, kmp:km), pt (is:ie, j, kmp:km), delp (is:ie, j, kmp:km), &
                      q_con (is:ie, j, k_con:), cappa (is:ie, j, k_cappa:), &
                      gsize, inline_mp%mppcw (is:ie, j), inline_mp%mppew (is:ie, j), inline_mp%mppe1 (is:ie, j), &
@@ -632,7 +635,7 @@ subroutine intermediate_phys (is, ie, js, je, isd, ied, jsd, jed, km, npx, npy, 
             call gfdl_mp_driver (q (is:ie, j, kmp:km, sphum), q (is:ie, j, kmp:km, liq_wat), &
                      q (is:ie, j, kmp:km, rainwat), q (is:ie, j, kmp:km, ice_wat), &
                      q (is:ie, j, kmp:km, snowwat), q (is:ie, j, kmp:km, graupel), &
-                     q (is:ie, j, kmp:km, cld_amt), q2 (is:ie, kmp:km), &
+                     q (is:ie, j, kmp:km, cld_amt), inline_mp%zet (is:ie, j, kmp:km), q2 (is:ie, kmp:km), &
                      q3 (is:ie, kmp:km), pt (is:ie, j, kmp:km), wa (is:ie, kmp:km), &
                      ua (is:ie, j, kmp:km), va (is:ie, j, kmp:km), dz (is:ie, kmp:km), &
                      delp (is:ie, j, kmp:km), gsize, abs (mdt), hs (is:ie, j), &
