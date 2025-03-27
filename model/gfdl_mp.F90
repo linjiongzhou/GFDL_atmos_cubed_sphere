@@ -6495,7 +6495,8 @@ subroutine rad_ref (ks, ke, qr, qs, qg, tz, den, denfac, dbz)
 
     integer :: k
 
-    real, parameter :: alpha = 0.224, mp_const = 200 * exp (1.6 * log (3.6e6))
+    real, parameter :: alpha = 0.176 / 0.930, mp_const = 200 * exp (1.6 * log (3.6e6))
+    ! Ki**2 = 0.176, Kl**2 = 0.930
 
     real (kind = r8) :: z_e
     real :: qden, fac_r, fac_s, fac_g
@@ -6560,9 +6561,9 @@ subroutine rad_ref (ks, ke, qr, qs, qg, tz, den, denfac, dbz)
         endif
         if (rads_flag .eq. 1) then
             if (tz (k) .lt. tice) then
-                z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhor) ** 2
+                z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhoi) ** 2
             else
-                z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhor) ** 2 / alpha
+                z_e = z_e + fac_s * 1.e18 * alpha * (rhos / rhoi) ** 2 / alpha
             endif
         endif
         if (rads_flag .eq. 2) then
@@ -6585,13 +6586,17 @@ subroutine rad_ref (ks, ke, qr, qs, qg, tz, den, denfac, dbz)
             endif
             if (radg_flag .eq. 1) then
                 if (tz (k) .lt. tice) then
-                    z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhor) ** 2
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhoi) ** 2
                 else
-                    z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhor) ** 2 / alpha
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhoi) ** 2 / alpha
                 endif
             endif
             if (radg_flag .eq. 2) then
-                z_e = z_e + fac_g * 1.e18
+                if (tz (k) .lt. tice) then
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhoh / rhoi) ** 2
+                else
+                    z_e = z_e + (fac_g * 1.e18) ** 0.95
+                endif
             endif
         else
             if (qg (k) .gt. qcmin) then
@@ -6601,13 +6606,17 @@ subroutine rad_ref (ks, ke, qr, qs, qg, tz, den, denfac, dbz)
             endif
             if (radg_flag .eq. 1) then
                 if (tz (k) .lt. tice) then
-                    z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhor) ** 2
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhoi) ** 2
                 else
-                    z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhor) ** 2 / alpha
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhoi) ** 2 / alpha
                 endif
             endif
             if (radg_flag .eq. 2) then
-                z_e = z_e + fac_g * 1.e18
+                if (tz (k) .lt. tice) then
+                    z_e = z_e + fac_g * 1.e18 * alpha * (rhog / rhoi) ** 2
+                else
+                    z_e = z_e + (fac_g * 1.e18) ** 0.95
+                endif
             endif
         endif
         if (radg_flag .eq. 3) then
