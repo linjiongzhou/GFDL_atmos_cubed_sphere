@@ -102,7 +102,8 @@ module gfdl_mp_mod
     ! physics constants
     ! -----------------------------------------------------------------------
 
-    real, parameter :: grav = 9.80665 ! acceleration due to gravity (m/s^2), ref: IFS
+    !real, parameter :: grav = 9.80665 ! acceleration due to gravity (m/s^2), ref: IFS
+    real, parameter :: grav = 9.80 ! acceleration due to gravity (m/s^2), ref: IFS
 
     real, parameter :: rgrav = 1.0 / grav ! inversion of gravity acceleration (s^2/m)
 
@@ -114,7 +115,8 @@ module gfdl_mp_mod
     real, parameter :: mmd = 2.89644e-2 ! dry air molar mass (kg/mol), ref: IFS
     real, parameter :: mmv = 1.80153e-2 ! water vapor molar mass (kg/mol), ref: IFS
 
-    real, parameter :: rdgas = 287.05 ! gas constant for dry air (J/kg/K): ref: GFDL, GFS
+    !eal, parameter :: rdgas = 287.05 ! gas constant for dry air (J/kg/K): ref: GFDL, GFS
+    real, parameter :: rdgas = 287.04 ! gas constant for dry air (J/kg/K): ref: GFDL, GFS
     real, parameter :: rvgas = 461.50 ! gas constant for water vapor (J/kg/K): ref: GFDL, GFS
     !real, parameter :: rdgas = runiver / mmd ! 287.0578961596192, gas constant for dry air (J/kg/K)
     !real, parameter :: rvgas = runiver / mmv ! 461.52213549181386, gas constant for water vapor (J/kg/K)
@@ -126,7 +128,8 @@ module gfdl_mp_mod
     real, parameter :: tice = 273.15 ! freezing temperature (K): ref: GFDL, GFS
     !real, parameter :: tice = 273.16 ! freezing temperature (K), ref: IFS
 
-    real, parameter :: cp_air = 1004.6 ! heat capacity of dry air at constant pressure (J/kg/K): ref: GFDL, GFS
+    !real, parameter :: cp_air = 1004.6 ! heat capacity of dry air at constant pressure (J/kg/K): ref: GFDL, GFS
+    real, parameter :: cp_air = 1004.64 ! heat capacity of dry air at constant pressure (J/kg/K): ref: GFDL, GFS
     real, parameter :: cv_air = cp_air - rdgas ! 717.55, heat capacity of dry air at constant volume (J/kg/K): ref: GFDL, GFS
     !real, parameter :: cp_air = 7. / 2. * rdgas ! 1004.7026365586671, heat capacity of dry air at constant pressure (J/kg/K)
     !real, parameter :: cv_air = 5. / 2. * rdgas ! 717.644740399048, heat capacity of dry air at constant volume (J/kg/K)
@@ -141,7 +144,8 @@ module gfdl_mp_mod
     real, parameter :: d2_ice = cp_vap - c_ice ! - 259.9114580327446, isobaric heating / cooling (J/kg/K)
 
     real, parameter :: hlv = 2.5e6 ! latent heat of evaporation at 0 deg C (J/kg): ref: GFDL, GFS
-    real, parameter :: hlf = 3.3358e5 ! latent heat of fusion at 0 deg C (J/kg): ref: GFDL, GFS
+    !real, parameter :: hlf = 3.3358e5 ! latent heat of fusion at 0 deg C (J/kg): ref: GFDL, GFS
+    real, parameter :: hlf = 3.34e5 ! latent heat of fusion at 0 deg C (J/kg): ref: GFDL, GFS
     !real, parameter :: hlv = 2.5008e6 ! latent heat of evaporation at 0 deg C (J/kg), ref: IFS
     !real, parameter :: hlf = 3.345e5 ! latent heat of fusion at 0 deg C (J/kg), ref: IFS
 
