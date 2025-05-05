@@ -7287,6 +7287,10 @@ function es_core (length, tk, table, des)
     ap1 = 10. * dim (tk, tmin) + 1.
     ap1 = min (2621., ap1)
     it = ap1
+    if (it .eq. 0) then
+        it = 1
+        ap1 = 1
+    endif
     es_core = table (it) + (ap1 - it) * des (it)
 
 end function es_core
@@ -7326,6 +7330,10 @@ function qs_core (length, tk, den, dqdt, table, des)
     ap1 = min (2621., ap1)
     qs_core = es_core (length, tk, table, des) / (rvgas * tk * den)
     it = ap1 - 0.5
+    if (it .eq. 0) then
+        it = 1
+        ap1 = ap1 + 1
+    endif
     dqdt = 10. * (des (it) + (ap1 - it) * (des (it + 1) - des (it))) / (rvgas * tk * den)
 
 end function qs_core
