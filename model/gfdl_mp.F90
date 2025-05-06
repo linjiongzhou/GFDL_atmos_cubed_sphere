@@ -7286,12 +7286,23 @@ function es_core (length, tk, table, des)
     tmin = tice - 160.
     ap1 = 10. * dim (tk, tmin) + 1.
     ap1 = min (2621., ap1)
-    it = ap1
-    if (it .eq. 0) then
+    ! Compute it index
+    it = int (ap1)
+    ! Clamp 'it' to avoid out-of-bounds
+    if (it .lt. 1) then
         it = 1
-        ap1 = 1
+        ap1 = 1.0
+    elseif (it .ge. length) then
+        it = length
+        ap1 = real (length)
     endif
-    es_core = table (it) + (ap1 - it) * des (it)
+    ! Compute es_core using linear interpolation (if safe)
+    if (it .eq. length) then
+        ! No it+1 available, use flat extrapolation
+        es_core = table (it)
+    else
+        es_core = table (it) + (ap1 - it) * des (it)
+    endif
 
 end function es_core
 
@@ -7329,12 +7340,22 @@ function qs_core (length, tk, den, dqdt, table, des)
     ap1 = 10. * dim (tk, tmin) + 1.
     ap1 = min (2621., ap1)
     qs_core = es_core (length, tk, table, des) / (rvgas * tk * den)
-    it = ap1 - 0.5
-    if (it .eq. 0) then
+    ! Compute it index
+    it = int (ap1 - 0.5)
+    ! Clamp to valid range
+    if (it .lt. 1) then
         it = 1
-        ap1 = ap1 + 1
+    elseif (it .ge. length) then
+        it = length - 1
     endif
-    dqdt = 10. * (des (it) + (ap1 - it) * (des (it + 1) - des (it))) / (rvgas * tk * den)
+    ! Ensure ap1 does not cause it+1 to go out of bounds
+    if (ap1 .lt. 1.5) then
+        dqdt = 10. * des (1) / (rvgas * tk * den)
+    elseif (ap1 .ge. length - 0.5) then
+        dqdt = 10. * des (length) / (rvgas * tk * den)
+    else
+        dqdt = 10. * (des (it) + (ap1 - it) * (des (it + 1) - des (it))) / (rvgas * tk * den)
+    endif
 
 end function qs_core
 
