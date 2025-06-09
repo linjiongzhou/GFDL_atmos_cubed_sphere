@@ -2972,10 +2972,12 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 !    !==
 !-----------------------------------------------------------------------------------!
 
+#ifdef timing
  timer       = 0.
  timer_start = 0.
  timer_end   = 0.
  timer_description = ''
+#endif timing
 
 #ifdef timing
 timer_description(1) = 'full p3_main'

@@ -145,7 +145,7 @@
            do k=1,npz
               do i=isc,iec
 ! Warning: the following works only with AM2 physics: water vapor; cloud water, cloud ice.
-                 wm(i,j) = wm(i,j) + _DBL_(_RL_(Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
+                 wm(i,j) = wm(i,j) + _DBL_((Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
                                                                  Atm(mygrid)%q(i,j,k,liq_wat) +  &
                                                                  Atm(mygrid)%q(i,j,k,ice_wat) )))
               enddo

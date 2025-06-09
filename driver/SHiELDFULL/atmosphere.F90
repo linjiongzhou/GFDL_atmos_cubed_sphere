@@ -1715,17 +1715,17 @@ if ( is_master() ) write(*,*) 'CALL atmos_global_diag_init'
          do ix = 1, blen
            i = Atm_block%index(nb)%ii(ix)
            j = Atm_block%index(nb)%jj(ix)
-           IPD_Data(nb)%Statein%prer(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%prer(i,j)))
-           IPD_Data(nb)%Statein%pres(ix) = _DBL_(_RL_(Atm(mygrid)%inline_mp%pres(i,j)))
+           IPD_Data(nb)%Statein%prer(ix) = _DBL_(Atm(mygrid)%inline_mp%prer(i,j))
+           IPD_Data(nb)%Statein%pres(ix) = _DBL_(Atm(mygrid)%inline_mp%pres(i,j))
            do k = 1, npz
              k1 = npz+1-k ! flipping the index
-             IPD_Data(nb)%Statein%effc(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effc(i,j,k1)))
-             IPD_Data(nb)%Statein%effi(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effi(i,j,k1)))
+             IPD_Data(nb)%Statein%effc(ix,k) = _DBL_(Atm(mygrid)%inline_mp%effc(i,j,k1))
+             IPD_Data(nb)%Statein%effi(ix,k) = _DBL_(Atm(mygrid)%inline_mp%effi(i,j,k1))
              if (Atm(mygrid)%flagstruct%ncat .gt. 1) then
-               IPD_Data(nb)%Statein%effs(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effs(i,j,k1)))
+               IPD_Data(nb)%Statein%effs(ix,k) = _DBL_(Atm(mygrid)%inline_mp%effs(i,j,k1))
              endif
              if (Atm(mygrid)%flagstruct%ncat .gt. 2) then
-               IPD_Data(nb)%Statein%effg(ix,k) = _DBL_(_RL_(Atm(mygrid)%inline_mp%effg(i,j,k1)))
+               IPD_Data(nb)%Statein%effg(ix,k) = _DBL_(Atm(mygrid)%inline_mp%effg(i,j,k1))
              endif
            enddo
          enddo
