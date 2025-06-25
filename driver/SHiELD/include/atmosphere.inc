@@ -120,21 +120,12 @@
  subroutine GET_STOCK_PE_(index, value)
    integer, intent(in) :: index
    real(ATMOSPHERE_KIND_),   intent(out) :: value
-
-#ifdef USE_STOCK
-   include 'stock.inc'
-#endif
-
    real(ATMOSPHERE_KIND_) wm(isc:iec,jsc:jec)
    integer i,j,k
 
    select case (index)
 
-#ifdef USE_STOCK
-   case (ISTOCK_WATER)
-#else
    case (1)
-#endif
 
 !----------------------
 ! Perform vertical sum:
@@ -145,7 +136,7 @@
            do k=1,npz
               do i=isc,iec
 ! Warning: the following works only with AM2 physics: water vapor; cloud water, cloud ice.
-                 wm(i,j) = wm(i,j) + _DBL_(_RL_(Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
+                 wm(i,j) = wm(i,j) + _DBL_((Atm(mygrid)%delp(i,j,k) * ( Atm(mygrid)%q(i,j,k,sphum)   +  &
                                                                  Atm(mygrid)%q(i,j,k,liq_wat) +  &
                                                                  Atm(mygrid)%q(i,j,k,ice_wat) )))
               enddo
