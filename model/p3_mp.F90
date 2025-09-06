@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.4                                                                     !
-! Last updated:  2025 May                                                                  !
+! Version:       5.4.5                                                                     !
+! Last updated:  2025 June                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -139,6 +139,9 @@
  logical :: debug_on = .false.        ! logical switch for internal debug checks
  logical :: scpf_on  = .false.        ! switch for activation of SCPF scheme
 
+ logical :: log_ModAdvZitot = .true.  ! switch to use scaled Zitot advection and mixing (Zitot*Nitot)^(1/2)
+ logical :: log_full3Mom    = .false. ! switch to turn on fully 3-moment ice
+
  logical :: log_predictSsat = .false. ! prediction of supersaturation
  logical :: log_liqsatadj = .false.   ! to remove any supersaturation w.r.t to water at the end of P3
  logical :: log_predictNc = .true.    ! .T. (.F.) for prediction (specification) of Nc
@@ -155,7 +158,7 @@
 
  namelist / p3_mp_nml / log_trplMomI, log_liqfrac, clbfact_dep, clbfact_sub, debug_on, scpf_on, &
                         dt_max, log_predictNc, cp_heating, scpf_pfrac, scpf_resfact, iparam, &
-                        rparam, log_liqsatadj, log_predictSsat
+                        rparam, log_liqsatadj, log_predictSsat, log_ModAdvZitot, log_full3Mom
 
  contains
 
@@ -187,7 +190,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.4'
+ character(len=1024), parameter :: version_p3                    = '5.4.5'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -2925,8 +2928,6 @@ subroutine mp_p3_wrapper_shield(qvap_m,qvap,temp_m,temp,dt,ww,delz,delp,kount,wa
 ! real, dimension(kts:kte) :: mu_i_old,mutend1,mutend2,mutend3,mutend4,mutend5,mutend0,mu_i_old2,mutend6
 ! real, dimension(kts:kte) :: mu1,mu2,mu3,mu4,mu5,mu6,mu7
 ! logical, parameter                :: log_muDiagnostics   = .true.   ! switch to turn on mu_i budget analysis (not in current version)
- logical, parameter                :: log_ModAdvZitot     = .true.   ! switch to use scaled Zitot advection and mixing (Zitot*Nitot)^(1/2)
- logical, parameter                :: log_full3Mom        = .true.   ! switch to turn on fully 3-moment ice
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
 !-----------------------------------------------------------------------------------!
@@ -3219,8 +3220,7 @@ call cpu_time(timer_start(2))
              if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
                 qr(i,k) = qr(i,k) + qitot(i,k,iice)
                 nr(i,k) = nr(i,k) + nitot(i,k,iice)
-                th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*        &
-                                    xlf(i,k)*inv_cp
+                th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*inv_cp
                 qitot(i,k,iice) = 0.
                 nitot(i,k,iice) = 0.
                 qirim(i,k,iice) = 0.
@@ -4267,7 +4267,7 @@ call cpu_time(timer_start(3))
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
        !if (log_LiquidFrac) then
-       aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*         &
+         aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*      &
                (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
        !else
        !  if (t(i,k).lt.273.15) then
@@ -4334,16 +4334,15 @@ call cpu_time(timer_start(3))
 
        ! if (log_LiquidFrac) then
 
-              ! Sublimation/deposition of ice
               if (qitot(i,k,iice).ge.qsmall) then
                  if (qiliq(i,k,iice)/qitot(i,k,iice).lt.0.01) then
-                 !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
-   !Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-   !                 qidep(iice) = ((aaa*epsi(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsi(iice)*oxx*               &
-   !                               (1.-dexp(-dble(xx*dt))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi)*SCF(k)
-                    qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*  &
-                                  epsi(iice)*oxx*(1.-dexp(-dble(xx*dt))))*oabi+        &
-                                  (qvs(i,k)-dumqvi)*epsi(iice)*oabi
+              ! Sublimation/deposition of ice
+              !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
+!Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
+!                 qidep(iice) = ((aaa*epsi(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsi(iice)*oxx*               &
+!                               (1.-dexp(-dble(xx*dt))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi)*SCF(k)
+                    qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
+                                  (1.-dexp(-dble(xx*dt))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi
                  endif
               endif
 
